@@ -14,6 +14,16 @@ class AppTheme {
       useMaterial3: true,
       appBarTheme: const AppBarTheme(
         centerTitle: true,
+        backgroundColor: AppColors.splashBottom,
+        surfaceTintColor: AppColors.splashBottom,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.white),
+        titleTextStyle: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w900,
+          fontSize: 18,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(

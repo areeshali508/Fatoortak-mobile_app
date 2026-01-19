@@ -4,8 +4,15 @@ import '../../app/app_routes.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_responsive.dart';
 
-class AppDrawer extends StatelessWidget {
+class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
+
+  @override
+  State<AppDrawer> createState() => _AppDrawerState();
+}
+
+class _AppDrawerState extends State<AppDrawer> {
+  bool _salesExpanded = false;
 
   void _comingSoon(BuildContext context) {
     Navigator.of(context).pop();
@@ -15,9 +22,25 @@ class AppDrawer extends StatelessWidget {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final String? currentRoute = ModalRoute.of(context)?.settings.name;
+    final bool salesSelected = currentRoute == AppRoutes.invoices ||
+        currentRoute == AppRoutes.createInvoice ||
+        currentRoute == AppRoutes.creditNotes;
+    if (salesSelected && !_salesExpanded) {
+      setState(() => _salesExpanded = true);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final String? currentRoute = ModalRoute.of(context)?.settings.name;
     final bool dashboardSelected = currentRoute == AppRoutes.dashboard;
+    final bool invoicesSelected =
+        currentRoute == AppRoutes.invoices || currentRoute == AppRoutes.createInvoice;
+    final bool creditNotesSelected = currentRoute == AppRoutes.creditNotes;
+    final bool salesSelected = invoicesSelected || creditNotesSelected;
 
     return Drawer(
       backgroundColor: Colors.transparent,
@@ -190,10 +213,51 @@ class AppDrawer extends StatelessWidget {
                       child: _DrawerItem(
                         icon: Icons.attach_money,
                         label: 'Sales',
-                        trailing: Icons.keyboard_arrow_down,
-                        onTap: () => _comingSoon(context),
+                        selected: salesSelected,
+                        trailing: _salesExpanded
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                        onTap: () {
+                          setState(() => _salesExpanded = !_salesExpanded);
+                        },
                       ),
                     ),
+                    if (_salesExpanded)
+                      Padding(
+                        padding:
+                            EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
+                        child: _DrawerItem(
+                          icon: Icons.receipt_long_outlined,
+                          label: 'Invoices',
+                          selected: invoicesSelected,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (currentRoute == AppRoutes.invoices) {
+                              return;
+                            }
+                            Navigator.of(context)
+                                .pushReplacementNamed(AppRoutes.invoices);
+                          },
+                        ),
+                      ),
+                    if (_salesExpanded)
+                      Padding(
+                        padding:
+                            EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
+                        child: _DrawerItem(
+                          icon: Icons.note_alt_outlined,
+                          label: 'Credit Notes',
+                          selected: creditNotesSelected,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (currentRoute == AppRoutes.creditNotes) {
+                              return;
+                            }
+                            Navigator.of(context)
+                                .pushReplacementNamed(AppRoutes.creditNotes);
+                          },
+                        ),
+                      ),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: hPad),
                       child: _DrawerItem(

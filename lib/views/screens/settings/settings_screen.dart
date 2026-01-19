@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../app/app_routes.dart';
+import '../../../controllers/auth_controller.dart';
+import '../../../controllers/settings_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
 import '../../widgets/common/app_splash_logo.dart';
@@ -13,12 +16,12 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _pushNotifications = true;
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
+        final SettingsController settingsCtrl =
+            context.watch<SettingsController>();
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 6),
           16,
@@ -114,10 +117,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingsSwitchTile(
                       icon: Icons.notifications_outlined,
                       title: 'Push Notifications',
-                      value: _pushNotifications,
-                      onChanged: (bool v) => setState(() {
-                        _pushNotifications = v;
-                      }),
+                      value: settingsCtrl.pushNotifications,
+                      onChanged: (bool v) =>
+                          context.read<SettingsController>().setPushNotifications(v),
                     ),
                   ],
                 ),
@@ -166,7 +168,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: 'Log Out',
                       color: const Color(0xFFD93025),
                       showChevron: false,
-                      onTap: () {
+                      onTap: () async {
+                        await context.read<AuthController>().signOut();
+                        if (!context.mounted) return;
                         Navigator.of(context)
                             .pushReplacementNamed(AppRoutes.login);
                       },

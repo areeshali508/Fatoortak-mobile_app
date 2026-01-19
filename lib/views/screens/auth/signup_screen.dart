@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../app/app_routes.dart';
+import '../../../controllers/auth_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
 import '../../widgets/common/app_splash_logo.dart';
@@ -16,6 +18,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _obscure = true;
   bool _obscureConfirm = true;
   bool _acceptedTerms = false;
+
+  final TextEditingController _fullNameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+
+  @override
+  void dispose() {
+    _fullNameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -187,6 +206,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             hintText: 'e.g. Ahmed Ali',
                             prefixIcon: Icons.person_outline,
                             obscureText: false,
+                            controller: _fullNameController,
                           ),
                           SizedBox(height: fieldGap),
                           _FieldLabel(
@@ -205,6 +225,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             hintText: 'name@company.com',
                             prefixIcon: Icons.mail_outline,
                             obscureText: false,
+                            controller: _emailController,
                           ),
                           SizedBox(height: fieldGap),
                           _FieldLabel(
@@ -237,6 +258,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   hintText: '5X XXX XXXX',
                                   prefixIcon: Icons.phone_outlined,
                                   obscureText: false,
+                                  controller: _phoneController,
                                 ),
                               ),
                             ],
@@ -258,6 +280,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             hintText: '••••••••',
                             prefixIcon: Icons.lock_outline,
                             obscureText: _obscure,
+                            controller: _passwordController,
                             suffix: IconButton(
                               onPressed: () => setState(() {
                                 _obscure = !_obscure;
@@ -298,6 +321,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             hintText: '••••••••',
                             prefixIcon: Icons.lock_reset_outlined,
                             obscureText: _obscureConfirm,
+                            controller: _confirmPasswordController,
                             suffix: IconButton(
                               onPressed: () => setState(() {
                                 _obscureConfirm = !_obscureConfirm;
@@ -379,7 +403,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           SizedBox(
                             height: btnH,
                             child: ElevatedButton(
-                              onPressed: () {
+                              onPressed: () async {
+                                final AuthController auth =
+                                    context.read<AuthController>();
+                                final bool ok = await auth.signUp(
+                                  fullName: _fullNameController.text.trim(),
+                                  email: _emailController.text.trim(),
+                                  phone: _phoneController.text.trim(),
+                                  password: _passwordController.text,
+                                );
+                                if (!context.mounted || !ok) return;
                                 Navigator.of(context).pushReplacementNamed(
                                   AppRoutes.dashboard,
                                 );
@@ -552,6 +585,7 @@ class _SignupTextField extends StatelessWidget {
   final IconData prefixIcon;
   final bool obscureText;
   final Widget? suffix;
+  final TextEditingController? controller;
 
   const _SignupTextField({
     required this.constraints,
@@ -559,6 +593,7 @@ class _SignupTextField extends StatelessWidget {
     required this.prefixIcon,
     required this.obscureText,
     this.suffix,
+    this.controller,
   });
 
   @override
@@ -584,6 +619,7 @@ class _SignupTextField extends StatelessWidget {
     return SizedBox(
       height: fieldH,
       child: TextField(
+        controller: controller,
         obscureText: obscureText,
         textAlignVertical: TextAlignVertical.center,
         decoration: InputDecoration(

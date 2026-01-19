@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../app/app_routes.dart';
+import '../../../controllers/dashboard_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
+import '../../../models/dashboard.dart';
 import '../../layout/app_drawer.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -13,9 +16,6 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  int _bottomIndex = 0;
-  int _filterIndex = 0;
-
   void _showComingSoon() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Coming soon')),
@@ -23,11 +23,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _onBottomTap(int index) {
+    final DashboardController ctrl = context.read<DashboardController>();
+    if (index == 1) {
+      Navigator.of(context).pushReplacementNamed(AppRoutes.invoices);
+      return;
+    }
     if (index == 3) {
       Navigator.of(context).pushNamed(AppRoutes.settings);
       return;
     }
-    setState(() => _bottomIndex = index);
+    ctrl.setBottomIndex(index);
     if (index != 0) {
       _showComingSoon();
     }
@@ -37,6 +42,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
+        final DashboardController ctrl = context.watch<DashboardController>();
+        final List<DashboardMetricModel> metrics = ctrl.topMetrics;
+        final DashboardProgressModel progress = ctrl.paidInvoicesProgress;
+        final DashboardTrendModel trend = ctrl.salesTrend;
+        final List<DashboardStatModel> stats = ctrl.stats;
+        final List<DashboardCustomerModel> customers = ctrl.recentCustomers;
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
           16,
@@ -102,8 +113,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: <Widget>[
                   _FilterChips(
                     constraints: constraints,
-                    index: _filterIndex,
-                    onChanged: (int v) => setState(() => _filterIndex = v),
+                    index: ctrl.filterIndex,
+                    labels: ctrl.filterLabels,
+                    onChanged: ctrl.setFilterIndex,
                   ),
                   SizedBox(height: gap),
                   Row(
@@ -111,11 +123,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Expanded(
                         child: _MetricCard(
                           constraints: constraints,
-                          icon: Icons.account_balance_wallet_outlined,
-                          title: 'Revenue',
-                          value: 'SAR 11,842',
-                          trend: '+12%',
-                          trendUp: true,
+                          icon: metrics.first.icon,
+                          title: metrics.first.title,
+                          value: metrics.first.value,
+                          trend: metrics.first.trend,
+                          trendUp: metrics.first.trendUp,
                         ),
                       ),
                       SizedBox(width: AppResponsive.clamp(
@@ -126,11 +138,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Expanded(
                         child: _MetricCard(
                           constraints: constraints,
-                          icon: Icons.receipt_long_outlined,
-                          title: 'Invoices',
-                          value: '45',
-                          trend: '+5%',
-                          trendUp: true,
+                          icon: metrics.length > 1
+                              ? metrics[1].icon
+                              : Icons.receipt_long_outlined,
+                          title: metrics.length > 1 ? metrics[1].title : 'Invoices',
+                          value: metrics.length > 1 ? metrics[1].value : '0',
+                          trend: metrics.length > 1 ? metrics[1].trend : '+0%',
+                          trendUp: metrics.length > 1 ? metrics[1].trendUp : true,
                         ),
                       ),
                     ],
@@ -138,26 +152,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   SizedBox(height: gap),
                   _ProgressCard(
                     constraints: constraints,
-                    title: 'Paid Invoices',
-                    value: 'SAR 8,242',
-                    subtitle: '68% of goal',
-                    progress: 0.68,
+                    title: progress.title,
+                    value: progress.value,
+                    subtitle: progress.subtitle,
+                    progress: progress.progress,
                   ),
                   SizedBox(height: gap),
-                  _TrendCard(constraints: constraints, onViewReport: _showComingSoon),
+                  _TrendCard(
+                    constraints: constraints,
+                    onViewReport: _showComingSoon,
+                    trend: trend,
+                  ),
                   SizedBox(height: gap),
                   Row(
                     children: <Widget>[
                       Expanded(
                         child: _StatCard(
                           constraints: constraints,
-                          title: 'TOTAL CUSTOMERS',
-                          value: '1,284',
-                          subtitle: 'All time',
-                          icon: Icons.groups_outlined,
-                          accent: AppColors.primary,
-                          showDot: false,
-                          deltaText: null,
+                          title: stats.first.title,
+                          value: stats.first.value,
+                          subtitle: stats.first.subtitle,
+                          icon: stats.first.icon,
+                          accent: stats.first.accent,
+                          showDot: stats.first.showDot,
+                          deltaText: stats.first.deltaText,
                         ),
                       ),
                       SizedBox(width: AppResponsive.clamp(
@@ -168,13 +186,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Expanded(
                         child: _StatCard(
                           constraints: constraints,
-                          title: 'ACTIVE NOW',
-                          value: '142',
-                          subtitle: '+8% vs yesterday',
-                          icon: Icons.circle,
-                          accent: const Color(0xFF1DB954),
-                          showDot: true,
-                          deltaText: '+8% vs yesterday',
+                          title: stats.length > 1 ? stats[1].title : 'ACTIVE NOW',
+                          value: stats.length > 1 ? stats[1].value : '0',
+                          subtitle:
+                              stats.length > 1 ? stats[1].subtitle : '+0% vs yesterday',
+                          icon: stats.length > 1 ? stats[1].icon : Icons.circle,
+                          accent: stats.length > 1
+                              ? stats[1].accent
+                              : const Color(0xFF1DB954),
+                          showDot: stats.length > 1 ? stats[1].showDot : true,
+                          deltaText:
+                              stats.length > 1 ? stats[1].deltaText : '+0% vs yesterday',
                         ),
                       ),
                     ],
@@ -202,36 +224,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ],
                   ),
-                  _CustomerTile(
-                    constraints: constraints,
-                    name: 'Sarah Williams',
-                    time: '2 hours ago',
-                    amount: 'SAR 1,200',
-                    initials: 'S',
-                    color: const Color(0xFFFFD6D6),
-                  ),
-                  _CustomerTile(
-                    constraints: constraints,
-                    name: 'Michael Chen',
-                    time: '5 hours ago',
-                    amount: 'SAR 850',
-                    initials: 'M',
-                    color: const Color(0xFFD9EEFF),
-                  ),
-                  _CustomerTile(
-                    constraints: constraints,
-                    name: 'John Doe Corp',
-                    time: '1 day ago',
-                    amount: 'SAR 3,420',
-                    initials: 'JD',
-                    color: const Color(0xFFE8E1FF),
-                  ),
+                  ...customers.map((DashboardCustomerModel c) {
+                    return _CustomerTile(
+                      constraints: constraints,
+                      name: c.name,
+                      time: c.time,
+                      amount: c.amount,
+                      initials: c.initials,
+                      color: c.color,
+                    );
+                  }),
                 ],
               ),
             ),
           ),
           bottomNavigationBar: BottomNavigationBar(
-            currentIndex: _bottomIndex,
+            currentIndex: ctrl.bottomIndex,
             onTap: _onBottomTap,
             type: BottomNavigationBarType.fixed,
             selectedItemColor: AppColors.primary,
@@ -264,38 +272,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
 class _FilterChips extends StatelessWidget {
   final BoxConstraints constraints;
   final int index;
+  final List<String> labels;
   final ValueChanged<int> onChanged;
 
   const _FilterChips({
     required this.constraints,
     required this.index,
+    required this.labels,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
+    final List<String> items = labels.length >= 3
+        ? labels.take(3).toList()
+        : const <String>['Last 30 Days', 'Regions', 'Services'];
     return Row(
       children: <Widget>[
-        _Pill(
-          constraints: constraints,
-          label: 'Last 30 Days',
-          selected: index == 0,
-          onTap: () => onChanged(0),
-        ),
-        const SizedBox(width: 10),
-        _Pill(
-          constraints: constraints,
-          label: 'Regions',
-          selected: index == 1,
-          onTap: () => onChanged(1),
-        ),
-        const SizedBox(width: 10),
-        _Pill(
-          constraints: constraints,
-          label: 'Services',
-          selected: index == 2,
-          onTap: () => onChanged(2),
-        ),
+        for (int i = 0; i < 3; i++) ...<Widget>[
+          if (i != 0) const SizedBox(width: 10),
+          _Pill(
+            constraints: constraints,
+            label: items[i],
+            selected: index == i,
+            onTap: () => onChanged(i),
+          ),
+        ],
       ],
     );
   }
@@ -532,13 +534,18 @@ class _ProgressCard extends StatelessWidget {
 class _TrendCard extends StatelessWidget {
   final BoxConstraints constraints;
   final VoidCallback onViewReport;
+  final DashboardTrendModel trend;
 
-  const _TrendCard({required this.constraints, required this.onViewReport});
+  const _TrendCard({
+    required this.constraints,
+    required this.onViewReport,
+    required this.trend,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final List<double> values = <double>[0.35, 0.75, 0.6, 0.45, 0.65, 0.4, 0.48];
-    const List<String> labels = <String>['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final List<double> values = trend.values;
+    final List<String> labels = trend.labels;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -575,7 +582,7 @@ class _TrendCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: List<Widget>.generate(values.length, (int i) {
-                final bool highlight = i == 3;
+                final bool highlight = i == trend.highlightIndex;
                 return Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 5),

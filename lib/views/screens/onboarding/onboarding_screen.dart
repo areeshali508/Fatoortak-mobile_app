@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../app/app_routes.dart';
+import '../../../controllers/onboarding_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
+import '../../../models/onboarding.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -13,7 +16,6 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
-  int _index = 0;
 
   @override
   void dispose() {
@@ -29,30 +31,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  void _next() {
-    if (_index < 3) {
-      _goTo(_index + 1);
-      return;
+  void _handleAction(OnboardingAction action) {
+    switch (action.kind) {
+      case OnboardingActionKind.goToPage:
+        _goTo(action.pageIndex ?? 0);
+        return;
+      case OnboardingActionKind.goLogin:
+        Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+        return;
+      case OnboardingActionKind.goSignup:
+        Navigator.of(context).pushReplacementNamed(AppRoutes.signup);
+        return;
     }
-    _finish();
-  }
-
-  void _finish() {
-    Navigator.of(context).pushReplacementNamed(AppRoutes.login);
-  }
-
-  void _goLogin() {
-    Navigator.of(context).pushReplacementNamed(AppRoutes.login);
-  }
-
-  void _goSignup() {
-    Navigator.of(context).pushReplacementNamed(AppRoutes.signup);
   }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
+        final OnboardingController ctrl = context.watch<OnboardingController>();
         final double dotsToButtonGap = AppResponsive.clamp(
           AppResponsive.scaledByHeight(constraints, 10),
           8,
@@ -70,181 +67,128 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             children: <Widget>[
               PageView(
                 controller: _pageController,
-                onPageChanged: (int i) => setState(() => _index = i),
-                children: <Widget>[
-                  _OnboardingPage(
+                onPageChanged: ctrl.setIndex,
+                children: ctrl.pages.map((OnboardingPageModel page) {
+                  final bool lastPage =
+                      ctrl.pages.isNotEmpty && page == ctrl.pages.last;
+                  final MainAxisAlignment dotsAlign = lastPage
+                      ? MainAxisAlignment.start
+                      : MainAxisAlignment.center;
+                  final Color dotsActiveColor =
+                      lastPage ? Colors.white : AppColors.primary;
+                  final Color dotsInactiveColor = AppColors.dotInactive;
+                  final double activeWidthMultiplier = lastPage ? 3.4 : 3.0;
+                  final double dotHorizontalMargin = lastPage ? 4 : 5;
+
+                  return _OnboardingPage(
                     constraints: constraints,
-                    imageAsset: 'assets/images/onboarding_image_1.png',
-                    title: 'Welcome to Your Smart\nBusiness Platform',
-                    subtitle: 'Designed for modern businesses in Saudi\nArabia',
-                    textAlign: TextAlign.center,
-                    textCrossAxisAlignment: CrossAxisAlignment.center,
+                    imageAsset: page.imageAsset,
+                    imageAlignment: page.imageAlignment,
+                    title: page.title,
+                    subtitle: page.subtitle,
+                    textAlign: page.textAlign,
+                    textCrossAxisAlignment: page.textCrossAxisAlignment,
+                    listItems: page.features
+                        ?.map((OnboardingFeatureModel f) => _FeatureItemData(
+                              icon: f.icon,
+                              text: f.text,
+                            ))
+                        .toList(),
                     bottom: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        SizedBox(height: dotsBottomGap),
-                        _PageDots(
-                          index: _index,
-                          count: 4,
-                          constraints: constraints,
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        SizedBox(
+                          height: lastPage
+                              ? AppResponsive.clamp(
+                                  AppResponsive.scaledByHeight(constraints, 14),
+                                  10,
+                                  22,
+                                )
+                              : dotsBottomGap,
                         ),
-                        SizedBox(height: dotsToButtonGap),
+                        _PageDots(
+                          index: ctrl.currentIndex,
+                          count: ctrl.pageCount,
+                          constraints: constraints,
+                          mainAxisAlignment: dotsAlign,
+                          activeColor: dotsActiveColor,
+                          inactiveColor: dotsInactiveColor,
+                          activeWidthMultiplier: activeWidthMultiplier,
+                          dotHorizontalMargin: dotHorizontalMargin,
+                        ),
+                        SizedBox(
+                          height: lastPage
+                              ? AppResponsive.clamp(
+                                  AppResponsive.scaledByHeight(constraints, 16),
+                                  12,
+                                  22,
+                                )
+                              : dotsToButtonGap,
+                        ),
                         _BottomActions(
                           constraints: constraints,
-                          primaryLabel: 'Get Started',
-                          onPrimary: _next,
-                          onSkip: _finish,
-                        ),
-                      ],
-                    ),
-                  ),
-                  _OnboardingPage(
-                    constraints: constraints,
-                    imageAsset: 'assets/images/onboarding_image_2.png',
-                    title: 'Manage Your Business with\nConfidence',
-                    subtitle:
-                        'Invoices, products, customers, and reports all\nmanaged from your mobile phone.',
-                    textAlign: TextAlign.center,
-                    textCrossAxisAlignment: CrossAxisAlignment.center,
-                    bottom: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        SizedBox(height: dotsBottomGap),
-                        _PageDots(
-                          index: _index,
-                          count: 4,
-                          constraints: constraints,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                        ),
-                        SizedBox(height: dotsToButtonGap),
-                        _BottomActions(
-                          constraints: constraints,
-                          primaryLabel: 'Next',
-                          onPrimary: _next,
-                          onSkip: _finish,
-                        ),
-                      ],
-                    ),
-                  ),
-                  _OnboardingPage(
-                    constraints: constraints,
-                    imageAsset: 'assets/images/onboarding_image_3.png',
-                    title: 'Built for Saudi\nRegulations',
-                    subtitle: null,
-                    textAlign: TextAlign.left,
-                    textCrossAxisAlignment: CrossAxisAlignment.start,
-                    listItems: const <_FeatureItemData>[
-                      _FeatureItemData(
-                        icon: Icons.verified,
-                        text: 'ZATCA-compliant e-invoicing',
-                      ),
-                      _FeatureItemData(
-                        icon: Icons.receipt_long,
-                        text: 'VAT-ready system',
-                      ),
-                      _FeatureItemData(
-                        icon: Icons.cloud_done,
-                        text: 'Secure cloud-based data',
-                      ),
-                    ],
-                    bottom: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        SizedBox(height: dotsBottomGap),
-                        _PageDots(
-                          index: _index,
-                          count: 4,
-                          constraints: constraints,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                        ),
-                        SizedBox(height: dotsToButtonGap),
-                        _BottomActions(
-                          constraints: constraints,
-                          primaryLabel: 'Next',
-                          onPrimary: _next,
-                          onSkip: _finish,
-                        ),
-                      ],
-                    ),
-                  ),
-                  _OnboardingPage(
-                    constraints: constraints,
-                    imageAsset: 'assets/images/onboarding_image_4.png',
-                    imageAlignment: const Alignment(-0.9, -0.15),
-                    title: 'Our Vision',
-                    subtitle:
-                        'Empowering businesses through digital\ntransformation and supporting growth across the\nKingdom.',
-                    textAlign: TextAlign.left,
-                    textCrossAxisAlignment: CrossAxisAlignment.start,
-                    bottom: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        SizedBox(height: AppResponsive.clamp(
-                          AppResponsive.scaledByHeight(constraints, 14),
-                          10,
-                          22,
-                        )),
-                        _PageDots(
-                          index: _index,
-                          count: 4,
-                          constraints: constraints,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          activeColor: Colors.white,
-                          inactiveColor: AppColors.dotInactive,
-                          activeWidthMultiplier: 3.4,
-                          dotHorizontalMargin: 4,
-                        ),
-                        SizedBox(height: AppResponsive.clamp(
-                          AppResponsive.scaledByHeight(constraints, 16),
-                          12,
-                          22,
-                        )),
-                        _BottomActions(
-                          constraints: constraints,
-                          primaryLabel: 'Start Your Journey',
-                          onPrimary: _goSignup,
-                          onSkip: null,
-                          footer: Padding(
-                            padding: EdgeInsets.only(top: AppResponsive.clamp(
-                              AppResponsive.scaledByHeight(constraints, 14),
-                              10,
-                              18,
-                            )),
-                            child: GestureDetector(
-                              onTap: _goLogin,
-                              behavior: HitTestBehavior.opaque,
-                              child: RichText(
-                                textAlign: TextAlign.center,
-                                text: TextSpan(
-                                  style: TextStyle(
-                                    color: AppColors.textSecondaryOnDark,
-                                    fontSize: AppResponsive.clamp(
-                                      AppResponsive.sp(constraints, 14),
-                                      12,
-                                      16,
+                          primaryLabel: page.primaryLabel,
+                          onPrimary: () =>
+                              _handleAction(ctrl.onPrimaryPressed()),
+                          onSkip: page.showSkip
+                              ? () async {
+                                  final OnboardingAction action =
+                                      await ctrl.onSkipPressed();
+                                  if (!context.mounted) return;
+                                  _handleAction(action);
+                                }
+                              : null,
+                          footer: page.showFooterLogin
+                              ? Padding(
+                                  padding: EdgeInsets.only(
+                                    top: AppResponsive.clamp(
+                                      AppResponsive.scaledByHeight(
+                                          constraints, 14),
+                                      10,
+                                      18,
                                     ),
-                                    height: 1.35,
                                   ),
-                                  children: const <TextSpan>[
-                                    TextSpan(text: 'Already have an account? '),
-                                    TextSpan(
-                                      text: 'Sign In',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700,
+                                  child: GestureDetector(
+                                    onTap: () async {
+                                      final OnboardingAction action =
+                                          await ctrl.onFooterLoginPressed();
+                                      if (!context.mounted) return;
+                                      _handleAction(action);
+                                    },
+                                    behavior: HitTestBehavior.opaque,
+                                    child: RichText(
+                                      textAlign: TextAlign.center,
+                                      text: TextSpan(
+                                        style: TextStyle(
+                                          color: AppColors.textSecondaryOnDark,
+                                          fontSize: AppResponsive.clamp(
+                                            AppResponsive.sp(constraints, 14),
+                                            12,
+                                            16,
+                                          ),
+                                          height: 1.35,
+                                        ),
+                                        children: const <TextSpan>[
+                                          TextSpan(
+                                              text: 'Already have an account? '),
+                                          TextSpan(
+                                            text: 'Sign In',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
+                                  ),
+                                )
+                              : null,
                         ),
                       ],
                     ),
-                  ),
-                ],
+                  );
+                }).toList(),
               ),
             ],
           ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../app/app_routes.dart';
+import '../../../controllers/auth_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
 import '../../widgets/common/app_splash_logo.dart';
@@ -13,6 +15,14 @@ class ForgotPasswordScreen extends StatefulWidget {
 }
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+  final TextEditingController _emailController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final Color bgTop = AppColors.splashTop;
@@ -143,6 +153,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               constraints: constraints,
                               hintText: 'Email Address',
                               icon: Icons.mail_outline,
+                              controller: _emailController,
                             ),
                             SizedBox(height: AppResponsive.clamp(
                               AppResponsive.scaledByHeight(constraints, 18),
@@ -152,7 +163,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             SizedBox(
                               height: btnH,
                               child: ElevatedButton(
-                                onPressed: () {
+                                onPressed: () async {
+                                  final AuthController auth =
+                                      context.read<AuthController>();
+                                  await auth.sendPasswordResetLink(
+                                    email: _emailController.text.trim(),
+                                  );
+                                  if (!context.mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text(
@@ -295,11 +312,13 @@ class _Field extends StatelessWidget {
   final BoxConstraints constraints;
   final String hintText;
   final IconData icon;
+  final TextEditingController? controller;
 
   const _Field({
     required this.constraints,
     required this.hintText,
     required this.icon,
+    this.controller,
   });
 
   @override
@@ -311,6 +330,7 @@ class _Field extends StatelessWidget {
     );
 
     return TextField(
+      controller: controller,
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: const TextStyle(color: Color(0xFF9AA5B6)),

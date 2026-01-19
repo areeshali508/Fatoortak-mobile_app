@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../app/app_routes.dart';
+import '../../../controllers/auth_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
 import '../../widgets/common/app_splash_logo.dart';
@@ -15,6 +17,16 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _obscure = true;
   bool _isEnglish = true;
+
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -158,6 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     hintText: 'Email or Username',
                                     prefixIcon: Icons.mail_outline,
                                     obscureText: false,
+                                    controller: _usernameController,
                                   ),
                                   SizedBox(height: fieldGap),
                                   _LoginTextField(
@@ -165,6 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     hintText: 'Password',
                                     prefixIcon: Icons.lock_outline,
                                     obscureText: _obscure,
+                                    controller: _passwordController,
                                     suffix: IconButton(
                                       onPressed: () => setState(() {
                                         _obscure = !_obscure;
@@ -212,7 +226,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                   SizedBox(
                                     height: btnH,
                                     child: ElevatedButton(
-                                      onPressed: () {
+                                      onPressed: () async {
+                                        final AuthController auth =
+                                            context.read<AuthController>();
+                                        final bool ok = await auth.signIn(
+                                          usernameOrEmail:
+                                              _usernameController.text.trim(),
+                                          password: _passwordController.text,
+                                        );
+                                        if (!context.mounted || !ok) return;
                                         Navigator.of(context)
                                             .pushReplacementNamed(
                                           AppRoutes.dashboard,
@@ -407,6 +429,7 @@ class _LoginTextField extends StatelessWidget {
   final IconData prefixIcon;
   final bool obscureText;
   final Widget? suffix;
+  final TextEditingController? controller;
 
   const _LoginTextField({
     required this.constraints,
@@ -414,6 +437,7 @@ class _LoginTextField extends StatelessWidget {
     required this.prefixIcon,
     required this.obscureText,
     this.suffix,
+    this.controller,
   });
 
   @override
@@ -425,6 +449,7 @@ class _LoginTextField extends StatelessWidget {
     );
 
     return TextField(
+      controller: controller,
       obscureText: obscureText,
       decoration: InputDecoration(
         hintText: hintText,
