@@ -133,7 +133,11 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
           18,
         );
 
-        final List<String> titles = <String>['Details', 'Items', 'Summary'];
+        final List<String> stepTitles = <String>[
+          'Details',
+          'Items',
+          'Review',
+        ];
 
         Widget itemsBlock({required bool editable}) {
           if (ctrl.items.isEmpty) {
@@ -307,191 +311,189 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
           );
         }
 
-        Widget content() {
-          if (ctrl.currentStep == 1) {
-            return _SectionCard(
-              title: 'Items',
-              trailing: TextButton.icon(
-                onPressed: _openAddItemSheet,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add Item'),
-              ),
-              child: itemsBlock(editable: true),
-            );
-          }
-
-          if (ctrl.currentStep == 2) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                _SectionCard(
-                  title: 'Summary',
-                  child: Column(
-                    children: <Widget>[
-                      _SummaryRow(
-                        label: 'Credit Note #',
-                        value: ctrl.creditNoteNumberController.text.trim(),
-                      ),
-                      _SummaryRow(
-                        label: 'Issue Date',
-                        value: _fmtDate(ctrl.issueDate),
-                      ),
-                      _SummaryRow(
-                        label: 'Original Invoice',
-                        value: ctrl.originalInvoiceController.text.trim(),
-                      ),
-                      _SummaryRow(
-                        label: 'Customer',
-                        value: ctrl.customerController.text.trim(),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _SectionCard(
-                  title: 'Items',
-                  child: itemsBlock(editable: false),
-                ),
-              ],
-            );
-          }
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _SectionCard(
-                title: 'Credit Note Details',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    _LabeledDropdown<String>(
-                      label: 'Company*',
-                      value: ctrl.company,
-                      items: const <String>[
-                        'Tech Solutions Ltd.',
-                        'Fatoortak Business',
-                      ],
-                      onChanged: (String v) => ctrl.company = v,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
+        Widget stepContent() {
+          switch (ctrl.currentStep) {
+            case 0:
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  _SectionCard(
+                    title: 'Credit Note Details',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        Expanded(
-                          child: TextField(
-                            controller: ctrl.creditNoteNumberController,
-                            decoration: _dec(label: 'Credit Note #'),
-                            style: const TextStyle(
-                              color: Color(0xFF0B1B4B),
-                              fontWeight: FontWeight.w800,
-                              fontSize: 13,
+                        _LabeledDropdown<String>(
+                          label: 'Company*',
+                          value: ctrl.company,
+                          items: const <String>[
+                            'Tech Solutions Ltd.',
+                            'Fatoortak Business',
+                          ],
+                          onChanged: (String v) => ctrl.company = v,
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: TextField(
+                                controller: ctrl.creditNoteNumberController,
+                                decoration: _dec(label: 'Credit Note #'),
+                                style: const TextStyle(
+                                  color: Color(0xFF0B1B4B),
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                ),
+                              ),
                             ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _DateField(
+                                label: 'Issue Date*',
+                                value: _fmtDate(ctrl.issueDate),
+                                onTap: _pickIssueDate,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _LabeledDropdown<String>(
+                          label: 'Currency',
+                          value: ctrl.currency,
+                          items: const <String>['SAR', 'USD', 'EUR'],
+                          onChanged: (String v) => ctrl.currency = v,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _WarningCard(
+                    title: 'Original Invoice*',
+                    helper: 'Required for ZATCA compliance',
+                    child: TextField(
+                      controller: ctrl.originalInvoiceController,
+                      decoration: _dec(
+                        label: '',
+                        hint: 'Search or select invoice number',
+                        prefix:
+                            const Icon(Icons.search, color: Color(0xFF9AA5B6)),
+                      ).copyWith(labelText: null),
+                      style: const TextStyle(
+                        color: Color(0xFF0B1B4B),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _SectionCard(
+                    title: 'Customer',
+                    child: TextField(
+                      controller: ctrl.customerController,
+                      decoration: _dec(
+                        label: 'Customer',
+                        hint: 'Search customer',
+                        prefix:
+                            const Icon(Icons.search, color: Color(0xFF9AA5B6)),
+                      ),
+                      style: const TextStyle(
+                        color: Color(0xFF0B1B4B),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _SectionCard(
+                    title: 'Reason & Notes',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        _LabeledDropdown<String>(
+                          label: 'Reason Type*',
+                          value: ctrl.reasonType,
+                          items: const <String>[
+                            'Select Reason',
+                            'Refund',
+                            'Invoice Correction',
+                            'Discount Adjustment',
+                          ],
+                          onChanged: (String v) => ctrl.reasonType = v,
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: ctrl.reasonDescriptionController,
+                          maxLines: 3,
+                          decoration: _dec(
+                            label: 'Reason Description',
+                            hint: 'Enter reason details...',
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _DateField(
-                            label: 'Issue Date*',
-                            value: _fmtDate(ctrl.issueDate),
-                            onTap: _pickIssueDate,
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: ctrl.termsController,
+                          maxLines: 3,
+                          decoration: _dec(
+                            label: 'Terms & Conditions',
+                            hint: 'Specific terms for this credit note...',
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    _LabeledDropdown<String>(
-                      label: 'Currency',
-                      value: ctrl.currency,
-                      items: const <String>['SAR', 'USD', 'EUR'],
-                      onChanged: (String v) => ctrl.currency = v,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              _WarningCard(
-                title: 'Original Invoice*',
-                helper: 'Required for ZATCA compliance',
-                child: TextField(
-                  controller: ctrl.originalInvoiceController,
-                  decoration: _dec(
-                    label: '',
-                    hint: 'Search or select invoice number',
-                    prefix: const Icon(Icons.search, color: Color(0xFF9AA5B6)),
-                  ).copyWith(labelText: null),
-                  style: const TextStyle(
-                    color: Color(0xFF0B1B4B),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
                   ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _SectionCard(
-                title: 'Customer',
-                child: TextField(
-                  controller: ctrl.customerController,
-                  decoration: _dec(
-                    label: 'Customer',
-                    hint: 'Search customer',
-                    prefix: const Icon(Icons.search, color: Color(0xFF9AA5B6)),
-                  ),
-                  style: const TextStyle(
-                    color: Color(0xFF0B1B4B),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _SectionCard(
+                ],
+              );
+            case 1:
+              return _SectionCard(
                 title: 'Items',
                 trailing: TextButton.icon(
                   onPressed: _openAddItemSheet,
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Add Item'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
                 ),
                 child: itemsBlock(editable: true),
-              ),
-              const SizedBox(height: 12),
-              _SectionCard(
-                title: 'Reason & Notes',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    _LabeledDropdown<String>(
-                      label: 'Reason Type*',
-                      value: ctrl.reasonType,
-                      items: const <String>[
-                        'Select Reason',
-                        'Refund',
-                        'Invoice Correction',
-                        'Discount Adjustment',
+              );
+            case 2:
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  _SectionCard(
+                    title: 'Summary',
+                    child: Column(
+                      children: <Widget>[
+                        _SummaryRow(
+                          label: 'Credit Note #',
+                          value: ctrl.creditNoteNumberController.text.trim(),
+                        ),
+                        _SummaryRow(
+                          label: 'Issue Date',
+                          value: _fmtDate(ctrl.issueDate),
+                        ),
+                        _SummaryRow(
+                          label: 'Original Invoice',
+                          value: ctrl.originalInvoiceController.text.trim(),
+                        ),
+                        _SummaryRow(
+                          label: 'Customer',
+                          value: ctrl.customerController.text.trim(),
+                        ),
                       ],
-                      onChanged: (String v) => ctrl.reasonType = v,
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: ctrl.reasonDescriptionController,
-                      maxLines: 3,
-                      decoration: _dec(
-                        label: 'Reason Description',
-                        hint: 'Enter reason details...',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: ctrl.termsController,
-                      maxLines: 3,
-                      decoration: _dec(
-                        label: 'Terms & Conditions',
-                        hint: 'Specific terms for this credit note...',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
+                  ),
+                  SizedBox(height: gap),
+                  _SectionCard(
+                    title: 'Items',
+                    child: itemsBlock(editable: false),
+                  ),
+                ],
+              );
+            default:
+              return const SizedBox.shrink();
+          }
         }
 
         return Scaffold(
@@ -515,14 +517,14 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  _TabsHeader(
-                    titles: titles,
-                    current: ctrl.currentStep,
+                  _WizardHeader(
+                    titles: stepTitles,
+                    currentStep: ctrl.currentStep,
                     maxStepReached: ctrl.maxStepReached,
-                    onTap: _goToStep,
+                    onTapStep: _goToStep,
                   ),
                   SizedBox(height: gap),
-                  content(),
+                  stepContent(),
                 ],
               ),
             ),
@@ -538,20 +540,45 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                 ),
               ),
               child: ctrl.currentStep == 2
-                  ? ElevatedButton(
-                      onPressed: _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                  ? Row(
+                      children: <Widget>[
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border:
+                                Border.all(color: const Color(0xFFE9EEF5)),
+                            color: Colors.white,
+                          ),
+                          child: IconButton(
+                            onPressed: () {},
+                            icon: const Icon(
+                              Icons.remove_red_eye_outlined,
+                              color: AppColors.primary,
+                            ),
+                          ),
                         ),
-                        textStyle: const TextStyle(
-                          fontWeight: FontWeight.w900,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _submit,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            child: const Text('Save Credit Note'),
+                          ),
                         ),
-                      ),
-                      child: const Text('Save Credit Note'),
+                      ],
                     )
                   : Row(
                       children: <Widget>[
@@ -603,60 +630,80 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
   }
 }
 
-class _TabsHeader extends StatelessWidget {
+class _WizardHeader extends StatelessWidget {
   final List<String> titles;
-  final int current;
+  final int currentStep;
   final int maxStepReached;
-  final ValueChanged<int> onTap;
+  final ValueChanged<int> onTapStep;
 
-  const _TabsHeader({
+  const _WizardHeader({
     required this.titles,
-    required this.current,
+    required this.currentStep,
     required this.maxStepReached,
-    required this.onTap,
+    required this.onTapStep,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      decoration: const BoxDecoration(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFE9EEF5)),
-        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE9EEF5)),
       ),
       child: Row(
         children: List<Widget>.generate(titles.length, (int i) {
-          final bool isActive = i == current;
+          final bool isActive = i == currentStep;
+          final bool isDone = i < currentStep;
           final bool isEnabled = i <= maxStepReached;
+
           return Expanded(
             child: InkWell(
-              onTap: isEnabled ? () => onTap(i) : null,
+              onTap: isEnabled ? () => onTapStep(i) : null,
+              borderRadius: BorderRadius.circular(12),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    Text(
-                      titles[i],
-                      style: TextStyle(
-                        color: isActive
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: isDone || isActive
                             ? AppColors.primary
-                            : const Color(0xFF9AA5B6),
-                        fontWeight: FontWeight.w900,
-                        fontSize: 12,
+                            : const Color(0xFFF3F6FB),
+                        borderRadius: BorderRadius.circular(999),
+                        border: isActive
+                            ? Border.all(color: AppColors.primary, width: 2)
+                            : null,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${i + 1}',
+                          style: TextStyle(
+                            color: isDone || isActive
+                                ? Colors.white
+                                : const Color(0xFF9AA5B6),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 12,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 6),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      height: 3,
-                      width: 46,
-                      decoration: BoxDecoration(
-                        color:
-                            isActive ? AppColors.primary : Colors.transparent,
-                        borderRadius: BorderRadius.circular(999),
+                    Text(
+                      titles[i],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: isActive
+                            ? const Color(0xFF0B1B4B)
+                            : const Color(0xFF9AA5B6),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
                       ),
                     ),
                   ],

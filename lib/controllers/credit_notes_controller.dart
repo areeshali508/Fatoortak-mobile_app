@@ -8,6 +8,9 @@ class CreditNotesController extends ChangeNotifier {
 
   bool _isLoading = false;
   String _searchQuery = '';
+  DateTimeRange? _dateRange;
+  CreditNoteStatus? _statusFilter;
+  CreditNotePaymentStatus? _paymentStatusFilter;
   List<CreditNote> _notes = const <CreditNote>[];
 
   CreditNotesController({required CreditNoteRepository repository})
@@ -16,6 +19,12 @@ class CreditNotesController extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   String get searchQuery => _searchQuery;
+
+  DateTimeRange? get dateRange => _dateRange;
+
+  CreditNoteStatus? get statusFilter => _statusFilter;
+
+  CreditNotePaymentStatus? get paymentStatusFilter => _paymentStatusFilter;
 
   List<CreditNote> get notes => _notes;
 
@@ -45,18 +54,73 @@ class CreditNotesController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setDateRange(DateTimeRange? range) {
+    if (_dateRange == range) {
+      return;
+    }
+    _dateRange = range;
+    notifyListeners();
+  }
+
+  void setStatusFilter(CreditNoteStatus? status) {
+    if (_statusFilter == status) {
+      return;
+    }
+    _statusFilter = status;
+    notifyListeners();
+  }
+
+  void setPaymentStatusFilter(CreditNotePaymentStatus? status) {
+    if (_paymentStatusFilter == status) {
+      return;
+    }
+    _paymentStatusFilter = status;
+    notifyListeners();
+  }
+
   List<CreditNote> get visibleNotes {
     final String q = _searchQuery.toLowerCase();
-    if (q.isEmpty) {
-      return _notes;
+    Iterable<CreditNote> result = _notes;
+
+    if (_statusFilter != null) {
+      result = result.where((CreditNote n) => n.status == _statusFilter);
     }
-    return _notes
-        .where(
-          (CreditNote n) =>
-              n.id.toLowerCase().contains(q) ||
-              n.customer.toLowerCase().contains(q),
-        )
-        .toList();
+
+    if (_paymentStatusFilter != null) {
+      result = result.where(
+        (CreditNote n) => n.paymentStatus == _paymentStatusFilter,
+      );
+    }
+
+    if (_dateRange != null) {
+      final DateTime start = DateTime(
+        _dateRange!.start.year,
+        _dateRange!.start.month,
+        _dateRange!.start.day,
+      );
+      final DateTime end = DateTime(
+        _dateRange!.end.year,
+        _dateRange!.end.month,
+        _dateRange!.end.day,
+        23,
+        59,
+        59,
+      );
+      result = result.where((CreditNote n) {
+        final DateTime d = n.issueDate;
+        return !d.isBefore(start) && !d.isAfter(end);
+      });
+    }
+
+    if (q.isNotEmpty) {
+      result = result.where(
+        (CreditNote n) =>
+            n.id.toLowerCase().contains(q) ||
+            n.customer.toLowerCase().contains(q),
+      );
+    }
+
+    return result.toList();
   }
 
   int get totalNotesCount => _notes.length;
@@ -80,5 +144,64 @@ class CreditNotesController extends ChangeNotifier {
     final String formatted =
         asInt ? total.toStringAsFixed(0) : total.toStringAsFixed(2);
     return '$currency $formatted';
+  }
+
+  String dateLabel(DateTime d) {
+    final String day = d.day.toString().padLeft(2, '0');
+    final String month = d.month.toString().padLeft(2, '0');
+    return '$day/$month/${d.year}';
+  }
+
+  String amountLabel(CreditNote note) {
+    final double total = note.amount;
+    final bool asInt = (total - total.truncateToDouble()).abs() < 0.000001;
+    final String formatted =
+        asInt ? total.toStringAsFixed(0) : total.toStringAsFixed(2);
+    return '${note.currency} $formatted';
+  }
+
+  String get statusFilterLabel {
+    final CreditNoteStatus? s = _statusFilter;
+    if (s == null) {
+      return 'All Status';
+    }
+    switch (s) {
+      case CreditNoteStatus.draft:
+        return 'Draft';
+      case CreditNoteStatus.sent:
+        return 'Sent';
+      case CreditNoteStatus.applied:
+        return 'Applied';
+    }
+  }
+
+  String get paymentStatusFilterLabel {
+    final CreditNotePaymentStatus? s = _paymentStatusFilter;
+    if (s == null) {
+      return 'All Payment Status';
+    }
+    switch (s) {
+      case CreditNotePaymentStatus.pending:
+        return 'Pending';
+      case CreditNotePaymentStatus.refunded:
+        return 'Refunded';
+      case CreditNotePaymentStatus.applied:
+        return 'Applied';
+    }
+  }
+
+  String get dateRangeLabel {
+    final DateTimeRange? r = _dateRange;
+    if (r == null) {
+      return 'Date';
+    }
+
+    String d(DateTime v) {
+      final String day = v.day.toString().padLeft(2, '0');
+      final String month = v.month.toString().padLeft(2, '0');
+      return '$day/$month';
+    }
+
+    return '${d(r.start)} - ${d(r.end)}';
   }
 }

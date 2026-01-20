@@ -1,5 +1,12 @@
 enum CreditNoteStatus {
   draft,
+  sent,
+  applied,
+}
+
+enum CreditNotePaymentStatus {
+  pending,
+  refunded,
   applied,
 }
 
@@ -38,6 +45,7 @@ class CreditNote {
   final String currency;
   final double amount;
   final CreditNoteStatus status;
+  final CreditNotePaymentStatus paymentStatus;
   final List<CreditNoteItem> items;
 
   const CreditNote({
@@ -47,6 +55,7 @@ class CreditNote {
     required this.currency,
     required this.amount,
     required this.status,
+    this.paymentStatus = CreditNotePaymentStatus.pending,
     this.items = const <CreditNoteItem>[],
   });
 }
