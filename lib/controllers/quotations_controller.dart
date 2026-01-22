@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 
-import '../models/credit_note.dart';
-import '../repositories/credit_note_repository.dart';
+import '../models/quotation.dart';
+import '../repositories/quotation_repository.dart';
 
-class CreditNotesController extends ChangeNotifier {
-  final CreditNoteRepository _repository;
+class QuotationsController extends ChangeNotifier {
+  final QuotationRepository _repository;
 
   bool _isLoading = false;
   String _searchQuery = '';
   DateTimeRange? _dateRange;
-  CreditNoteStatus? _statusFilter;
-  CreditNotePaymentStatus? _paymentStatusFilter;
-  List<CreditNote> _notes = const <CreditNote>[];
+  QuotationStatus? _statusFilter;
+  QuotationOutcomeStatus? _outcomeStatusFilter;
+  List<Quotation> _quotations = const <Quotation>[];
 
-  CreditNotesController({required CreditNoteRepository repository})
+  QuotationsController({required QuotationRepository repository})
       : _repository = repository;
 
   bool get isLoading => _isLoading;
@@ -22,23 +22,23 @@ class CreditNotesController extends ChangeNotifier {
 
   DateTimeRange? get dateRange => _dateRange;
 
-  CreditNoteStatus? get statusFilter => _statusFilter;
+  QuotationStatus? get statusFilter => _statusFilter;
 
-  CreditNotePaymentStatus? get paymentStatusFilter => _paymentStatusFilter;
+  QuotationOutcomeStatus? get outcomeStatusFilter => _outcomeStatusFilter;
 
-  List<CreditNote> get notes => _notes;
+  List<Quotation> get quotations => _quotations;
 
-  Future<void> addCreditNote(CreditNote note) async {
-    _notes = <CreditNote>[note, ..._notes];
+  Future<void> addQuotation(Quotation quotation) async {
+    _quotations = <Quotation>[quotation, ..._quotations];
     notifyListeners();
-    await _repository.addCreditNote(note);
+    await _repository.addQuotation(quotation);
   }
 
   Future<void> refresh() async {
     _isLoading = true;
     notifyListeners();
     try {
-      _notes = await _repository.listCreditNotes();
+      _quotations = await _repository.listQuotations();
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -62,7 +62,7 @@ class CreditNotesController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setStatusFilter(CreditNoteStatus? status) {
+  void setStatusFilter(QuotationStatus? status) {
     if (_statusFilter == status) {
       return;
     }
@@ -70,25 +70,25 @@ class CreditNotesController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setPaymentStatusFilter(CreditNotePaymentStatus? status) {
-    if (_paymentStatusFilter == status) {
+  void setOutcomeStatusFilter(QuotationOutcomeStatus? status) {
+    if (_outcomeStatusFilter == status) {
       return;
     }
-    _paymentStatusFilter = status;
+    _outcomeStatusFilter = status;
     notifyListeners();
   }
 
-  List<CreditNote> get visibleNotes {
+  List<Quotation> get visibleQuotations {
     final String q = _searchQuery.toLowerCase();
-    Iterable<CreditNote> result = _notes;
+    Iterable<Quotation> result = _quotations;
 
     if (_statusFilter != null) {
-      result = result.where((CreditNote n) => n.status == _statusFilter);
+      result = result.where((Quotation n) => n.status == _statusFilter);
     }
 
-    if (_paymentStatusFilter != null) {
+    if (_outcomeStatusFilter != null) {
       result = result.where(
-        (CreditNote n) => n.paymentStatus == _paymentStatusFilter,
+        (Quotation n) => n.outcomeStatus == _outcomeStatusFilter,
       );
     }
 
@@ -106,7 +106,7 @@ class CreditNotesController extends ChangeNotifier {
         59,
         59,
       );
-      result = result.where((CreditNote n) {
+      result = result.where((Quotation n) {
         final DateTime d = n.issueDate;
         return !d.isBefore(start) && !d.isAfter(end);
       });
@@ -114,7 +114,7 @@ class CreditNotesController extends ChangeNotifier {
 
     if (q.isNotEmpty) {
       result = result.where(
-        (CreditNote n) =>
+        (Quotation n) =>
             n.id.toLowerCase().contains(q) ||
             n.customer.toLowerCase().contains(q),
       );
@@ -123,29 +123,23 @@ class CreditNotesController extends ChangeNotifier {
     return result.toList();
   }
 
-  int get totalNotesCount => _notes.length;
+  int get totalQuotationsCount => _quotations.length;
 
-  int get draftCount =>
-      _notes.where((CreditNote n) => n.status == CreditNoteStatus.draft).length;
-
-  int get clearedCount => _notes
-      .where((CreditNote n) => n.status == CreditNoteStatus.cleared)
+  int get draftCount => _quotations
+      .where((Quotation n) => n.status == QuotationStatus.draft)
       .length;
 
-  int get reportedCount => _notes
-      .where((CreditNote n) => n.status == CreditNoteStatus.reported)
-      .length;
+  int get sentCount =>
+      _quotations.where((Quotation n) => n.status == QuotationStatus.sent).length;
 
-  int get clearedOrReportedCount => clearedCount + reportedCount;
-
-  double get creditsTotal => _notes.fold<double>(
+  double get quotationsTotal => _quotations.fold<double>(
         0,
-        (double p, CreditNote e) => p + e.amount,
+        (double p, Quotation e) => p + e.amount,
       );
 
-  String get creditsLabel {
+  String get quotationsLabel {
     const String currency = 'SAR';
-    final double total = creditsTotal;
+    final double total = quotationsTotal;
     final bool asInt = (total - total.truncateToDouble()).abs() < 0.000001;
     final String formatted =
         asInt ? total.toStringAsFixed(0) : total.toStringAsFixed(2);
@@ -158,45 +152,41 @@ class CreditNotesController extends ChangeNotifier {
     return '$day/$month/${d.year}';
   }
 
-  String amountLabel(CreditNote note) {
-    final double total = note.amount;
+  String amountLabel(Quotation quotation) {
+    final double total = quotation.amount;
     final bool asInt = (total - total.truncateToDouble()).abs() < 0.000001;
     final String formatted =
         asInt ? total.toStringAsFixed(0) : total.toStringAsFixed(2);
-    return '${note.currency} $formatted';
+    return '${quotation.currency} $formatted';
   }
 
   String get statusFilterLabel {
-    final CreditNoteStatus? s = _statusFilter;
+    final QuotationStatus? s = _statusFilter;
     if (s == null) {
       return 'All Status';
     }
     switch (s) {
-      case CreditNoteStatus.draft:
+      case QuotationStatus.draft:
         return 'Draft';
-      case CreditNoteStatus.submitted:
-        return 'Submitted';
-      case CreditNoteStatus.cleared:
-        return 'Cleared';
-      case CreditNoteStatus.reported:
-        return 'Reported';
-      case CreditNoteStatus.rejected:
-        return 'Rejected';
+      case QuotationStatus.sent:
+        return 'Sent';
     }
   }
 
-  String get paymentStatusFilterLabel {
-    final CreditNotePaymentStatus? s = _paymentStatusFilter;
+  String get outcomeStatusFilterLabel {
+    final QuotationOutcomeStatus? s = _outcomeStatusFilter;
     if (s == null) {
-      return 'All Payment Status';
+      return 'All Outcomes';
     }
     switch (s) {
-      case CreditNotePaymentStatus.pending:
+      case QuotationOutcomeStatus.pending:
         return 'Pending';
-      case CreditNotePaymentStatus.refunded:
-        return 'Refunded';
-      case CreditNotePaymentStatus.applied:
-        return 'Applied';
+      case QuotationOutcomeStatus.accepted:
+        return 'Accepted';
+      case QuotationOutcomeStatus.declined:
+        return 'Declined';
+      case QuotationOutcomeStatus.expired:
+        return 'Expired';
     }
   }
 

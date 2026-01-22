@@ -1,4 +1,4 @@
-enum CreditNoteStatus {
+enum DebitNoteStatus {
   draft,
   submitted,
   cleared,
@@ -6,13 +6,13 @@ enum CreditNoteStatus {
   rejected,
 }
 
-enum CreditNotePaymentStatus {
+enum DebitNotePaymentStatus {
   pending,
-  refunded,
-  applied,
+  paid,
+  cancelled,
 }
 
-class CreditNoteItem {
+class DebitNoteItem {
   final String description;
   final int qty;
   final double price;
@@ -20,7 +20,7 @@ class CreditNoteItem {
   final String vatCategory;
   final double taxPercent;
 
-  const CreditNoteItem({
+  const DebitNoteItem({
     required this.description,
     required this.qty,
     required this.price,
@@ -40,23 +40,23 @@ class CreditNoteItem {
   double get total => taxableAmount + taxAmount;
 }
 
-class CreditNote {
+class DebitNote {
   final String id;
   final String customer;
   final String customerType;
   final DateTime issueDate;
   final String currency;
   final double amount;
-  final CreditNoteStatus status;
-  final CreditNotePaymentStatus paymentStatus;
+  final DebitNoteStatus status;
+  final DebitNotePaymentStatus paymentStatus;
   final String? originalInvoiceNo;
   final String? originalInvoiceCustomerType;
   final String? zatcaUuid;
   final String? zatcaHash;
   final String? zatcaErrorMessage;
-  final List<CreditNoteItem> items;
+  final List<DebitNoteItem> items;
 
-  const CreditNote({
+  const DebitNote({
     required this.id,
     required this.customer,
     required this.customerType,
@@ -64,12 +64,12 @@ class CreditNote {
     required this.currency,
     required this.amount,
     required this.status,
-    this.paymentStatus = CreditNotePaymentStatus.pending,
+    this.paymentStatus = DebitNotePaymentStatus.pending,
     this.originalInvoiceNo,
     this.originalInvoiceCustomerType,
     this.zatcaUuid,
     this.zatcaHash,
     this.zatcaErrorMessage,
-    this.items = const <CreditNoteItem>[],
+    this.items = const <DebitNoteItem>[],
   });
 }

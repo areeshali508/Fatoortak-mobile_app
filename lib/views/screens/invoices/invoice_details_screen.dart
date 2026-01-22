@@ -2,74 +2,72 @@ import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
-import '../../../models/credit_note.dart';
+import '../../../models/invoice.dart';
 
-class CreditNoteDetailsScreen extends StatelessWidget {
-  final CreditNote note;
+class InvoiceDetailsScreen extends StatelessWidget {
+  final Invoice invoice;
 
-  const CreditNoteDetailsScreen({super.key, required this.note});
+  const InvoiceDetailsScreen({super.key, required this.invoice});
 
   String _fmtDate(DateTime d) {
-    final String day = d.day.toString().padLeft(2, '0');
-    final String month = d.month.toString().padLeft(2, '0');
-    return '$day/$month/${d.year}';
+    const List<String> months = <String>[
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${d.day.toString().padLeft(2, '0')} ${months[d.month - 1]} ${d.year}';
+  }
+
+  String _formatNumber(double v) {
+    final bool asInt = (v - v.truncateToDouble()).abs() < 0.000001;
+    final String s = asInt ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
+    final List<String> parts = s.split('.');
+    final String intPart = parts[0];
+    final String frac = parts.length > 1 ? '.${parts[1]}' : '';
+    final String withCommas = intPart.replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (Match m) => ',',
+    );
+    return '$withCommas$frac';
   }
 
   String _amountLabel() {
-    final double total = note.amount;
-    final bool asInt = (total - total.truncateToDouble()).abs() < 0.000001;
-    final String formatted =
-        asInt ? total.toStringAsFixed(0) : total.toStringAsFixed(2);
-    return '${note.currency} $formatted';
+    return '${invoice.currency} ${_formatNumber(invoice.total)}';
   }
 
-  (_ChipStyle, String) _statusStyle(CreditNoteStatus s) {
+  (_ChipStyle?, String) _statusStyle(InvoiceStatus s) {
     switch (s) {
-      case CreditNoteStatus.draft:
+      case InvoiceStatus.draft:
         return (
           const _ChipStyle(bg: Color(0xFFF3F6FB), fg: Color(0xFF6B7895)),
           'Draft',
         );
-      case CreditNoteStatus.submitted:
+      case InvoiceStatus.sent:
         return (
           const _ChipStyle(bg: Color(0xFFE7F1FF), fg: AppColors.primary),
-          'Submitted',
+          'Sent',
         );
-      case CreditNoteStatus.cleared:
-        return (
-          const _ChipStyle(bg: Color(0xFFEFFAF3), fg: Color(0xFF1DB954)),
-          'Cleared',
-        );
-      case CreditNoteStatus.reported:
-        return (
-          const _ChipStyle(bg: Color(0xFFEFFAF3), fg: Color(0xFF1DB954)),
-          'Reported',
-        );
-      case CreditNoteStatus.rejected:
+      case InvoiceStatus.overdue:
         return (
           const _ChipStyle(bg: Color(0xFFFFE7E7), fg: Color(0xFFD93025)),
-          'Rejected',
+          'Overdue',
         );
-    }
-  }
-
-  (_ChipStyle, String) _paymentStyle(CreditNotePaymentStatus s) {
-    switch (s) {
-      case CreditNotePaymentStatus.pending:
-        return (
-          const _ChipStyle(bg: Color(0xFFFFF4E5), fg: Color(0xFFB26A00)),
-          'Pending',
-        );
-      case CreditNotePaymentStatus.refunded:
-        return (
-          const _ChipStyle(bg: Color(0xFFFFE7E7), fg: Color(0xFFD93025)),
-          'Refunded',
-        );
-      case CreditNotePaymentStatus.applied:
+      case InvoiceStatus.paid:
         return (
           const _ChipStyle(bg: Color(0xFFEFFAF3), fg: Color(0xFF1DB954)),
-          'Applied',
+          'Paid',
         );
+      case InvoiceStatus.none:
+        return (null, '');
     }
   }
 
@@ -89,14 +87,12 @@ class CreditNoteDetailsScreen extends StatelessWidget {
           18,
         );
 
-        final (_ChipStyle stStyle, String stText) = _statusStyle(note.status);
-        final (_ChipStyle payStyle, String payText) =
-            _paymentStyle(note.paymentStatus);
+        final (_ChipStyle? stStyle, String stText) = _statusStyle(invoice.status);
 
         return Scaffold(
           backgroundColor: const Color(0xFFF7FAFF),
           appBar: AppBar(
-            title: const Text('Credit Note Details'),
+            title: const Text('Invoice Details'),
           ),
           body: SafeArea(
             child: SingleChildScrollView(
@@ -118,7 +114,7 @@ class CreditNoteDetailsScreen extends StatelessWidget {
                           children: <Widget>[
                             Expanded(
                               child: Text(
-                                'Credit Note #${note.id}',
+                                'Invoice #${invoice.invoiceNo}',
                                 style: const TextStyle(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.w900,
@@ -138,7 +134,7 @@ class CreditNoteDetailsScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          note.customer,
+                          invoice.customer,
                           style: const TextStyle(
                             color: Color(0xFF0B1B4B),
                             fontWeight: FontWeight.w800,
@@ -150,7 +146,7 @@ class CreditNoteDetailsScreen extends StatelessWidget {
                           children: <Widget>[
                             Expanded(
                               child: Text(
-                                _fmtDate(note.issueDate),
+                                _fmtDate(invoice.issueDate),
                                 style: const TextStyle(
                                   color: Color(0xFF9AA5B6),
                                   fontWeight: FontWeight.w700,
@@ -158,9 +154,8 @@ class CreditNoteDetailsScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            _Chip(text: stText, style: stStyle),
-                            const SizedBox(width: 8),
-                            _Chip(text: payText, style: payStyle),
+                            if (stStyle != null)
+                              _Chip(text: stText, style: stStyle),
                           ],
                         ),
                       ],
@@ -171,42 +166,39 @@ class CreditNoteDetailsScreen extends StatelessWidget {
                     title: 'Summary',
                     child: Column(
                       children: <Widget>[
-                        _SummaryRow(label: 'Credit Note #', value: note.id),
-                        _SummaryRow(label: 'Customer', value: note.customer),
-                        _SummaryRow(
-                          label: 'Customer Type',
-                          value: note.customerType,
-                        ),
-                        _SummaryRow(
-                          label: 'Invoice Ref',
-                          value: note.originalInvoiceNo ?? '-',
-                        ),
+                        _SummaryRow(label: 'Invoice #', value: invoice.invoiceNo),
+                        _SummaryRow(label: 'Customer', value: invoice.customer),
                         _SummaryRow(
                           label: 'Issue Date',
-                          value: _fmtDate(note.issueDate),
+                          value: _fmtDate(invoice.issueDate),
                         ),
-                        _SummaryRow(label: 'Currency', value: note.currency),
+                        _SummaryRow(
+                          label: 'Due Date',
+                          value: invoice.dueDate == null
+                              ? '-'
+                              : _fmtDate(invoice.dueDate!),
+                        ),
+                        _SummaryRow(label: 'Company', value: invoice.company),
+                        _SummaryRow(
+                          label: 'Customer Type',
+                          value: invoice.customerType,
+                        ),
+                        _SummaryRow(label: 'Invoice Type', value: invoice.invoiceType),
+                        _SummaryRow(
+                          label: 'Payment Terms',
+                          value: invoice.paymentTerms,
+                        ),
+                        _SummaryRow(label: 'Currency', value: invoice.currency),
+                        _SummaryRow(label: 'Subtotal', value: _formatNumber(invoice.subtotal)),
+                        _SummaryRow(label: 'VAT', value: _formatNumber(invoice.vatAmount)),
                         _SummaryRow(label: 'Total', value: _amountLabel()),
-                        _SummaryRow(
-                          label: 'ZATCA UUID',
-                          value: note.zatcaUuid ?? '-',
-                        ),
-                        _SummaryRow(
-                          label: 'ZATCA Hash',
-                          value: note.zatcaHash ?? '-',
-                        ),
-                        if ((note.zatcaErrorMessage ?? '').trim().isNotEmpty)
-                          _SummaryRow(
-                            label: 'ZATCA Error',
-                            value: note.zatcaErrorMessage!.trim(),
-                          ),
                       ],
                     ),
                   ),
                   SizedBox(height: gap),
                   _SectionCard(
                     title: 'Items',
-                    child: note.items.isEmpty
+                    child: invoice.items.isEmpty
                         ? const Padding(
                             padding: EdgeInsets.symmetric(vertical: 10),
                             child: Text(
@@ -218,7 +210,7 @@ class CreditNoteDetailsScreen extends StatelessWidget {
                             ),
                           )
                         : Column(
-                            children: note.items.map((CreditNoteItem it) {
+                            children: invoice.items.map((InvoiceItem it) {
                               final double lineTotal = it.total;
                               final bool asInt =
                                   (lineTotal - lineTotal.truncateToDouble())
@@ -247,7 +239,7 @@ class CreditNoteDetailsScreen extends StatelessWidget {
                                             CrossAxisAlignment.start,
                                         children: <Widget>[
                                           Text(
-                                            it.description,
+                                            it.product,
                                             maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
@@ -258,7 +250,7 @@ class CreditNoteDetailsScreen extends StatelessWidget {
                                           ),
                                           const SizedBox(height: 6),
                                           Text(
-                                            'Qty ${it.qty}  •  ${note.currency} ${it.price.toStringAsFixed(2)}',
+                                            'Qty ${it.qty}  •  ${invoice.currency} ${it.price.toStringAsFixed(2)}',
                                             style: const TextStyle(
                                               color: Color(0xFF6B7895),
                                               fontWeight: FontWeight.w700,
@@ -270,7 +262,7 @@ class CreditNoteDetailsScreen extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 10),
                                     Text(
-                                      '${note.currency} $formatted',
+                                      '${invoice.currency} $formatted',
                                       style: const TextStyle(
                                         color: Color(0xFF0B1B4B),
                                         fontWeight: FontWeight.w900,
@@ -283,6 +275,34 @@ class CreditNoteDetailsScreen extends StatelessWidget {
                             }).toList(),
                           ),
                   ),
+                  if (invoice.notes.trim().isNotEmpty) ...<Widget>[
+                    SizedBox(height: gap),
+                    _SectionCard(
+                      title: 'Notes',
+                      child: Text(
+                        invoice.notes,
+                        style: const TextStyle(
+                          color: Color(0xFF0B1B4B),
+                          fontWeight: FontWeight.w700,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (invoice.terms.trim().isNotEmpty) ...<Widget>[
+                    SizedBox(height: gap),
+                    _SectionCard(
+                      title: 'Terms',
+                      child: Text(
+                        invoice.terms,
+                        style: const TextStyle(
+                          color: Color(0xFF0B1B4B),
+                          fontWeight: FontWeight.w700,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

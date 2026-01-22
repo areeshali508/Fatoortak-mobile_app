@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../models/credit_note.dart';
+import '../models/debit_note.dart';
 import '../models/invoice.dart';
 
-class CreateCreditNoteController extends ChangeNotifier {
+class CreateDebitNoteController extends ChangeNotifier {
   int _currentStep = 0;
   int _maxStepReached = 0;
 
@@ -43,8 +43,8 @@ class CreateCreditNoteController extends ChangeNotifier {
     notifyListeners();
   }
 
-  final TextEditingController creditNoteNumberController =
-      TextEditingController(text: 'HNV-2024-001');
+  final TextEditingController debitNoteNumberController =
+      TextEditingController(text: 'DN-2024-001');
   final TextEditingController originalInvoiceController = TextEditingController();
   final TextEditingController customerController = TextEditingController();
   final TextEditingController reasonDescriptionController = TextEditingController();
@@ -74,8 +74,8 @@ class CreateCreditNoteController extends ChangeNotifier {
     notifyListeners();
   }
 
-  final List<CreditNoteItem> _items = <CreditNoteItem>[];
-  List<CreditNoteItem> get items => List<CreditNoteItem>.unmodifiable(_items);
+  final List<DebitNoteItem> _items = <DebitNoteItem>[];
+  List<DebitNoteItem> get items => List<DebitNoteItem>.unmodifiable(_items);
 
   void loadFromInvoice(Invoice invoice) {
     originalInvoiceController.text = invoice.invoiceNo;
@@ -89,7 +89,7 @@ class CreateCreditNoteController extends ChangeNotifier {
       ..clear()
       ..addAll(
         invoice.items.map(
-          (InvoiceItem it) => CreditNoteItem(
+          (InvoiceItem it) => DebitNoteItem(
             description: it.product,
             qty: it.qty,
             price: it.price,
@@ -102,7 +102,7 @@ class CreateCreditNoteController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addItem(CreditNoteItem item) {
+  void addItem(DebitNoteItem item) {
     _items.add(item);
     _zatcaValidated = false;
     notifyListeners();
@@ -117,8 +117,8 @@ class CreateCreditNoteController extends ChangeNotifier {
 
   void incrementQtyAt(int index) {
     if (index < 0 || index >= _items.length) return;
-    final CreditNoteItem cur = _items[index];
-    _items[index] = CreditNoteItem(
+    final DebitNoteItem cur = _items[index];
+    _items[index] = DebitNoteItem(
       description: cur.description,
       qty: cur.qty + 1,
       price: cur.price,
@@ -132,12 +132,12 @@ class CreateCreditNoteController extends ChangeNotifier {
 
   void decrementQtyAt(int index) {
     if (index < 0 || index >= _items.length) return;
-    final CreditNoteItem cur = _items[index];
+    final DebitNoteItem cur = _items[index];
     if (cur.qty <= 1) {
       removeItemAt(index);
       return;
     }
-    _items[index] = CreditNoteItem(
+    _items[index] = DebitNoteItem(
       description: cur.description,
       qty: cur.qty - 1,
       price: cur.price,
@@ -168,25 +168,25 @@ class CreateCreditNoteController extends ChangeNotifier {
     return null;
   }
 
-  double get subtotal => -_items.fold<double>(
+  double get subtotal => _items.fold<double>(
         0,
-        (double p, CreditNoteItem e) => p + e.taxableAmount,
+        (double p, DebitNoteItem e) => p + e.taxableAmount,
       );
 
-  double get vatAmount => -_items.fold<double>(
+  double get vatAmount => _items.fold<double>(
         0,
-        (double p, CreditNoteItem e) => p + e.taxAmount,
+        (double p, DebitNoteItem e) => p + e.taxAmount,
       );
 
-  double get total => -_items.fold<double>(
+  double get total => _items.fold<double>(
         0,
-        (double p, CreditNoteItem e) => p + e.total,
+        (double p, DebitNoteItem e) => p + e.total,
       );
 
   bool isStepValid(int step) {
     switch (step) {
       case 0:
-        return creditNoteNumberController.text.trim().isNotEmpty &&
+        return debitNoteNumberController.text.trim().isNotEmpty &&
             _issueDate != null &&
             originalInvoiceController.text.trim().isNotEmpty &&
             customerController.text.trim().isNotEmpty;
@@ -228,7 +228,7 @@ class CreateCreditNoteController extends ChangeNotifier {
   }
 
   String? validateSubmit() {
-    if (creditNoteNumberController.text.trim().isEmpty ||
+    if (debitNoteNumberController.text.trim().isEmpty ||
         customerController.text.trim().isEmpty ||
         originalInvoiceController.text.trim().isEmpty ||
         _issueDate == null) {
@@ -237,36 +237,36 @@ class CreateCreditNoteController extends ChangeNotifier {
     return null;
   }
 
-  CreditNote buildCreditNote({CreditNoteStatus status = CreditNoteStatus.draft}) {
-    return CreditNote(
-      id: creditNoteNumberController.text.trim(),
+  DebitNote buildDebitNote({DebitNoteStatus status = DebitNoteStatus.draft}) {
+    return DebitNote(
+      id: debitNoteNumberController.text.trim(),
       customer: customerController.text.trim(),
       customerType: customerType,
       issueDate: _issueDate ?? DateTime.now(),
       currency: _currency,
       amount: total,
       status: status,
-      items: List<CreditNoteItem>.unmodifiable(_items),
+      items: List<DebitNoteItem>.unmodifiable(_items),
       originalInvoiceNo: originalInvoiceController.text.trim(),
       originalInvoiceCustomerType: _originalInvoiceCustomerType,
     );
   }
 
-  CreditNote buildSubmitted({required String uuid, required String hash}) {
-    final CreditNoteStatus finalStatus =
+  DebitNote buildSubmitted({required String uuid, required String hash}) {
+    final DebitNoteStatus finalStatus =
         (_originalInvoiceCustomerType ?? '').toLowerCase().contains('b2b')
-            ? CreditNoteStatus.cleared
-            : CreditNoteStatus.reported;
+            ? DebitNoteStatus.cleared
+            : DebitNoteStatus.reported;
 
-    return CreditNote(
-      id: creditNoteNumberController.text.trim(),
+    return DebitNote(
+      id: debitNoteNumberController.text.trim(),
       customer: customerController.text.trim(),
       customerType: customerType,
       issueDate: _issueDate ?? DateTime.now(),
       currency: _currency,
       amount: total,
       status: finalStatus,
-      items: List<CreditNoteItem>.unmodifiable(_items),
+      items: List<DebitNoteItem>.unmodifiable(_items),
       originalInvoiceNo: originalInvoiceController.text.trim(),
       originalInvoiceCustomerType: _originalInvoiceCustomerType,
       zatcaUuid: uuid,
@@ -276,7 +276,7 @@ class CreateCreditNoteController extends ChangeNotifier {
 
   @override
   void dispose() {
-    creditNoteNumberController.dispose();
+    debitNoteNumberController.dispose();
     originalInvoiceController.dispose();
     customerController.dispose();
     reasonDescriptionController.dispose();

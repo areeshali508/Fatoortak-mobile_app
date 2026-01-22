@@ -28,6 +28,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       Navigator.of(context).pushReplacementNamed(AppRoutes.invoices);
       return;
     }
+    if (index == 2) {
+      Navigator.of(context).pushReplacementNamed(AppRoutes.customers);
+      return;
+    }
     if (index == 3) {
       Navigator.of(context).pushNamed(AppRoutes.settings);
       return;
@@ -255,7 +259,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.groups_outlined),
-                label: 'Clients',
+                label: 'Customers',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.settings_outlined),

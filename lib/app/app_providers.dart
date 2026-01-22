@@ -9,6 +9,8 @@ import '../controllers/invoice_controller.dart';
 import '../controllers/product_controller.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/credit_note_repository.dart';
+import '../repositories/debit_note_repository.dart';
+import '../repositories/quotation_repository.dart';
 import '../repositories/customer_repository.dart';
 import '../repositories/dashboard_repository.dart';
 import '../repositories/onboarding_repository.dart';
@@ -25,6 +27,12 @@ class AppProviders {
     ),
     Provider<CreditNoteRepository>(
       create: (_) => CreditNoteRepository(),
+    ),
+    Provider<DebitNoteRepository>(
+      create: (_) => DebitNoteRepository(),
+    ),
+    Provider<QuotationRepository>(
+      create: (_) => QuotationRepository(),
     ),
     Provider<AuthRepository>(
       create: (_) => const AuthRepository(),

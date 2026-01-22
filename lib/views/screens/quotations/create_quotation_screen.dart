@@ -1,100 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../controllers/create_credit_note_controller.dart';
-import '../../../controllers/invoice_controller.dart';
+import '../../../controllers/create_quotation_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
-import '../../../models/credit_note.dart';
-import '../../../models/invoice.dart';
+import '../../../models/quotation.dart';
 
-class CreateCreditNoteScreen extends StatefulWidget {
-  const CreateCreditNoteScreen({super.key});
-
-  @override
-  State<CreateCreditNoteScreen> createState() => _CreateCreditNoteScreenState();
-}
-
-class _SheetOptionTile extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final String trailing;
-  final VoidCallback onTap;
-
-  const _SheetOptionTile({
-    required this.title,
-    required this.subtitle,
-    required this.trailing,
-    required this.onTap,
-  });
+class CreateQuotationScreen extends StatefulWidget {
+  const CreateQuotationScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: const Color(0xFFF7FAFF),
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          color: Color(0xFF0B1B4B),
-                          fontWeight: FontWeight.w900,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF6B7895),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  trailing,
-                  style: const TextStyle(
-                    color: Color(0xFF0B1B4B),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.chevron_right,
-                  color: Color(0xFF9AA5B6),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  State<CreateQuotationScreen> createState() => _CreateQuotationScreenState();
 }
 
-class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
+class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
   void _nextStep() {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
+    final CreateQuotationController ctrl =
+        context.read<CreateQuotationController>();
     final bool ok = ctrl.nextStep();
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -103,74 +25,17 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
     }
   }
 
-  Future<void> _selectInvoice() async {
-    final InvoiceController invCtrl = context.read<InvoiceController>();
-    final List<Invoice> invoices = invCtrl.invoices
-        .where((Invoice i) => i.status == InvoiceStatus.paid)
-        .toList();
-
-    if (invoices.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No cleared invoices available')),
-      );
-      return;
-    }
-
-    final Invoice? picked = await showModalBottomSheet<Invoice>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (BuildContext ctx) {
-        return SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
-            shrinkWrap: true,
-            children: <Widget>[
-              const Text(
-                'Select Cleared Invoice',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFF0B1B4B),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 10),
-              ...invoices.map((Invoice inv) {
-                return _SheetOptionTile(
-                  title: 'Invoice #${inv.invoiceNo}',
-                  subtitle: inv.customer,
-                  trailing: '${inv.currency} ${inv.total.toStringAsFixed(2)}',
-                  onTap: () => Navigator.of(ctx).pop(inv),
-                );
-              }),
-            ],
-          ),
-        );
-      },
-    );
-
-    if (!mounted || picked == null) {
-      return;
-    }
-
-    context.read<CreateCreditNoteController>().loadFromInvoice(picked);
-  }
-
   void _prevStep() {
-    context.read<CreateCreditNoteController>().prevStep();
+    context.read<CreateQuotationController>().prevStep();
   }
 
   void _goToStep(int step) {
-    context.read<CreateCreditNoteController>().goToStep(step);
+    context.read<CreateQuotationController>().goToStep(step);
   }
 
   Future<void> _pickIssueDate() async {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
+    final CreateQuotationController ctrl =
+        context.read<CreateQuotationController>();
     final DateTime now = DateTime.now();
     final DateTime initial = ctrl.issueDate ?? now;
 
@@ -188,6 +53,26 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
     ctrl.setIssueDate(picked);
   }
 
+  Future<void> _pickValidUntil() async {
+    final CreateQuotationController ctrl =
+        context.read<CreateQuotationController>();
+    final DateTime now = DateTime.now();
+    final DateTime initial = ctrl.validUntil ?? ctrl.issueDate ?? now;
+
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2020, 1, 1),
+      lastDate: DateTime(now.year + 3, 12, 31),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    ctrl.setValidUntil(picked);
+  }
+
   String _fmtDate(DateTime? d) {
     if (d == null) {
       return 'mm/dd/yyyy';
@@ -198,9 +83,9 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
   }
 
   Future<void> _openAddItemSheet() async {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
-    final CreditNoteItem? item = await showModalBottomSheet<CreditNoteItem>(
+    final CreateQuotationController ctrl =
+        context.read<CreateQuotationController>();
+    final QuotationItem? item = await showModalBottomSheet<QuotationItem>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -218,50 +103,15 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
     ctrl.addItem(item);
   }
 
-  void _saveDraft() {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
+  void _submit() {
+    final CreateQuotationController ctrl =
+        context.read<CreateQuotationController>();
     final String? msg = ctrl.validateSubmit();
     if (msg != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       return;
     }
-    Navigator.of(context).pop(ctrl.buildCreditNote());
-  }
-
-  void _validateZatcaDummy() {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
-    final String? msg = ctrl.validateZatcaDummy();
-    if (msg != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Validation successful. You can now submit.')),
-    );
-  }
-
-  void _submitToZatcaDummy() {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
-    if (!ctrl.zatcaValidated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please validate before submitting to ZATCA')),
-      );
-      return;
-    }
-    final String? msg = ctrl.validateSubmit();
-    if (msg != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-      return;
-    }
-
-    final int now = DateTime.now().millisecondsSinceEpoch;
-    final String uuid = 'uuid-$now';
-    final String hash = 'hash-$now';
-
-    Navigator.of(context).pop(ctrl.buildSubmitted(uuid: uuid, hash: hash));
+    Navigator.of(context).pop(ctrl.buildQuotation());
   }
 
   InputDecoration _dec({required String label, String? hint, Widget? prefix}) {
@@ -288,8 +138,8 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final CreateCreditNoteController ctrl =
-            context.watch<CreateCreditNoteController>();
+        final CreateQuotationController ctrl =
+            context.watch<CreateQuotationController>();
 
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
@@ -355,7 +205,7 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
           return Column(
             children: <Widget>[
               ...ctrl.items.asMap().entries.map((e) {
-                final CreditNoteItem it = e.value;
+                final QuotationItem it = e.value;
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(14),
@@ -511,7 +361,7 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                 children: <Widget>[
                   const Expanded(
                     child: Text(
-                      'Total Credit',
+                      'Total',
                       style: TextStyle(
                         color: Color(0xFF0B1B4B),
                         fontWeight: FontWeight.w900,
@@ -540,7 +390,7 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   _SectionCard(
-                    title: 'Credit Note Details',
+                    title: 'Quotation Details',
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
@@ -558,8 +408,8 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                           children: <Widget>[
                             Expanded(
                               child: TextField(
-                                controller: ctrl.creditNoteNumberController,
-                                decoration: _dec(label: 'Credit Note #'),
+                                controller: ctrl.quotationNumberController,
+                                decoration: _dec(label: 'Quotation #'),
                                 style: const TextStyle(
                                   color: Color(0xFF0B1B4B),
                                   fontWeight: FontWeight.w800,
@@ -578,34 +428,27 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        _LabeledDropdown<String>(
-                          label: 'Currency',
-                          value: ctrl.currency,
-                          items: const <String>['SAR', 'USD', 'EUR'],
-                          onChanged: (String v) => ctrl.currency = v,
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: _DateField(
+                                label: 'Valid Until',
+                                value: _fmtDate(ctrl.validUntil),
+                                onTap: _pickValidUntil,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _LabeledDropdown<String>(
+                                label: 'Currency',
+                                value: ctrl.currency,
+                                items: const <String>['SAR', 'USD', 'EUR'],
+                                onChanged: (String v) => ctrl.currency = v,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _WarningCard(
-                    title: 'Original Invoice*',
-                    helper: 'Required for ZATCA compliance',
-                    child: TextField(
-                      controller: ctrl.originalInvoiceController,
-                      readOnly: true,
-                      decoration: _dec(
-                        label: '',
-                        hint: 'Search or select invoice number',
-                        prefix:
-                            const Icon(Icons.search, color: Color(0xFF9AA5B6)),
-                      ).copyWith(labelText: null),
-                      onTap: _selectInvoice,
-                      style: const TextStyle(
-                        color: Color(0xFF0B1B4B),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
-                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -613,9 +456,8 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                     title: 'Customer',
                     child: TextField(
                       controller: ctrl.customerController,
-                      readOnly: true,
                       decoration: _dec(
-                        label: 'Customer',
+                        label: 'Customer*',
                         hint: 'Search customer',
                         prefix:
                             const Icon(Icons.search, color: Color(0xFF9AA5B6)),
@@ -629,36 +471,16 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                   ),
                   const SizedBox(height: 12),
                   _SectionCard(
-                    title: 'Customer Type',
-                    child: _SummaryRow(
-                      label: 'Type',
-                      value: ctrl.customerType,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _SectionCard(
-                    title: 'Reason & Notes',
+                    title: 'Notes & Terms',
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        _LabeledDropdown<String>(
-                          label: 'Reason Type*',
-                          value: ctrl.reasonType,
-                          items: const <String>[
-                            'Select Reason',
-                            'Refund',
-                            'Invoice Correction',
-                            'Discount Adjustment',
-                          ],
-                          onChanged: (String v) => ctrl.reasonType = v,
-                        ),
-                        const SizedBox(height: 12),
                         TextField(
-                          controller: ctrl.reasonDescriptionController,
+                          controller: ctrl.notesController,
                           maxLines: 3,
                           decoration: _dec(
-                            label: 'Reason Description',
-                            hint: 'Enter reason details...',
+                            label: 'Notes',
+                            hint: 'Optional notes for customer...',
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -667,7 +489,7 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                           maxLines: 3,
                           decoration: _dec(
                             label: 'Terms & Conditions',
-                            hint: 'Specific terms for this credit note...',
+                            hint: 'Optional terms for this quotation...',
                           ),
                         ),
                       ],
@@ -699,24 +521,20 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                     child: Column(
                       children: <Widget>[
                         _SummaryRow(
-                          label: 'Credit Note #',
-                          value: ctrl.creditNoteNumberController.text.trim(),
+                          label: 'Quotation #',
+                          value: ctrl.quotationNumberController.text.trim(),
                         ),
                         _SummaryRow(
                           label: 'Issue Date',
                           value: _fmtDate(ctrl.issueDate),
                         ),
                         _SummaryRow(
-                          label: 'Original Invoice',
-                          value: ctrl.originalInvoiceController.text.trim(),
+                          label: 'Valid Until',
+                          value: _fmtDate(ctrl.validUntil),
                         ),
                         _SummaryRow(
                           label: 'Customer',
                           value: ctrl.customerController.text.trim(),
-                        ),
-                        _SummaryRow(
-                          label: 'Customer Type',
-                          value: ctrl.customerType,
                         ),
                       ],
                     ),
@@ -736,7 +554,7 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
         return Scaffold(
           backgroundColor: const Color(0xFFF7FAFF),
           appBar: AppBar(
-            title: const Text('Create Credit Note'),
+            title: const Text('Create Quotation'),
             leading: const BackButton(),
           ),
           body: SafeArea(
@@ -779,30 +597,27 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
               child: ctrl.currentStep == 2
                   ? Row(
                       children: <Widget>[
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: _saveDraft,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF0B1B4B),
-                              side: const BorderSide(color: Color(0xFFE9EEF5)),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              textStyle: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                              ),
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border:
+                                Border.all(color: const Color(0xFFE9EEF5)),
+                            color: Colors.white,
+                          ),
+                          child: IconButton(
+                            onPressed: () {},
+                            icon: const Icon(
+                              Icons.remove_red_eye_outlined,
+                              color: AppColors.primary,
                             ),
-                            child: const Text('Save Draft'),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: ctrl.zatcaValidated
-                                ? _submitToZatcaDummy
-                                : _validateZatcaDummy,
+                            onPressed: _submit,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
@@ -815,11 +630,7 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
-                            child: Text(
-                              ctrl.zatcaValidated
-                                  ? 'Submit to ZATCA'
-                                  : 'Validate',
-                            ),
+                            child: const Text('Save Quotation'),
                           ),
                         ),
                       ],
@@ -831,8 +642,9 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                             onPressed: ctrl.currentStep == 0 ? null : _prevStep,
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF0B1B4B),
-                              side:
-                                  const BorderSide(color: Color(0xFFE9EEF5)),
+                              side: const BorderSide(
+                                color: Color(0xFFE9EEF5),
+                              ),
                               padding:
                                   const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
@@ -1120,61 +932,6 @@ class _DateField extends StatelessWidget {
   }
 }
 
-class _WarningCard extends StatelessWidget {
-  final String title;
-  final String helper;
-  final Widget child;
-
-  const _WarningCard({
-    required this.title,
-    required this.helper,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF4E5),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFE1B8)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              const Icon(Icons.warning_amber_rounded, color: Color(0xFFB35A00)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: Color(0xFFB35A00),
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          child,
-          const SizedBox(height: 6),
-          Text(
-            helper,
-            style: const TextStyle(
-              color: Color(0xFFB35A00),
-              fontWeight: FontWeight.w700,
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SummaryRow extends StatelessWidget {
   final String label;
   final String value;
@@ -1227,7 +984,8 @@ class _AddItemSheet extends StatefulWidget {
 class _AddItemSheetState extends State<_AddItemSheet> {
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _qtyController = TextEditingController(text: '1');
-  final TextEditingController _priceController = TextEditingController(text: '0');
+  final TextEditingController _priceController =
+      TextEditingController(text: '0');
 
   @override
   void dispose() {
@@ -1313,7 +1071,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
-              final CreditNoteItem item = CreditNoteItem(
+              final QuotationItem item = QuotationItem(
                 description: _descController.text.trim().isEmpty
                     ? 'Custom item'
                     : _descController.text.trim(),

@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../controllers/create_credit_note_controller.dart';
+import '../../../controllers/create_debit_note_controller.dart';
 import '../../../controllers/invoice_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
-import '../../../models/credit_note.dart';
+import '../../../models/debit_note.dart';
 import '../../../models/invoice.dart';
 
-class CreateCreditNoteScreen extends StatefulWidget {
-  const CreateCreditNoteScreen({super.key});
+class CreateDebitNoteWizardScreen extends StatefulWidget {
+  const CreateDebitNoteWizardScreen({super.key});
 
   @override
-  State<CreateCreditNoteScreen> createState() => _CreateCreditNoteScreenState();
+  State<CreateDebitNoteWizardScreen> createState() =>
+      _CreateDebitNoteWizardScreenState();
 }
 
 class _SheetOptionTile extends StatelessWidget {
@@ -91,10 +92,10 @@ class _SheetOptionTile extends StatelessWidget {
   }
 }
 
-class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
+class _CreateDebitNoteWizardScreenState extends State<CreateDebitNoteWizardScreen> {
   void _nextStep() {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
+    final CreateDebitNoteController ctrl =
+        context.read<CreateDebitNoteController>();
     final bool ok = ctrl.nextStep();
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -157,20 +158,20 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
       return;
     }
 
-    context.read<CreateCreditNoteController>().loadFromInvoice(picked);
+    context.read<CreateDebitNoteController>().loadFromInvoice(picked);
   }
 
   void _prevStep() {
-    context.read<CreateCreditNoteController>().prevStep();
+    context.read<CreateDebitNoteController>().prevStep();
   }
 
   void _goToStep(int step) {
-    context.read<CreateCreditNoteController>().goToStep(step);
+    context.read<CreateDebitNoteController>().goToStep(step);
   }
 
   Future<void> _pickIssueDate() async {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
+    final CreateDebitNoteController ctrl =
+        context.read<CreateDebitNoteController>();
     final DateTime now = DateTime.now();
     final DateTime initial = ctrl.issueDate ?? now;
 
@@ -198,9 +199,9 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
   }
 
   Future<void> _openAddItemSheet() async {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
-    final CreditNoteItem? item = await showModalBottomSheet<CreditNoteItem>(
+    final CreateDebitNoteController ctrl =
+        context.read<CreateDebitNoteController>();
+    final DebitNoteItem? item = await showModalBottomSheet<DebitNoteItem>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -219,19 +220,19 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
   }
 
   void _saveDraft() {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
+    final CreateDebitNoteController ctrl =
+        context.read<CreateDebitNoteController>();
     final String? msg = ctrl.validateSubmit();
     if (msg != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       return;
     }
-    Navigator.of(context).pop(ctrl.buildCreditNote());
+    Navigator.of(context).pop(ctrl.buildDebitNote());
   }
 
   void _validateZatcaDummy() {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
+    final CreateDebitNoteController ctrl =
+        context.read<CreateDebitNoteController>();
     final String? msg = ctrl.validateZatcaDummy();
     if (msg != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -243,8 +244,8 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
   }
 
   void _submitToZatcaDummy() {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
+    final CreateDebitNoteController ctrl =
+        context.read<CreateDebitNoteController>();
     if (!ctrl.zatcaValidated) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please validate before submitting to ZATCA')),
@@ -288,8 +289,8 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final CreateCreditNoteController ctrl =
-            context.watch<CreateCreditNoteController>();
+        final CreateDebitNoteController ctrl =
+            context.watch<CreateDebitNoteController>();
 
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
@@ -355,7 +356,7 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
           return Column(
             children: <Widget>[
               ...ctrl.items.asMap().entries.map((e) {
-                final CreditNoteItem it = e.value;
+                final DebitNoteItem it = e.value;
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(14),
@@ -511,7 +512,7 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                 children: <Widget>[
                   const Expanded(
                     child: Text(
-                      'Total Credit',
+                      'Total Debit',
                       style: TextStyle(
                         color: Color(0xFF0B1B4B),
                         fontWeight: FontWeight.w900,
@@ -540,7 +541,7 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   _SectionCard(
-                    title: 'Credit Note Details',
+                    title: 'Debit Note Details',
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
@@ -558,8 +559,8 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                           children: <Widget>[
                             Expanded(
                               child: TextField(
-                                controller: ctrl.creditNoteNumberController,
-                                decoration: _dec(label: 'Credit Note #'),
+                                controller: ctrl.debitNoteNumberController,
+                                decoration: _dec(label: 'Debit Note #'),
                                 style: const TextStyle(
                                   color: Color(0xFF0B1B4B),
                                   fontWeight: FontWeight.w800,
@@ -646,9 +647,9 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                           value: ctrl.reasonType,
                           items: const <String>[
                             'Select Reason',
-                            'Refund',
+                            'Underbilling',
+                            'Additional Charges',
                             'Invoice Correction',
-                            'Discount Adjustment',
                           ],
                           onChanged: (String v) => ctrl.reasonType = v,
                         ),
@@ -667,7 +668,7 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                           maxLines: 3,
                           decoration: _dec(
                             label: 'Terms & Conditions',
-                            hint: 'Specific terms for this credit note...',
+                            hint: 'Specific terms for this debit note...',
                           ),
                         ),
                       ],
@@ -699,8 +700,8 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                     child: Column(
                       children: <Widget>[
                         _SummaryRow(
-                          label: 'Credit Note #',
-                          value: ctrl.creditNoteNumberController.text.trim(),
+                          label: 'Debit Note #',
+                          value: ctrl.debitNoteNumberController.text.trim(),
                         ),
                         _SummaryRow(
                           label: 'Issue Date',
@@ -736,7 +737,7 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
         return Scaffold(
           backgroundColor: const Color(0xFFF7FAFF),
           appBar: AppBar(
-            title: const Text('Create Credit Note'),
+            title: const Text('Create Debit Note'),
             leading: const BackButton(),
           ),
           body: SafeArea(
@@ -1313,7 +1314,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
-              final CreditNoteItem item = CreditNoteItem(
+              final DebitNoteItem item = DebitNoteItem(
                 description: _descController.text.trim().isEmpty
                     ? 'Custom item'
                     : _descController.text.trim(),

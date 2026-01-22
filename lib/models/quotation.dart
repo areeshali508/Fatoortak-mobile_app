@@ -1,18 +1,16 @@
-enum CreditNoteStatus {
+enum QuotationStatus {
   draft,
-  submitted,
-  cleared,
-  reported,
-  rejected,
+  sent,
 }
 
-enum CreditNotePaymentStatus {
+enum QuotationOutcomeStatus {
   pending,
-  refunded,
-  applied,
+  accepted,
+  declined,
+  expired,
 }
 
-class CreditNoteItem {
+class QuotationItem {
   final String description;
   final int qty;
   final double price;
@@ -20,7 +18,7 @@ class CreditNoteItem {
   final String vatCategory;
   final double taxPercent;
 
-  const CreditNoteItem({
+  const QuotationItem({
     required this.description,
     required this.qty,
     required this.price,
@@ -40,36 +38,30 @@ class CreditNoteItem {
   double get total => taxableAmount + taxAmount;
 }
 
-class CreditNote {
+class Quotation {
   final String id;
   final String customer;
-  final String customerType;
   final DateTime issueDate;
+  final DateTime? validUntil;
   final String currency;
   final double amount;
-  final CreditNoteStatus status;
-  final CreditNotePaymentStatus paymentStatus;
-  final String? originalInvoiceNo;
-  final String? originalInvoiceCustomerType;
-  final String? zatcaUuid;
-  final String? zatcaHash;
-  final String? zatcaErrorMessage;
-  final List<CreditNoteItem> items;
+  final QuotationStatus status;
+  final QuotationOutcomeStatus outcomeStatus;
+  final List<QuotationItem> items;
+  final String notes;
+  final String terms;
 
-  const CreditNote({
+  const Quotation({
     required this.id,
     required this.customer,
-    required this.customerType,
     required this.issueDate,
     required this.currency,
     required this.amount,
     required this.status,
-    this.paymentStatus = CreditNotePaymentStatus.pending,
-    this.originalInvoiceNo,
-    this.originalInvoiceCustomerType,
-    this.zatcaUuid,
-    this.zatcaHash,
-    this.zatcaErrorMessage,
-    this.items = const <CreditNoteItem>[],
+    this.outcomeStatus = QuotationOutcomeStatus.pending,
+    this.validUntil,
+    this.items = const <QuotationItem>[],
+    this.notes = '',
+    this.terms = '',
   });
 }

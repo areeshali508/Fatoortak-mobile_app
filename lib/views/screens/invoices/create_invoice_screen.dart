@@ -375,6 +375,13 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                               return _ItemCard(
                                 item: item,
                                 currency: ctrl.currency,
+                                onDecrementQty: () {
+                                  ctrl.decrementQtyAt(idx);
+                                },
+                                onIncrementQty: () {
+                                  ctrl.incrementQtyAt(idx);
+                                },
+                                showQtyStepper: true,
                                 onRemove: () {
                                   ctrl.removeItemAt(idx);
                                 },
@@ -629,12 +636,18 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
 class _ItemCard extends StatelessWidget {
   final InvoiceItem item;
   final String currency;
+  final VoidCallback? onDecrementQty;
+  final VoidCallback? onIncrementQty;
+  final bool showQtyStepper;
   final VoidCallback onRemove;
   final bool showRemove;
 
   const _ItemCard({
     required this.item,
     required this.currency,
+    this.onDecrementQty,
+    this.onIncrementQty,
+    this.showQtyStepper = false,
     required this.onRemove,
     this.showRemove = true,
   });
@@ -705,12 +718,107 @@ class _ItemCard extends StatelessWidget {
             spacing: 10,
             runSpacing: 10,
             children: <Widget>[
-              _MetaPill(label: 'Qty', value: '${item.qty}'),
+              if (showQtyStepper)
+                _QtyStepper(
+                  qty: item.qty,
+                  onDecrement: onDecrementQty,
+                  onIncrement: onIncrementQty,
+                )
+              else
+                _MetaPill(label: 'Qty', value: '${item.qty}'),
               _MetaPill(label: 'Price', value: _fmt(item.price)),
               _MetaPill(label: 'Discount %', value: _fmt(item.discountPercent)),
               _MetaPill(label: 'VAT', value: item.vatCategory),
               _MetaPill(label: 'Tax %', value: _fmt(item.taxPercent)),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QtyStepper extends StatelessWidget {
+  final int qty;
+  final VoidCallback? onDecrement;
+  final VoidCallback? onIncrement;
+
+  const _QtyStepper({
+    required this.qty,
+    required this.onDecrement,
+    required this.onIncrement,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FAFF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE9EEF5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const Text(
+            'Qty',
+            style: TextStyle(
+              color: Color(0xFF6B7895),
+              fontWeight: FontWeight.w800,
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            height: 28,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE9EEF5)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
+                  onPressed: onDecrement,
+                  icon: const Icon(
+                    Icons.remove,
+                    size: 16,
+                    color: Color(0xFF6B7895),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(
+                    '$qty',
+                    style: const TextStyle(
+                      color: Color(0xFF0B1B4B),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
+                  onPressed: onIncrement,
+                  icon: const Icon(
+                    Icons.add,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

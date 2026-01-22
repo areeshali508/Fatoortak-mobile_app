@@ -27,7 +27,9 @@ class _AppDrawerState extends State<AppDrawer> {
     final String? currentRoute = ModalRoute.of(context)?.settings.name;
     final bool salesSelected = currentRoute == AppRoutes.invoices ||
         currentRoute == AppRoutes.createInvoice ||
-        currentRoute == AppRoutes.creditNotes;
+        currentRoute == AppRoutes.creditNotes ||
+        currentRoute == AppRoutes.debitNotes ||
+        currentRoute == AppRoutes.quotations;
     if (salesSelected && !_salesExpanded) {
       setState(() => _salesExpanded = true);
     }
@@ -40,7 +42,10 @@ class _AppDrawerState extends State<AppDrawer> {
     final bool invoicesSelected =
         currentRoute == AppRoutes.invoices || currentRoute == AppRoutes.createInvoice;
     final bool creditNotesSelected = currentRoute == AppRoutes.creditNotes;
-    final bool salesSelected = invoicesSelected || creditNotesSelected;
+    final bool debitNotesSelected = currentRoute == AppRoutes.debitNotes;
+    final bool quotationsSelected = currentRoute == AppRoutes.quotations;
+    final bool salesSelected =
+        invoicesSelected || creditNotesSelected || debitNotesSelected || quotationsSelected;
 
     return Drawer(
       backgroundColor: Colors.transparent,
@@ -258,6 +263,42 @@ class _AppDrawerState extends State<AppDrawer> {
                           },
                         ),
                       ),
+                    if (_salesExpanded)
+                      Padding(
+                        padding:
+                            EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
+                        child: _DrawerItem(
+                          icon: Icons.note_add_outlined,
+                          label: 'Debit Notes',
+                          selected: debitNotesSelected,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (currentRoute == AppRoutes.debitNotes) {
+                              return;
+                            }
+                            Navigator.of(context)
+                                .pushReplacementNamed(AppRoutes.debitNotes);
+                          },
+                        ),
+                      ),
+                    if (_salesExpanded)
+                      Padding(
+                        padding:
+                            EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
+                        child: _DrawerItem(
+                          icon: Icons.description_outlined,
+                          label: 'Quotations',
+                          selected: quotationsSelected,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (currentRoute == AppRoutes.quotations) {
+                              return;
+                            }
+                            Navigator.of(context)
+                                .pushReplacementNamed(AppRoutes.quotations);
+                          },
+                        ),
+                      ),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: hPad),
                       child: _DrawerItem(
@@ -272,7 +313,11 @@ class _AppDrawerState extends State<AppDrawer> {
                       child: _DrawerItem(
                         icon: Icons.inventory_2_outlined,
                         label: 'Inventory',
-                        onTap: () => _comingSoon(context),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          Navigator.of(context)
+                              .pushReplacementNamed(AppRoutes.products);
+                        },
                       ),
                     ),
                     Padding(
@@ -293,7 +338,11 @@ class _AppDrawerState extends State<AppDrawer> {
                       child: _DrawerItem(
                         icon: Icons.groups_outlined,
                         label: 'Customers & Vendors',
-                        onTap: () => _comingSoon(context),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          Navigator.of(context)
+                              .pushReplacementNamed(AppRoutes.customers);
+                        },
                       ),
                     ),
                     Padding(

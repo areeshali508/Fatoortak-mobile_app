@@ -92,6 +92,38 @@ class CreateInvoiceController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void incrementQtyAt(int index) {
+    if (index < 0 || index >= _items.length) return;
+    final InvoiceItem cur = _items[index];
+    _items[index] = InvoiceItem(
+      product: cur.product,
+      qty: cur.qty + 1,
+      price: cur.price,
+      discountPercent: cur.discountPercent,
+      vatCategory: cur.vatCategory,
+      taxPercent: cur.taxPercent,
+    );
+    notifyListeners();
+  }
+
+  void decrementQtyAt(int index) {
+    if (index < 0 || index >= _items.length) return;
+    final InvoiceItem cur = _items[index];
+    if (cur.qty <= 1) {
+      removeItemAt(index);
+      return;
+    }
+    _items[index] = InvoiceItem(
+      product: cur.product,
+      qty: cur.qty - 1,
+      price: cur.price,
+      discountPercent: cur.discountPercent,
+      vatCategory: cur.vatCategory,
+      taxPercent: cur.taxPercent,
+    );
+    notifyListeners();
+  }
+
   bool isStepValid(int step) {
     switch (step) {
       case 0:

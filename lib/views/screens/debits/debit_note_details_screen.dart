@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
-import '../../../models/credit_note.dart';
+import '../../../models/debit_note.dart';
 
-class CreditNoteDetailsScreen extends StatelessWidget {
-  final CreditNote note;
+class DebitNoteDetailsScreen extends StatelessWidget {
+  final DebitNote note;
 
-  const CreditNoteDetailsScreen({super.key, required this.note});
+  const DebitNoteDetailsScreen({super.key, required this.note});
 
   String _fmtDate(DateTime d) {
     final String day = d.day.toString().padLeft(2, '0');
@@ -23,29 +23,29 @@ class CreditNoteDetailsScreen extends StatelessWidget {
     return '${note.currency} $formatted';
   }
 
-  (_ChipStyle, String) _statusStyle(CreditNoteStatus s) {
+  (_ChipStyle, String) _statusStyle(DebitNoteStatus s) {
     switch (s) {
-      case CreditNoteStatus.draft:
+      case DebitNoteStatus.draft:
         return (
           const _ChipStyle(bg: Color(0xFFF3F6FB), fg: Color(0xFF6B7895)),
           'Draft',
         );
-      case CreditNoteStatus.submitted:
+      case DebitNoteStatus.submitted:
         return (
           const _ChipStyle(bg: Color(0xFFE7F1FF), fg: AppColors.primary),
           'Submitted',
         );
-      case CreditNoteStatus.cleared:
+      case DebitNoteStatus.cleared:
         return (
           const _ChipStyle(bg: Color(0xFFEFFAF3), fg: Color(0xFF1DB954)),
           'Cleared',
         );
-      case CreditNoteStatus.reported:
+      case DebitNoteStatus.reported:
         return (
           const _ChipStyle(bg: Color(0xFFEFFAF3), fg: Color(0xFF1DB954)),
           'Reported',
         );
-      case CreditNoteStatus.rejected:
+      case DebitNoteStatus.rejected:
         return (
           const _ChipStyle(bg: Color(0xFFFFE7E7), fg: Color(0xFFD93025)),
           'Rejected',
@@ -53,22 +53,22 @@ class CreditNoteDetailsScreen extends StatelessWidget {
     }
   }
 
-  (_ChipStyle, String) _paymentStyle(CreditNotePaymentStatus s) {
+  (_ChipStyle, String) _paymentStyle(DebitNotePaymentStatus s) {
     switch (s) {
-      case CreditNotePaymentStatus.pending:
+      case DebitNotePaymentStatus.pending:
         return (
           const _ChipStyle(bg: Color(0xFFFFF4E5), fg: Color(0xFFB26A00)),
           'Pending',
         );
-      case CreditNotePaymentStatus.refunded:
-        return (
-          const _ChipStyle(bg: Color(0xFFFFE7E7), fg: Color(0xFFD93025)),
-          'Refunded',
-        );
-      case CreditNotePaymentStatus.applied:
+      case DebitNotePaymentStatus.paid:
         return (
           const _ChipStyle(bg: Color(0xFFEFFAF3), fg: Color(0xFF1DB954)),
-          'Applied',
+          'Paid',
+        );
+      case DebitNotePaymentStatus.cancelled:
+        return (
+          const _ChipStyle(bg: Color(0xFFFFE7E7), fg: Color(0xFFD93025)),
+          'Cancelled',
         );
     }
   }
@@ -96,7 +96,7 @@ class CreditNoteDetailsScreen extends StatelessWidget {
         return Scaffold(
           backgroundColor: const Color(0xFFF7FAFF),
           appBar: AppBar(
-            title: const Text('Credit Note Details'),
+            title: const Text('Debit Note Details'),
           ),
           body: SafeArea(
             child: SingleChildScrollView(
@@ -118,7 +118,7 @@ class CreditNoteDetailsScreen extends StatelessWidget {
                           children: <Widget>[
                             Expanded(
                               child: Text(
-                                'Credit Note #${note.id}',
+                                'Debit Note #${note.id}',
                                 style: const TextStyle(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.w900,
@@ -171,7 +171,7 @@ class CreditNoteDetailsScreen extends StatelessWidget {
                     title: 'Summary',
                     child: Column(
                       children: <Widget>[
-                        _SummaryRow(label: 'Credit Note #', value: note.id),
+                        _SummaryRow(label: 'Debit Note #', value: note.id),
                         _SummaryRow(label: 'Customer', value: note.customer),
                         _SummaryRow(
                           label: 'Customer Type',
@@ -218,7 +218,7 @@ class CreditNoteDetailsScreen extends StatelessWidget {
                             ),
                           )
                         : Column(
-                            children: note.items.map((CreditNoteItem it) {
+                            children: note.items.map((DebitNoteItem it) {
                               final double lineTotal = it.total;
                               final bool asInt =
                                   (lineTotal - lineTotal.truncateToDouble())
@@ -363,13 +363,6 @@ class _SummaryRow extends StatelessWidget {
   }
 }
 
-class _ChipStyle {
-  final Color bg;
-  final Color fg;
-
-  const _ChipStyle({required this.bg, required this.fg});
-}
-
 class _Chip extends StatelessWidget {
   final String text;
   final _ChipStyle style;
@@ -394,4 +387,11 @@ class _Chip extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ChipStyle {
+  final Color bg;
+  final Color fg;
+
+  const _ChipStyle({required this.bg, required this.fg});
 }

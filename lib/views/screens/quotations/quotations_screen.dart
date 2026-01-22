@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../app/app_routes.dart';
-import '../../../controllers/credit_notes_controller.dart';
+import '../../../controllers/quotations_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
-import '../../../models/credit_note.dart';
+import '../../../models/quotation.dart';
 import '../../layout/app_drawer.dart';
-import 'credit_note_details_screen.dart';
+import 'quotation_details_screen.dart';
 
-class CreditNotesScreen extends StatefulWidget {
-  const CreditNotesScreen({super.key});
+class QuotationsScreen extends StatefulWidget {
+  const QuotationsScreen({super.key});
 
   @override
-  State<CreditNotesScreen> createState() => _CreditNotesScreenState();
+  State<QuotationsScreen> createState() => _QuotationsScreenState();
 }
 
 class _SheetActionTile extends StatelessWidget {
@@ -85,7 +85,7 @@ class _SearchField extends StatelessWidget {
       controller: controller,
       onChanged: onChanged,
       decoration: InputDecoration(
-        hintText: 'Search credit notes',
+        hintText: 'Search quotations',
         hintStyle: const TextStyle(color: Color(0xFF9AA5B6)),
         prefixIcon: const Icon(Icons.search, color: Color(0xFF9AA5B6)),
         filled: true,
@@ -283,7 +283,7 @@ class _Pill extends StatelessWidget {
   }
 }
 
-class _CreditNotesScreenState extends State<CreditNotesScreen> {
+class _QuotationsScreenState extends State<QuotationsScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -291,7 +291,7 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<CreditNotesController>().refresh();
+      context.read<QuotationsController>().refresh();
     });
   }
 
@@ -302,7 +302,7 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
   }
 
   Future<void> _openDateFilter() async {
-    final CreditNotesController notesCtrl = context.read<CreditNotesController>();
+    final QuotationsController ctrl = context.read<QuotationsController>();
     final _DateAction? action = await showModalBottomSheet<_DateAction>(
       context: context,
       showDragHandle: true,
@@ -332,7 +332,7 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
                   label: 'Select Start to End',
                   onTap: () => Navigator.of(ctx).pop(_DateAction.pick),
                 ),
-                if (notesCtrl.dateRange != null)
+                if (ctrl.dateRange != null)
                   _SheetActionTile(
                     label: 'Clear Date Range',
                     onTap: () => Navigator.of(ctx).pop(_DateAction.clear),
@@ -349,7 +349,7 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
     }
 
     if (action == _DateAction.clear) {
-      notesCtrl.setDateRange(null);
+      ctrl.setDateRange(null);
       return;
     }
 
@@ -358,7 +358,7 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
       context: context,
       firstDate: DateTime(2020, 1, 1),
       lastDate: DateTime(now.year + 2, 12, 31),
-      initialDateRange: notesCtrl.dateRange,
+      initialDateRange: ctrl.dateRange,
       helpText: 'Select date range',
     );
 
@@ -366,13 +366,13 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
       return;
     }
 
-    notesCtrl.setDateRange(picked);
+    ctrl.setDateRange(picked);
   }
 
   Future<void> _openStatusFilter() async {
-    final CreditNotesController notesCtrl = context.read<CreditNotesController>();
-    final CreditNoteStatus? result =
-        await showModalBottomSheet<CreditNoteStatus?>(
+    final QuotationsController ctrl = context.read<QuotationsController>();
+    final QuotationStatus? result =
+        await showModalBottomSheet<QuotationStatus?>(
       context: context,
       showDragHandle: true,
       backgroundColor: Colors.white,
@@ -388,7 +388,7 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 const Text(
-                  'Credit Note Status',
+                  'Quotation Status',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Color(0xFF0B1B4B),
@@ -399,61 +399,28 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
                 const SizedBox(height: 10),
                 _StatusOption(
                   label: 'All Status',
-                  selected: notesCtrl.statusFilter == null,
+                  selected: ctrl.statusFilter == null,
                   onTap: () => Navigator.of(ctx).pop(null),
                 ),
                 _StatusOption(
                   label: 'Draft',
-                  selected: notesCtrl.statusFilter == CreditNoteStatus.draft,
+                  selected: ctrl.statusFilter == QuotationStatus.draft,
                   onTap: () {
                     Navigator.of(ctx).pop(
-                      notesCtrl.statusFilter == CreditNoteStatus.draft
+                      ctrl.statusFilter == QuotationStatus.draft
                           ? null
-                          : CreditNoteStatus.draft,
+                          : QuotationStatus.draft,
                     );
                   },
                 ),
                 _StatusOption(
-                  label: 'Submitted',
-                  selected: notesCtrl.statusFilter == CreditNoteStatus.submitted,
+                  label: 'Sent',
+                  selected: ctrl.statusFilter == QuotationStatus.sent,
                   onTap: () {
                     Navigator.of(ctx).pop(
-                      notesCtrl.statusFilter == CreditNoteStatus.submitted
+                      ctrl.statusFilter == QuotationStatus.sent
                           ? null
-                          : CreditNoteStatus.submitted,
-                    );
-                  },
-                ),
-                _StatusOption(
-                  label: 'Cleared',
-                  selected: notesCtrl.statusFilter == CreditNoteStatus.cleared,
-                  onTap: () {
-                    Navigator.of(ctx).pop(
-                      notesCtrl.statusFilter == CreditNoteStatus.cleared
-                          ? null
-                          : CreditNoteStatus.cleared,
-                    );
-                  },
-                ),
-                _StatusOption(
-                  label: 'Reported',
-                  selected: notesCtrl.statusFilter == CreditNoteStatus.reported,
-                  onTap: () {
-                    Navigator.of(ctx).pop(
-                      notesCtrl.statusFilter == CreditNoteStatus.reported
-                          ? null
-                          : CreditNoteStatus.reported,
-                    );
-                  },
-                ),
-                _StatusOption(
-                  label: 'Rejected',
-                  selected: notesCtrl.statusFilter == CreditNoteStatus.rejected,
-                  onTap: () {
-                    Navigator.of(ctx).pop(
-                      notesCtrl.statusFilter == CreditNoteStatus.rejected
-                          ? null
-                          : CreditNoteStatus.rejected,
+                          : QuotationStatus.sent,
                     );
                   },
                 ),
@@ -468,13 +435,13 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
       return;
     }
 
-    notesCtrl.setStatusFilter(result);
+    ctrl.setStatusFilter(result);
   }
 
-  Future<void> _openPaymentStatusFilter() async {
-    final CreditNotesController notesCtrl = context.read<CreditNotesController>();
-    final CreditNotePaymentStatus? result =
-        await showModalBottomSheet<CreditNotePaymentStatus?>(
+  Future<void> _openOutcomeFilter() async {
+    final QuotationsController ctrl = context.read<QuotationsController>();
+    final QuotationOutcomeStatus? result =
+        await showModalBottomSheet<QuotationOutcomeStatus?>(
       context: context,
       showDragHandle: true,
       backgroundColor: Colors.white,
@@ -490,7 +457,7 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 const Text(
-                  'Payment Status',
+                  'Outcome Status',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Color(0xFF0B1B4B),
@@ -500,46 +467,55 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
                 ),
                 const SizedBox(height: 10),
                 _StatusOption(
-                  label: 'All Payment Status',
-                  selected: notesCtrl.paymentStatusFilter == null,
+                  label: 'All Outcomes',
+                  selected: ctrl.outcomeStatusFilter == null,
                   onTap: () => Navigator.of(ctx).pop(null),
                 ),
                 _StatusOption(
                   label: 'Pending',
                   selected:
-                      notesCtrl.paymentStatusFilter == CreditNotePaymentStatus.pending,
+                      ctrl.outcomeStatusFilter == QuotationOutcomeStatus.pending,
                   onTap: () {
                     Navigator.of(ctx).pop(
-                      notesCtrl.paymentStatusFilter ==
-                              CreditNotePaymentStatus.pending
+                      ctrl.outcomeStatusFilter == QuotationOutcomeStatus.pending
                           ? null
-                          : CreditNotePaymentStatus.pending,
+                          : QuotationOutcomeStatus.pending,
                     );
                   },
                 ),
                 _StatusOption(
-                  label: 'Refunded',
-                  selected:
-                      notesCtrl.paymentStatusFilter == CreditNotePaymentStatus.refunded,
+                  label: 'Accepted',
+                  selected: ctrl.outcomeStatusFilter ==
+                      QuotationOutcomeStatus.accepted,
                   onTap: () {
                     Navigator.of(ctx).pop(
-                      notesCtrl.paymentStatusFilter ==
-                              CreditNotePaymentStatus.refunded
+                      ctrl.outcomeStatusFilter == QuotationOutcomeStatus.accepted
                           ? null
-                          : CreditNotePaymentStatus.refunded,
+                          : QuotationOutcomeStatus.accepted,
                     );
                   },
                 ),
                 _StatusOption(
-                  label: 'Applied',
-                  selected:
-                      notesCtrl.paymentStatusFilter == CreditNotePaymentStatus.applied,
+                  label: 'Declined',
+                  selected: ctrl.outcomeStatusFilter ==
+                      QuotationOutcomeStatus.declined,
                   onTap: () {
                     Navigator.of(ctx).pop(
-                      notesCtrl.paymentStatusFilter ==
-                              CreditNotePaymentStatus.applied
+                      ctrl.outcomeStatusFilter == QuotationOutcomeStatus.declined
                           ? null
-                          : CreditNotePaymentStatus.applied,
+                          : QuotationOutcomeStatus.declined,
+                    );
+                  },
+                ),
+                _StatusOption(
+                  label: 'Expired',
+                  selected:
+                      ctrl.outcomeStatusFilter == QuotationOutcomeStatus.expired,
+                  onTap: () {
+                    Navigator.of(ctx).pop(
+                      ctrl.outcomeStatusFilter == QuotationOutcomeStatus.expired
+                          ? null
+                          : QuotationOutcomeStatus.expired,
                     );
                   },
                 ),
@@ -554,39 +530,39 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
       return;
     }
 
-    notesCtrl.setPaymentStatusFilter(result);
+    ctrl.setOutcomeStatusFilter(result);
   }
 
-  Future<void> _openCreateCreditNote() async {
+  Future<void> _openCreateQuotation() async {
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-    final CreditNotesController notesCtrl = context.read<CreditNotesController>();
+    final QuotationsController ctrl = context.read<QuotationsController>();
     final Object? result =
-        await Navigator.of(context).pushNamed(AppRoutes.createCreditNote);
+        await Navigator.of(context).pushNamed(AppRoutes.createQuotation);
 
-    if (!mounted || result == null || result is! CreditNote) {
+    if (!mounted || result == null || result is! Quotation) {
       return;
     }
 
-    await notesCtrl.addCreditNote(result);
+    await ctrl.addQuotation(result);
 
     messenger.showSnackBar(
       SnackBar(
         content: Text(
-          result.status == CreditNoteStatus.draft
-              ? 'Credit note saved as draft'
-              : 'Credit note saved',
+          result.status == QuotationStatus.draft
+              ? 'Quotation saved as draft'
+              : 'Quotation saved',
         ),
       ),
     );
   }
 
   void _clearFilters() {
-    final CreditNotesController ctrl = context.read<CreditNotesController>();
+    final QuotationsController ctrl = context.read<QuotationsController>();
     _searchController.clear();
     ctrl.setSearchQuery('');
     ctrl.setDateRange(null);
     ctrl.setStatusFilter(null);
-    ctrl.setPaymentStatusFilter(null);
+    ctrl.setOutcomeStatusFilter(null);
   }
 
   void _onBottomTap(int index) {
@@ -619,8 +595,7 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final CreditNotesController ctrl =
-            context.watch<CreditNotesController>();
+        final QuotationsController ctrl = context.watch<QuotationsController>();
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
           16,
@@ -637,7 +612,7 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
           backgroundColor: const Color(0xFFF7FAFF),
           drawer: const AppDrawer(),
           appBar: AppBar(
-            title: const Text('Credit Notes'),
+            title: const Text('Quotations'),
             leading: Builder(
               builder: (BuildContext context) {
                 return IconButton(
@@ -676,7 +651,7 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
           floatingActionButtonLocation:
               FloatingActionButtonLocation.endFloat,
           floatingActionButton: FloatingActionButton(
-            onPressed: _openCreateCreditNote,
+            onPressed: _openCreateQuotation,
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             child: const Icon(Icons.add, size: 26),
@@ -698,10 +673,10 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
                 children: <Widget>[
                   _StatsGrid(
                     constraints: constraints,
-                    totalNotes: ctrl.totalNotesCount.toString(),
+                    total: ctrl.totalQuotationsCount.toString(),
                     draft: ctrl.draftCount.toString(),
-                    clearedOrReported: ctrl.clearedOrReportedCount.toString(),
-                    credits: ctrl.creditsLabel,
+                    sent: ctrl.sentCount.toString(),
+                    amount: ctrl.quotationsLabel,
                   ),
                   SizedBox(height: gap),
                   _SearchField(
@@ -718,12 +693,12 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
                     dateLabel: ctrl.dateRangeLabel,
                     dateSelected: ctrl.dateRange != null,
                     onDate: _openDateFilter,
-                    moreLabel: ctrl.paymentStatusFilterLabel,
-                    moreSelected: ctrl.paymentStatusFilter != null,
-                    onMoreFilters: _openPaymentStatusFilter,
+                    moreLabel: ctrl.outcomeStatusFilterLabel,
+                    moreSelected: ctrl.outcomeStatusFilter != null,
+                    onMoreFilters: _openOutcomeFilter,
                   ),
                   SizedBox(height: gap),
-                  if (ctrl.isLoading && ctrl.notes.isEmpty)
+                  if (ctrl.isLoading && ctrl.quotations.isEmpty)
                     const Padding(
                       padding: EdgeInsets.only(top: 28),
                       child: Center(
@@ -732,31 +707,30 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
                         ),
                       ),
                     )
-                  else if (ctrl.visibleNotes.isEmpty &&
+                  else if (ctrl.visibleQuotations.isEmpty &&
                       (ctrl.searchQuery.isNotEmpty ||
                           ctrl.dateRange != null ||
                           ctrl.statusFilter != null ||
-                          ctrl.paymentStatusFilter != null))
-                    _NoResultsState(
-                      onClear: _clearFilters,
-                    )
-                  else if (ctrl.visibleNotes.isEmpty)
+                          ctrl.outcomeStatusFilter != null))
+                    _NoResultsState(onClear: _clearFilters)
+                  else if (ctrl.visibleQuotations.isEmpty)
                     _EmptyState(
                       constraints: constraints,
-                      onGetStarted: _openCreateCreditNote,
+                      onGetStarted: _openCreateQuotation,
                     )
                   else
-                    ...ctrl.visibleNotes.map((CreditNote n) {
-                      return _CreditNoteCard(
-                        id: n.id,
-                        customer: n.customer,
-                        date: ctrl.dateLabel(n.issueDate),
-                        amount: ctrl.amountLabel(n),
-                        status: n.status,
+                    ...ctrl.visibleQuotations.map((Quotation q) {
+                      return _QuotationCard(
+                        id: q.id,
+                        customer: q.customer,
+                        date: ctrl.dateLabel(q.issueDate),
+                        amount: ctrl.amountLabel(q),
+                        status: q.status,
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute<void>(
-                              builder: (_) => CreditNoteDetailsScreen(note: n),
+                              builder: (_) =>
+                                  QuotationDetailsScreen(quotation: q),
                             ),
                           );
                         },
@@ -799,17 +773,17 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
 
 class _StatsGrid extends StatelessWidget {
   final BoxConstraints constraints;
-  final String totalNotes;
+  final String total;
   final String draft;
-  final String clearedOrReported;
-  final String credits;
+  final String sent;
+  final String amount;
 
   const _StatsGrid({
     required this.constraints,
-    required this.totalNotes,
+    required this.total,
     required this.draft,
-    required this.clearedOrReported,
-    required this.credits,
+    required this.sent,
+    required this.amount,
   });
 
   @override
@@ -820,8 +794,8 @@ class _StatsGrid extends StatelessWidget {
           children: <Widget>[
             Expanded(
               child: _StatCard(
-                title: 'Total Notes',
-                value: totalNotes,
+                title: 'Total',
+                value: total,
                 icon: Icons.description_outlined,
                 iconColor: const Color(0xFF9AA5B6),
               ),
@@ -842,17 +816,17 @@ class _StatsGrid extends StatelessWidget {
           children: <Widget>[
             Expanded(
               child: _StatCard(
-                title: 'Cleared/Reported',
-                value: clearedOrReported,
-                icon: Icons.check_circle,
-                iconColor: const Color(0xFF1DB954),
+                title: 'Sent',
+                value: sent,
+                icon: Icons.send,
+                iconColor: AppColors.primary,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _StatCard(
-                title: 'Credits',
-                value: credits,
+                title: 'Amount',
+                value: amount,
                 icon: Icons.trending_up,
                 iconColor: AppColors.primary,
               ),
@@ -864,15 +838,15 @@ class _StatsGrid extends StatelessWidget {
   }
 }
 
-class _CreditNoteCard extends StatelessWidget {
+class _QuotationCard extends StatelessWidget {
   final String id;
   final String customer;
   final String date;
   final String amount;
-  final CreditNoteStatus status;
+  final QuotationStatus status;
   final VoidCallback onTap;
 
-  const _CreditNoteCard({
+  const _QuotationCard({
     required this.id,
     required this.customer,
     required this.date,
@@ -906,7 +880,7 @@ class _CreditNoteCard extends StatelessWidget {
                   children: <Widget>[
                     Expanded(
                       child: Text(
-                        'Credit Note #$id',
+                        'Quotation #$id',
                         style: const TextStyle(
                           color: AppColors.primary,
                           fontWeight: FontWeight.w800,
@@ -972,32 +946,17 @@ class _CreditNoteCard extends StatelessWidget {
     );
   }
 
-  (_StatusStyle, String) _statusStyle(CreditNoteStatus s) {
+  (_StatusStyle, String) _statusStyle(QuotationStatus s) {
     switch (s) {
-      case CreditNoteStatus.draft:
+      case QuotationStatus.draft:
         return (
           const _StatusStyle(bg: Color(0xFFF3F6FB), fg: Color(0xFF6B7895)),
           'Draft',
         );
-      case CreditNoteStatus.submitted:
+      case QuotationStatus.sent:
         return (
           const _StatusStyle(bg: Color(0xFFE7F1FF), fg: AppColors.primary),
-          'Submitted',
-        );
-      case CreditNoteStatus.cleared:
-        return (
-          const _StatusStyle(bg: Color(0xFFEFFAF3), fg: Color(0xFF1DB954)),
-          'Cleared',
-        );
-      case CreditNoteStatus.reported:
-        return (
-          const _StatusStyle(bg: Color(0xFFEFFAF3), fg: Color(0xFF1DB954)),
-          'Reported',
-        );
-      case CreditNoteStatus.rejected:
-        return (
-          const _StatusStyle(bg: Color(0xFFFFE7E7), fg: Color(0xFFD93025)),
-          'Rejected',
+          'Sent',
         );
     }
   }
@@ -1090,13 +1049,13 @@ class _EmptyState extends StatelessWidget {
           Container(
             width: circle,
             height: circle,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEDEBFF),
+            decoration: const BoxDecoration(
+              color: Color(0xFFEDEBFF),
               shape: BoxShape.circle,
             ),
             child: const Center(
               child: Icon(
-                Icons.receipt_long,
+                Icons.description_outlined,
                 color: Color(0xFF8A7CFF),
                 size: 44,
               ),
@@ -1104,7 +1063,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           const Text(
-            'No Credit Notes Yet',
+            'No Quotations Yet',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Color(0xFF0B1B4B),
@@ -1114,7 +1073,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           const Text(
-            'Create your first credit note for refunds or\nadjustments to start managing your balance.',
+            'Create your first quotation to share pricing\nwith customers and track outcomes.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Color(0xFF6B7895),

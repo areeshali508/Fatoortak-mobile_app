@@ -7,6 +7,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
 import '../../../models/invoice.dart';
 import '../../layout/app_drawer.dart';
+import 'invoice_details_screen.dart';
 
 class InvoicesScreen extends StatefulWidget {
   const InvoicesScreen({super.key});
@@ -202,6 +203,10 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
     if (index == 1) {
       return;
     }
+    if (index == 2) {
+      Navigator.of(context).pushReplacementNamed(AppRoutes.customers);
+      return;
+    }
     if (index == 3) {
       Navigator.of(context).pushNamed(AppRoutes.settings);
       return;
@@ -338,6 +343,13 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                       date: invoiceCtrl.dateLabel(inv.issueDate),
                       amount: invoiceCtrl.amountLabel(inv),
                       status: inv.status,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => InvoiceDetailsScreen(invoice: inv),
+                          ),
+                        );
+                      },
                     );
                   }),
                 ],
@@ -361,7 +373,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.groups_outlined),
-                label: 'Clients',
+                label: 'Customers',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.settings_outlined),
@@ -647,6 +659,7 @@ class _InvoiceCard extends StatelessWidget {
   final String date;
   final String amount;
   final InvoiceStatus status;
+  final VoidCallback onTap;
 
   const _InvoiceCard({
     required this.invoiceNo,
@@ -654,6 +667,7 @@ class _InvoiceCard extends StatelessWidget {
     required this.date,
     required this.amount,
     required this.status,
+    required this.onTap,
   });
 
   @override
@@ -662,79 +676,90 @@ class _InvoiceCard extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      child: Material(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE9EEF5)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  'Invoice #$invoiceNo',
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFE9EEF5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        'Invoice #$invoiceNo',
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      amount,
+                      style: const TextStyle(
+                        color: Color(0xFF0B1B4B),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  customer,
                   style: const TextStyle(
-                    color: AppColors.primary,
+                    color: Color(0xFF0B1B4B),
                     fontWeight: FontWeight.w800,
-                    fontSize: 13,
+                    fontSize: 15,
                   ),
                 ),
-              ),
-              Text(
-                amount,
-                style: const TextStyle(
-                  color: Color(0xFF0B1B4B),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
+                const SizedBox(height: 14),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        date,
+                        style: const TextStyle(
+                          color: Color(0xFF9AA5B6),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    if (style != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: style.bg,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          text,
+                          style: TextStyle(
+                            color: style.fg,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            customer,
-            style: const TextStyle(
-              color: Color(0xFF0B1B4B),
-              fontWeight: FontWeight.w800,
-              fontSize: 15,
+              ],
             ),
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  date,
-                  style: const TextStyle(
-                    color: Color(0xFF9AA5B6),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              if (style != null)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: style.bg,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    text,
-                    style: TextStyle(
-                      color: style.fg,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
