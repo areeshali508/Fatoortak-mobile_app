@@ -7,6 +7,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
 import '../../../models/credit_note.dart';
 import '../../layout/app_drawer.dart';
+import '../../widgets/buttons/primary_add_fab.dart';
 import 'credit_note_details_screen.dart';
 
 class CreditNotesScreen extends StatefulWidget {
@@ -677,12 +678,7 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
             ],
           ),
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-          floatingActionButton: FloatingActionButton(
-            onPressed: _openCreateCreditNote,
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            child: const Icon(Icons.add, size: 26),
-          ),
+          floatingActionButton: PrimaryAddFab(onPressed: _openCreateCreditNote),
           body: SafeArea(
             child: RefreshIndicator(
               onRefresh: ctrl.refresh,

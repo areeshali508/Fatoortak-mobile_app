@@ -118,6 +118,13 @@ class CreateDebitNoteController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateItemAt(int index, DebitNoteItem item) {
+    if (index < 0 || index >= _items.length) return;
+    _items[index] = item;
+    _zatcaValidated = false;
+    notifyListeners();
+  }
+
   void incrementQtyAt(int index) {
     if (index < 0 || index >= _items.length) return;
     final DebitNoteItem cur = _items[index];

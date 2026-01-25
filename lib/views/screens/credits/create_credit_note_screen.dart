@@ -215,6 +215,27 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
     ctrl.addItem(item);
   }
 
+  Future<void> _openEditItemSheet(int index, CreditNoteItem initial) async {
+    final CreateCreditNoteController ctrl = context
+        .read<CreateCreditNoteController>();
+    final CreditNoteItem? item = await showModalBottomSheet<CreditNoteItem>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) => _AddItemSheet(currency: ctrl.currency, initialItem: initial),
+    );
+
+    if (!mounted || item == null) {
+      return;
+    }
+
+    ctrl.updateItemAt(index, item);
+  }
+
   void _saveDraft() {
     final CreateCreditNoteController ctrl = context
         .read<CreateCreditNoteController>();
@@ -379,13 +400,51 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              '${it.qty} x ${it.price.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                color: Color(0xFF6B7895),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12,
-                              ),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 6,
+                              children: <Widget>[
+                                Text(
+                                  'Qty: ${it.qty}',
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7895),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  'Price: ${it.price.toStringAsFixed(2)} ${ctrl.currency}',
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7895),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  'Discount: ${it.discountPercent.toStringAsFixed(2)}%',
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7895),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  'VAT: ${it.vatCategory}',
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7895),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  'Tax: ${it.taxPercent.toStringAsFixed(2)}%',
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7895),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -401,6 +460,11 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                       ),
                       if (editable) ...<Widget>[
                         const SizedBox(width: 10),
+                        IconButton(
+                          onPressed: () => _openEditItemSheet(e.key, it),
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          color: const Color(0xFF9AA5B6),
+                        ),
                         Container(
                           height: 32,
                           decoration: BoxDecoration(
@@ -1211,8 +1275,9 @@ class _SummaryRow extends StatelessWidget {
 
 class _AddItemSheet extends StatefulWidget {
   final String currency;
+  final CreditNoteItem? initialItem;
 
-  const _AddItemSheet({required this.currency});
+  const _AddItemSheet({required this.currency, this.initialItem});
 
   @override
   State<_AddItemSheet> createState() => _AddItemSheetState();
@@ -1224,12 +1289,43 @@ class _AddItemSheetState extends State<_AddItemSheet> {
   final TextEditingController _priceController = TextEditingController(
     text: '0',
   );
+  final TextEditingController _discountController = TextEditingController(
+    text: '0',
+  );
+  final TextEditingController _taxController = TextEditingController(
+    text: '15',
+  );
+
+  String _vatCategory = 'S - 15%';
+
+  @override
+  void initState() {
+    super.initState();
+    final CreditNoteItem? it = widget.initialItem;
+    if (it == null) return;
+    _descController.text = it.description;
+    _qtyController.text = it.qty.toString();
+    _priceController.text = it.price.toString();
+    _discountController.text = it.discountPercent.toString();
+    _taxController.text = it.taxPercent.toString();
+    _vatCategory = it.vatCategory;
+    const List<String> vatOptions = <String>[
+      'S - 15%',
+      'Z - 0%',
+      'E - Exempt',
+    ];
+    if (!vatOptions.contains(_vatCategory)) {
+      _vatCategory = 'S - 15%';
+    }
+  }
 
   @override
   void dispose() {
     _descController.dispose();
     _qtyController.dispose();
     _priceController.dispose();
+    _discountController.dispose();
+    _taxController.dispose();
     super.dispose();
   }
 
@@ -1274,8 +1370,8 @@ class _AddItemSheetState extends State<_AddItemSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const Text(
-            'Add Item',
+          Text(
+            widget.initialItem == null ? 'Add Item' : 'Edit Item',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Color(0xFF0B1B4B),
@@ -1310,6 +1406,52 @@ class _AddItemSheetState extends State<_AddItemSheet> {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: TextField(
+                  controller: _discountController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: dec(label: 'Discount %', hint: '0'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  key: ValueKey<String>(_vatCategory),
+                  initialValue: _vatCategory,
+                  items: const <String>[
+                    'S - 15%',
+                    'Z - 0%',
+                    'E - Exempt',
+                  ]
+                      .map(
+                        (String e) => DropdownMenuItem<String>(
+                          value: e,
+                          child: Text(e, overflow: TextOverflow.ellipsis),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (String? v) {
+                    if (v == null) return;
+                    setState(() => _vatCategory = v);
+                  },
+                  decoration: dec(label: 'VAT Category'),
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                  borderRadius: BorderRadius.circular(12),
+                  dropdownColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _taxController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: dec(label: 'Tax %', hint: '15'),
+          ),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
@@ -1319,9 +1461,10 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                     : _descController.text.trim(),
                 qty: _parseInt(_qtyController.text, fallback: 1),
                 price: _parseDouble(_priceController.text, fallback: 0),
-                discountPercent: 0,
-                vatCategory: 'S - 15%',
-                taxPercent: 15,
+                discountPercent:
+                    _parseDouble(_discountController.text, fallback: 0),
+                vatCategory: _vatCategory,
+                taxPercent: _parseDouble(_taxController.text, fallback: 15),
               );
               Navigator.of(context).pop(item);
             },
@@ -1334,7 +1477,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
               ),
               textStyle: const TextStyle(fontWeight: FontWeight.w900),
             ),
-            child: const Text('Add Item'),
+            child: Text(widget.initialItem == null ? 'Add Item' : 'Save Changes'),
           ),
         ],
       ),

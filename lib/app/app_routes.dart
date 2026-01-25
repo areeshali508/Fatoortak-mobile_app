@@ -6,11 +6,13 @@ import '../controllers/create_credit_note_controller.dart';
 import '../controllers/create_debit_note_controller.dart';
 import '../controllers/debit_notes_controller.dart';
 import '../controllers/create_quotation_controller.dart';
+import '../controllers/create_product_controller.dart';
 import '../controllers/dashboard_controller.dart';
 import '../controllers/credit_notes_controller.dart';
 import '../controllers/quotations_controller.dart';
 import '../controllers/onboarding_controller.dart';
 import '../controllers/settings_controller.dart';
+import '../models/product.dart';
 import '../repositories/onboarding_repository.dart';
 import '../repositories/dashboard_repository.dart';
 import '../repositories/credit_note_repository.dart';
@@ -32,6 +34,7 @@ import '../views/screens/quotations/quotations_screen.dart';
 import '../views/screens/onboarding/onboarding_screen.dart';
 import '../views/screens/customers/customers_screen.dart';
 import '../views/screens/products/products_screen.dart';
+import '../views/screens/products/add_product_screen.dart';
 import '../views/screens/settings/settings_screen.dart';
 import '../views/screens/splash/splash_screen.dart';
 
@@ -49,6 +52,7 @@ class AppRoutes {
   static const String createQuotation = '/create-quotation';
   static const String customers = '/customers';
   static const String products = '/products';
+  static const String addProduct = '/add-product';
   static const String login = '/login';
   static const String forgotPassword = '/forgot-password';
   static const String signup = '/signup';
@@ -156,6 +160,14 @@ class AppRoutes {
       case AppRoutes.products:
         return MaterialPageRoute<void>(
           builder: (_) => const ProductsScreen(),
+          settings: settings,
+        );
+      case AppRoutes.addProduct:
+        return MaterialPageRoute<Product>(
+          builder: (_) => ChangeNotifierProvider<CreateProductController>(
+            create: (_) => CreateProductController(),
+            child: const AddProductScreen(),
+          ),
           settings: settings,
         );
       case login:

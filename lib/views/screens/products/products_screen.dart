@@ -9,6 +9,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
 import '../../../models/product.dart';
 import '../../layout/app_drawer.dart';
+import '../../widgets/buttons/primary_add_fab.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -40,6 +41,24 @@ class _ProductsScreenState extends State<ProductsScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Coming soon')));
+  }
+
+  Future<void> _openAddProduct() async {
+    try {
+      final Product? product = await Navigator.of(context)
+          .pushNamed<Product>(AppRoutes.addProduct);
+
+      if (!mounted || product == null) {
+        return;
+      }
+
+      await context.read<ProductController>().addProduct(product);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to open Add Product: $e')),
+      );
+    }
   }
 
   void _onBottomTap(int index) {
@@ -313,14 +332,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             ),
           ),
           floatingActionButton: SizedBox(
-            width: 62,
-            height: 62,
-            child: FloatingActionButton(
-              onPressed: _showComingSoon,
-              backgroundColor: AppColors.primary,
-              shape: const CircleBorder(),
-              child: const Icon(Icons.add, color: Colors.white, size: 28),
-            ),
+            child: PrimaryAddFab(onPressed: _openAddProduct),
           ),
           bottomNavigationBar: BottomNavigationBar(
             currentIndex: 0,
@@ -841,22 +853,18 @@ class _ProductVM {
     required Product product,
     required int index,
   }) {
-    final List<String> cats = <String>[
-      'Electronics',
-      'Furniture',
-      'Supplies',
-      'Accessories',
-      'Services',
-    ];
-
-    final List<int> units = <int>[12, 3, 0, 45, 1, 8, 2];
-
+    final String sku = product.sku.trim().isEmpty
+        ? (9000 + (index * 217) % 999).toString()
+        : product.sku.trim();
+    final String category = product.category.trim().isEmpty
+        ? 'General'
+        : product.category.trim();
     return _ProductVM(
       name: product.name,
-      sku: (9000 + (index * 217) % 999).toString(),
-      category: cats[index % cats.length],
-      active: index % 5 != 3,
-      units: units[index % units.length],
+      sku: sku,
+      category: category,
+      active: product.active,
+      units: product.units,
       price: product.price,
       currency: product.currency,
     );

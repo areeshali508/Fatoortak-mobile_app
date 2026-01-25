@@ -317,17 +317,8 @@ class _AppDrawerState extends State<AppDrawer> {
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: hPad),
                       child: _DrawerItem(
-                        icon: Icons.shopping_cart_outlined,
-                        label: 'Purchases',
-                        trailing: Icons.keyboard_arrow_down,
-                        onTap: () => _comingSoon(context),
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: hPad),
-                      child: _DrawerItem(
                         icon: Icons.inventory_2_outlined,
-                        label: 'Inventory',
+                        label: 'Products & Services',
                         onTap: () {
                           Navigator.of(context).pop();
                           Navigator.of(

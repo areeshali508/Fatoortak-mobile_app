@@ -7,6 +7,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
 import '../../../models/invoice.dart';
 import '../../layout/app_drawer.dart';
+import '../../widgets/buttons/primary_add_fab.dart';
 import 'invoice_details_screen.dart';
 
 class InvoicesScreen extends StatefulWidget {
@@ -275,7 +276,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
             ],
           ),
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-          floatingActionButton: FloatingActionButton(
+          floatingActionButton: PrimaryAddFab(
             onPressed: () async {
               final ScaffoldMessengerState messenger = ScaffoldMessenger.of(
                 context,
@@ -302,9 +303,6 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                 ),
               );
             },
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            child: const Icon(Icons.add, size: 26),
           ),
           body: SafeArea(
             child: SingleChildScrollView(

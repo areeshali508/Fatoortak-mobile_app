@@ -7,6 +7,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
 import '../../../models/customer.dart';
 import '../../layout/app_drawer.dart';
+import '../../widgets/buttons/primary_add_fab.dart';
 
 class CustomersScreen extends StatefulWidget {
   const CustomersScreen({super.key});
@@ -186,14 +187,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
             ),
           ),
           floatingActionButton: SizedBox(
-            width: 62,
-            height: 62,
-            child: FloatingActionButton(
-              onPressed: _comingSoon,
-              backgroundColor: AppColors.primary,
-              shape: const CircleBorder(),
-              child: const Icon(Icons.add, color: Colors.white, size: 28),
-            ),
+            child: PrimaryAddFab(onPressed: _comingSoon),
           ),
           bottomNavigationBar: BottomNavigationBar(
             currentIndex: 2,

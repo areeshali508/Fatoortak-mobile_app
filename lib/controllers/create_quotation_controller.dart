@@ -72,6 +72,12 @@ class CreateQuotationController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateItemAt(int index, QuotationItem item) {
+    if (index < 0 || index >= _items.length) return;
+    _items[index] = item;
+    notifyListeners();
+  }
+
   void incrementQtyAt(int index) {
     if (index < 0 || index >= _items.length) return;
     final QuotationItem cur = _items[index];

@@ -103,6 +103,27 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
     ctrl.addItem(item);
   }
 
+  Future<void> _openEditItemSheet(int index, QuotationItem initial) async {
+    final CreateQuotationController ctrl = context
+        .read<CreateQuotationController>();
+    final QuotationItem? item = await showModalBottomSheet<QuotationItem>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) => _AddItemSheet(currency: ctrl.currency, initialItem: initial),
+    );
+
+    if (!mounted || item == null) {
+      return;
+    }
+
+    ctrl.updateItemAt(index, item);
+  }
+
   void _submit() {
     final CreateQuotationController ctrl = context
         .read<CreateQuotationController>();
@@ -228,13 +249,51 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              '${it.qty} x ${it.price.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                color: Color(0xFF6B7895),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12,
-                              ),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 6,
+                              children: <Widget>[
+                                Text(
+                                  'Qty: ${it.qty}',
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7895),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  'Price: ${it.price.toStringAsFixed(2)} ${ctrl.currency}',
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7895),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  'Discount: ${it.discountPercent.toStringAsFixed(2)}%',
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7895),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  'VAT: ${it.vatCategory}',
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7895),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  'Tax: ${it.taxPercent.toStringAsFixed(2)}%',
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7895),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -250,6 +309,11 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                       ),
                       if (editable) ...<Widget>[
                         const SizedBox(width: 10),
+                        IconButton(
+                          onPressed: () => _openEditItemSheet(e.key, it),
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          color: const Color(0xFF9AA5B6),
+                        ),
                         Container(
                           height: 32,
                           decoration: BoxDecoration(
@@ -984,8 +1048,9 @@ class _SummaryRow extends StatelessWidget {
 
 class _AddItemSheet extends StatefulWidget {
   final String currency;
+  final QuotationItem? initialItem;
 
-  const _AddItemSheet({required this.currency});
+  const _AddItemSheet({required this.currency, this.initialItem});
 
   @override
   State<_AddItemSheet> createState() => _AddItemSheetState();
@@ -1005,6 +1070,27 @@ class _AddItemSheetState extends State<_AddItemSheet> {
   );
 
   String _vatCategory = 'S - 15%';
+
+  @override
+  void initState() {
+    super.initState();
+    final QuotationItem? it = widget.initialItem;
+    if (it == null) return;
+    _descController.text = it.description;
+    _qtyController.text = it.qty.toString();
+    _priceController.text = it.price.toString();
+    _discountController.text = it.discountPercent.toString();
+    _taxController.text = it.taxPercent.toString();
+    _vatCategory = it.vatCategory;
+    const List<String> vatOptions = <String>[
+      'S - 15%',
+      'Z - 0%',
+      'E - Exempt',
+    ];
+    if (!vatOptions.contains(_vatCategory)) {
+      _vatCategory = 'S - 15%';
+    }
+  }
 
   @override
   void dispose() {
@@ -1057,8 +1143,8 @@ class _AddItemSheetState extends State<_AddItemSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const Text(
-            'Add Item',
+          Text(
+            widget.initialItem == null ? 'Add Item' : 'Edit Item',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Color(0xFF0B1B4B),
@@ -1163,7 +1249,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
               ),
               textStyle: const TextStyle(fontWeight: FontWeight.w900),
             ),
-            child: const Text('Add Item'),
+            child: Text(widget.initialItem == null ? 'Add Item' : 'Save Changes'),
           ),
         ],
       ),

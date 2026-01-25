@@ -7,6 +7,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
 import '../../../models/quotation.dart';
 import '../../layout/app_drawer.dart';
+import '../../widgets/buttons/primary_add_fab.dart';
 import 'quotation_details_screen.dart';
 
 class QuotationsScreen extends StatefulWidget {
@@ -650,12 +651,7 @@ class _QuotationsScreenState extends State<QuotationsScreen> {
             ],
           ),
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-          floatingActionButton: FloatingActionButton(
-            onPressed: _openCreateQuotation,
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            child: const Icon(Icons.add, size: 26),
-          ),
+          floatingActionButton: PrimaryAddFab(onPressed: _openCreateQuotation),
           body: SafeArea(
             child: RefreshIndicator(
               onRefresh: ctrl.refresh,

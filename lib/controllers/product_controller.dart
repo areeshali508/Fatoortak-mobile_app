@@ -30,4 +30,10 @@ class ProductController extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<void> addProduct(Product product) async {
+    await _repository.addProduct(product);
+    _products = await _repository.listProducts();
+    notifyListeners();
+  }
 }

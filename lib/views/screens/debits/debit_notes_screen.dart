@@ -7,6 +7,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
 import '../../../models/debit_note.dart';
 import '../../layout/app_drawer.dart';
+import '../../widgets/buttons/primary_add_fab.dart';
 import 'debit_note_details_screen.dart';
 
 enum _DateAction { pick, clear }
@@ -406,12 +407,7 @@ class _DebitNotesScreenState extends State<DebitNotesScreen> {
             ],
           ),
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-          floatingActionButton: FloatingActionButton(
-            onPressed: _openCreateDebitNote,
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            child: const Icon(Icons.add, size: 26),
-          ),
+          floatingActionButton: PrimaryAddFab(onPressed: _openCreateDebitNote),
           body: SafeArea(
             child: RefreshIndicator(
               onRefresh: ctrl.refresh,
