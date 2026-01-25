@@ -36,10 +36,6 @@ class AppResponsive {
     double designFontSize, {
     double designWidth = 375,
   }) {
-    return scaledByWidth(
-      constraints,
-      designFontSize,
-      designWidth: designWidth,
-    );
+    return scaledByWidth(constraints, designFontSize, designWidth: designWidth);
   }
 }

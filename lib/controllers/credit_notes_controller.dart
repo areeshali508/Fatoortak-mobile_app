@@ -14,7 +14,7 @@ class CreditNotesController extends ChangeNotifier {
   List<CreditNote> _notes = const <CreditNote>[];
 
   CreditNotesController({required CreditNoteRepository repository})
-      : _repository = repository;
+    : _repository = repository;
 
   bool get isLoading => _isLoading;
 
@@ -138,17 +138,16 @@ class CreditNotesController extends ChangeNotifier {
 
   int get clearedOrReportedCount => clearedCount + reportedCount;
 
-  double get creditsTotal => _notes.fold<double>(
-        0,
-        (double p, CreditNote e) => p + e.amount,
-      );
+  double get creditsTotal =>
+      _notes.fold<double>(0, (double p, CreditNote e) => p + e.amount);
 
   String get creditsLabel {
     const String currency = 'SAR';
     final double total = creditsTotal;
     final bool asInt = (total - total.truncateToDouble()).abs() < 0.000001;
-    final String formatted =
-        asInt ? total.toStringAsFixed(0) : total.toStringAsFixed(2);
+    final String formatted = asInt
+        ? total.toStringAsFixed(0)
+        : total.toStringAsFixed(2);
     return '$currency $formatted';
   }
 
@@ -161,8 +160,9 @@ class CreditNotesController extends ChangeNotifier {
   String amountLabel(CreditNote note) {
     final double total = note.amount;
     final bool asInt = (total - total.truncateToDouble()).abs() < 0.000001;
-    final String formatted =
-        asInt ? total.toStringAsFixed(0) : total.toStringAsFixed(2);
+    final String formatted = asInt
+        ? total.toStringAsFixed(0)
+        : total.toStringAsFixed(2);
     return '${note.currency} $formatted';
   }
 

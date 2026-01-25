@@ -74,8 +74,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   final MainAxisAlignment dotsAlign = lastPage
                       ? MainAxisAlignment.start
                       : MainAxisAlignment.center;
-                  final Color dotsActiveColor =
-                      lastPage ? Colors.white : AppColors.primary;
+                  final Color dotsActiveColor = lastPage
+                      ? Colors.white
+                      : AppColors.primary;
                   final Color dotsInactiveColor = AppColors.dotInactive;
                   final double activeWidthMultiplier = lastPage ? 3.4 : 3.0;
                   final double dotHorizontalMargin = lastPage ? 4 : 5;
@@ -89,10 +90,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     textAlign: page.textAlign,
                     textCrossAxisAlignment: page.textCrossAxisAlignment,
                     listItems: page.features
-                        ?.map((OnboardingFeatureModel f) => _FeatureItemData(
-                              icon: f.icon,
-                              text: f.text,
-                            ))
+                        ?.map(
+                          (OnboardingFeatureModel f) =>
+                              _FeatureItemData(icon: f.icon, text: f.text),
+                        )
                         .toList(),
                     bottom: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -132,8 +133,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               _handleAction(ctrl.onPrimaryPressed()),
                           onSkip: page.showSkip
                               ? () async {
-                                  final OnboardingAction action =
-                                      await ctrl.onSkipPressed();
+                                  final OnboardingAction action = await ctrl
+                                      .onSkipPressed();
                                   if (!context.mounted) return;
                                   _handleAction(action);
                                 }
@@ -143,15 +144,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   padding: EdgeInsets.only(
                                     top: AppResponsive.clamp(
                                       AppResponsive.scaledByHeight(
-                                          constraints, 14),
+                                        constraints,
+                                        14,
+                                      ),
                                       10,
                                       18,
                                     ),
                                   ),
                                   child: GestureDetector(
                                     onTap: () async {
-                                      final OnboardingAction action =
-                                          await ctrl.onFooterLoginPressed();
+                                      final OnboardingAction action = await ctrl
+                                          .onFooterLoginPressed();
                                       if (!context.mounted) return;
                                       _handleAction(action);
                                     },
@@ -170,7 +173,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                         ),
                                         children: const <TextSpan>[
                                           TextSpan(
-                                              text: 'Already have an account? '),
+                                            text: 'Already have an account? ',
+                                          ),
                                           TextSpan(
                                             text: 'Sign In',
                                             style: TextStyle(
@@ -236,13 +240,10 @@ class _OnboardingPage extends StatelessWidget {
             imageAsset,
             fit: BoxFit.cover,
             alignment: imageAlignment,
-            errorBuilder: (
-              BuildContext context,
-              Object error,
-              StackTrace? stackTrace,
-            ) {
-              return Container(color: const Color(0xFF0E1A2A));
-            },
+            errorBuilder:
+                (BuildContext context, Object error, StackTrace? stackTrace) {
+                  return Container(color: const Color(0xFF0E1A2A));
+                },
           ),
         ),
         Positioned.fill(
@@ -275,17 +276,21 @@ class _OnboardingPage extends StatelessWidget {
                   textAlign: textAlign,
                   crossAxisAlignment: textCrossAxisAlignment,
                 ),
-                SizedBox(height: AppResponsive.clamp(
-                  AppResponsive.scaledByHeight(constraints, 6),
-                  4,
-                  10,
-                )),
+                SizedBox(
+                  height: AppResponsive.clamp(
+                    AppResponsive.scaledByHeight(constraints, 6),
+                    4,
+                    10,
+                  ),
+                ),
                 bottom,
-                SizedBox(height: AppResponsive.clamp(
-                  AppResponsive.scaledByHeight(constraints, 6),
-                  4,
-                  12,
-                )),
+                SizedBox(
+                  height: AppResponsive.clamp(
+                    AppResponsive.scaledByHeight(constraints, 6),
+                    4,
+                    12,
+                  ),
+                ),
               ],
             ),
           ),
@@ -345,11 +350,13 @@ class _OnboardingTextBlock extends StatelessWidget {
             ),
           ),
           if (subtitle != null) ...<Widget>[
-            SizedBox(height: AppResponsive.clamp(
-              AppResponsive.scaledByHeight(constraints, 14),
-              10,
-              18,
-            )),
+            SizedBox(
+              height: AppResponsive.clamp(
+                AppResponsive.scaledByHeight(constraints, 14),
+                10,
+                18,
+              ),
+            ),
             Text(
               subtitle!,
               textAlign: textAlign,
@@ -361,15 +368,16 @@ class _OnboardingTextBlock extends StatelessWidget {
             ),
           ],
           if (listItems != null) ...<Widget>[
-            SizedBox(height: AppResponsive.clamp(
-              AppResponsive.scaledByHeight(constraints, 18),
-              14,
-              22,
-            )),
-            ...listItems!.map((item) => _FeatureItem(
-                  constraints: constraints,
-                  data: item,
-                )),
+            SizedBox(
+              height: AppResponsive.clamp(
+                AppResponsive.scaledByHeight(constraints, 18),
+                14,
+                22,
+              ),
+            ),
+            ...listItems!.map(
+              (item) => _FeatureItem(constraints: constraints, data: item),
+            ),
           ],
         ],
       ),
@@ -422,11 +430,13 @@ class _BottomActions extends StatelessWidget {
           ),
         ),
         if (onSkip != null) ...<Widget>[
-          SizedBox(height: AppResponsive.clamp(
-            AppResponsive.scaledByHeight(constraints, 10),
-            8,
-            14,
-          )),
+          SizedBox(
+            height: AppResponsive.clamp(
+              AppResponsive.scaledByHeight(constraints, 10),
+              8,
+              14,
+            ),
+          ),
           TextButton(
             onPressed: onSkip,
             child: Text(
@@ -509,20 +519,14 @@ class _FeatureItemData {
   final IconData icon;
   final String text;
 
-  const _FeatureItemData({
-    required this.icon,
-    required this.text,
-  });
+  const _FeatureItemData({required this.icon, required this.text});
 }
 
 class _FeatureItem extends StatelessWidget {
   final BoxConstraints constraints;
   final _FeatureItemData data;
 
-  const _FeatureItem({
-    required this.constraints,
-    required this.data,
-  });
+  const _FeatureItem({required this.constraints, required this.data});
 
   @override
   Widget build(BuildContext context) {
@@ -539,11 +543,13 @@ class _FeatureItem extends StatelessWidget {
     );
 
     return Padding(
-      padding: EdgeInsets.only(bottom: AppResponsive.clamp(
-        AppResponsive.scaledByHeight(constraints, 14),
-        10,
-        18,
-      )),
+      padding: EdgeInsets.only(
+        bottom: AppResponsive.clamp(
+          AppResponsive.scaledByHeight(constraints, 14),
+          10,
+          18,
+        ),
+      ),
       child: Row(
         children: <Widget>[
           Container(
@@ -553,17 +559,15 @@ class _FeatureItem extends StatelessWidget {
               color: Colors.black.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(999),
             ),
-            child: Icon(
-              data.icon,
-              color: Colors.white,
-              size: iconSize,
+            child: Icon(data.icon, color: Colors.white, size: iconSize),
+          ),
+          SizedBox(
+            width: AppResponsive.clamp(
+              AppResponsive.vw(constraints, 3),
+              10,
+              16,
             ),
           ),
-          SizedBox(width: AppResponsive.clamp(
-            AppResponsive.vw(constraints, 3),
-            10,
-            16,
-          )),
           Expanded(
             child: Text(
               data.text,

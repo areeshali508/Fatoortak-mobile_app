@@ -73,10 +73,7 @@ class _SplashScreenState extends State<SplashScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        AppSplashLogo(
-                          size: logoSize,
-                          accent: accent,
-                        ),
+                        AppSplashLogo(size: logoSize, accent: accent),
                         SizedBox(
                           height: AppResponsive.clamp(
                             AppResponsive.vh(constraints, 4.5),

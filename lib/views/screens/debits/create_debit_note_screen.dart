@@ -12,12 +12,15 @@ class CreateDebitNoteScreen extends StatefulWidget {
 }
 
 class _CreateDebitNoteScreenState extends State<CreateDebitNoteScreen> {
-  final TextEditingController _numberCtrl =
-      TextEditingController(text: 'DN-2024-NEW');
-  final TextEditingController _customerCtrl =
-      TextEditingController(text: 'New Customer');
-  final TextEditingController _invoiceCtrl =
-      TextEditingController(text: 'INV-2024-XXXX');
+  final TextEditingController _numberCtrl = TextEditingController(
+    text: 'DN-2024-NEW',
+  );
+  final TextEditingController _customerCtrl = TextEditingController(
+    text: 'New Customer',
+  );
+  final TextEditingController _invoiceCtrl = TextEditingController(
+    text: 'INV-2024-XXXX',
+  );
   final TextEditingController _amountCtrl = TextEditingController(text: '0');
 
   String _customerType = 'B2C';
@@ -163,9 +166,7 @@ class _CreateDebitNoteScreenState extends State<CreateDebitNoteScreen> {
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
               decoration: const BoxDecoration(
                 color: Colors.white,
-                border: Border(
-                  top: BorderSide(color: Color(0xFFE9EEF5)),
-                ),
+                border: Border(top: BorderSide(color: Color(0xFFE9EEF5))),
               ),
               child: Row(
                 children: <Widget>[
@@ -285,7 +286,10 @@ class _Field extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.4,
+              ),
             ),
           ),
         ),

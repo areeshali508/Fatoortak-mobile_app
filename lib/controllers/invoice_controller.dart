@@ -167,13 +167,14 @@ class InvoiceController extends ChangeNotifier {
   List<Invoice> get visibleInvoices {
     final String q = _searchQuery.toLowerCase();
     return _invoices.where((Invoice inv) {
-      final bool statusOk =
-          _statusFilter == null ? true : inv.status == _statusFilter;
+      final bool statusOk = _statusFilter == null
+          ? true
+          : inv.status == _statusFilter;
       final bool dateOk = _inDateRange(inv.issueDate);
       final bool searchOk = q.isEmpty
           ? true
           : inv.invoiceNo.toLowerCase().contains(q) ||
-              inv.customer.toLowerCase().contains(q);
+                inv.customer.toLowerCase().contains(q);
       return statusOk && dateOk && searchOk;
     }).toList();
   }

@@ -79,10 +79,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               return Column(
                 children: <Widget>[
                   SizedBox(height: headerTopGap),
-                  _AuthHeader(
-                    constraints: constraints,
-                    logoSize: logoSize,
-                  ),
+                  _AuthHeader(constraints: constraints, logoSize: logoSize),
                   SizedBox(height: headerToCardGap),
                   Expanded(
                     child: Container(
@@ -126,11 +123,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 height: 1.1,
                               ),
                             ),
-                            SizedBox(height: AppResponsive.clamp(
-                              AppResponsive.scaledByHeight(constraints, 10),
-                              8,
-                              14,
-                            )),
+                            SizedBox(
+                              height: AppResponsive.clamp(
+                                AppResponsive.scaledByHeight(constraints, 10),
+                                8,
+                                14,
+                              ),
+                            ),
                             Text(
                               'Enter your email to receive a password reset link.',
                               textAlign: TextAlign.center,
@@ -144,28 +143,32 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 height: 1.35,
                               ),
                             ),
-                            SizedBox(height: AppResponsive.clamp(
-                              AppResponsive.scaledByHeight(constraints, 22),
-                              16,
-                              28,
-                            )),
+                            SizedBox(
+                              height: AppResponsive.clamp(
+                                AppResponsive.scaledByHeight(constraints, 22),
+                                16,
+                                28,
+                              ),
+                            ),
                             _Field(
                               constraints: constraints,
                               hintText: 'Email Address',
                               icon: Icons.mail_outline,
                               controller: _emailController,
                             ),
-                            SizedBox(height: AppResponsive.clamp(
-                              AppResponsive.scaledByHeight(constraints, 18),
-                              12,
-                              22,
-                            )),
+                            SizedBox(
+                              height: AppResponsive.clamp(
+                                AppResponsive.scaledByHeight(constraints, 18),
+                                12,
+                                22,
+                              ),
+                            ),
                             SizedBox(
                               height: btnH,
                               child: ElevatedButton(
                                 onPressed: () async {
-                                  final AuthController auth =
-                                      context.read<AuthController>();
+                                  final AuthController auth = context
+                                      .read<AuthController>();
                                   await auth.sendPasswordResetLink(
                                     email: _emailController.text.trim(),
                                   );
@@ -191,11 +194,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 ),
                               ),
                             ),
-                            SizedBox(height: AppResponsive.clamp(
-                              AppResponsive.scaledByHeight(constraints, 18),
-                              12,
-                              22,
-                            )),
+                            SizedBox(
+                              height: AppResponsive.clamp(
+                                AppResponsive.scaledByHeight(constraints, 18),
+                                12,
+                                22,
+                              ),
+                            ),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: <Widget>[
@@ -212,8 +217,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 ),
                                 GestureDetector(
                                   onTap: () {
-                                    Navigator.of(context)
-                                        .pushReplacementNamed(AppRoutes.login);
+                                    Navigator.of(
+                                      context,
+                                    ).pushReplacementNamed(AppRoutes.login);
                                   },
                                   child: Text(
                                     'Login',
@@ -249,10 +255,7 @@ class _AuthHeader extends StatelessWidget {
   final BoxConstraints constraints;
   final double logoSize;
 
-  const _AuthHeader({
-    required this.constraints,
-    required this.logoSize,
-  });
+  const _AuthHeader({required this.constraints, required this.logoSize});
 
   @override
   Widget build(BuildContext context) {
@@ -271,15 +274,14 @@ class _AuthHeader extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        AppSplashLogo(
-          size: logoSize,
-          accent: AppColors.splashAccent,
+        AppSplashLogo(size: logoSize, accent: AppColors.splashAccent),
+        SizedBox(
+          height: AppResponsive.clamp(
+            AppResponsive.scaledByHeight(constraints, 16),
+            10,
+            18,
+          ),
         ),
-        SizedBox(height: AppResponsive.clamp(
-          AppResponsive.scaledByHeight(constraints, 16),
-          10,
-          18,
-        )),
         Text(
           'Fatoortak',
           style: TextStyle(
@@ -289,11 +291,13 @@ class _AuthHeader extends StatelessWidget {
             height: 1.0,
           ),
         ),
-        SizedBox(height: AppResponsive.clamp(
-          AppResponsive.scaledByHeight(constraints, 6),
-          4,
-          10,
-        )),
+        SizedBox(
+          height: AppResponsive.clamp(
+            AppResponsive.scaledByHeight(constraints, 6),
+            4,
+            10,
+          ),
+        ),
         Text(
           'فاتورتك',
           style: TextStyle(

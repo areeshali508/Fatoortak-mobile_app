@@ -19,74 +19,47 @@ import '../repositories/settings_repository.dart';
 
 class AppProviders {
   static final List<SingleChildWidget> providers = <SingleChildWidget>[
-    Provider<OnboardingRepository>(
-      create: (_) => const OnboardingRepository(),
-    ),
-    Provider<DashboardRepository>(
-      create: (_) => const DashboardRepository(),
-    ),
-    Provider<CreditNoteRepository>(
-      create: (_) => CreditNoteRepository(),
-    ),
-    Provider<DebitNoteRepository>(
-      create: (_) => DebitNoteRepository(),
-    ),
-    Provider<QuotationRepository>(
-      create: (_) => QuotationRepository(),
-    ),
-    Provider<AuthRepository>(
-      create: (_) => const AuthRepository(),
-    ),
+    Provider<OnboardingRepository>(create: (_) => const OnboardingRepository()),
+    Provider<DashboardRepository>(create: (_) => const DashboardRepository()),
+    Provider<CreditNoteRepository>(create: (_) => CreditNoteRepository()),
+    Provider<DebitNoteRepository>(create: (_) => DebitNoteRepository()),
+    Provider<QuotationRepository>(create: (_) => QuotationRepository()),
+    Provider<AuthRepository>(create: (_) => const AuthRepository()),
     ChangeNotifierProxyProvider<AuthRepository, AuthController>(
-      create: (BuildContext ctx) => AuthController(
-        repository: ctx.read<AuthRepository>(),
-      ),
-      update: (
-        BuildContext ctx,
-        AuthRepository repo,
-        AuthController? prev,
-      ) {
+      create: (BuildContext ctx) =>
+          AuthController(repository: ctx.read<AuthRepository>()),
+      update: (BuildContext ctx, AuthRepository repo, AuthController? prev) {
         prev?.updateRepository(repo);
         return prev ?? AuthController(repository: repo);
       },
     ),
-    Provider<ProductRepository>(
-      create: (_) => const ProductRepository(),
-    ),
-    Provider<CustomerRepository>(
-      create: (_) => const CustomerRepository(),
-    ),
-    Provider<SettingsRepository>(
-      create: (_) => const SettingsRepository(),
-    ),
+    Provider<ProductRepository>(create: (_) => const ProductRepository()),
+    Provider<CustomerRepository>(create: (_) => const CustomerRepository()),
+    Provider<SettingsRepository>(create: (_) => const SettingsRepository()),
     ChangeNotifierProxyProvider<ProductRepository, ProductController>(
-      create: (BuildContext ctx) => ProductController(
-        repository: ctx.read<ProductRepository>(),
-      ),
-      update: (
-        BuildContext ctx,
-        ProductRepository repo,
-        ProductController? prev,
-      ) {
-        prev?.updateRepository(repo);
-        return prev ?? ProductController(repository: repo);
-      },
+      create: (BuildContext ctx) =>
+          ProductController(repository: ctx.read<ProductRepository>()),
+      update:
+          (BuildContext ctx, ProductRepository repo, ProductController? prev) {
+            prev?.updateRepository(repo);
+            return prev ?? ProductController(repository: repo);
+          },
     ),
     ChangeNotifierProvider<InvoiceController>(
       create: (_) => InvoiceController(),
     ),
     ChangeNotifierProxyProvider<CustomerRepository, CustomerController>(
-      create: (BuildContext ctx) => CustomerController(
-        repository: ctx.read<CustomerRepository>(),
-      ),
-      update: (
-        BuildContext ctx,
-        CustomerRepository repo,
-        CustomerController? prev,
-      ) {
-        prev?.updateRepository(repo);
-        return prev ?? CustomerController(repository: repo);
-      },
+      create: (BuildContext ctx) =>
+          CustomerController(repository: ctx.read<CustomerRepository>()),
+      update:
+          (
+            BuildContext ctx,
+            CustomerRepository repo,
+            CustomerController? prev,
+          ) {
+            prev?.updateRepository(repo);
+            return prev ?? CustomerController(repository: repo);
+          },
     ),
   ];
 }

@@ -16,16 +16,17 @@ class _AppDrawerState extends State<AppDrawer> {
 
   void _comingSoon(BuildContext context) {
     Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Coming soon')));
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final String? currentRoute = ModalRoute.of(context)?.settings.name;
-    final bool salesSelected = currentRoute == AppRoutes.invoices ||
+    final bool salesSelected =
+        currentRoute == AppRoutes.invoices ||
         currentRoute == AppRoutes.createInvoice ||
         currentRoute == AppRoutes.creditNotes ||
         currentRoute == AppRoutes.debitNotes ||
@@ -40,12 +41,16 @@ class _AppDrawerState extends State<AppDrawer> {
     final String? currentRoute = ModalRoute.of(context)?.settings.name;
     final bool dashboardSelected = currentRoute == AppRoutes.dashboard;
     final bool invoicesSelected =
-        currentRoute == AppRoutes.invoices || currentRoute == AppRoutes.createInvoice;
+        currentRoute == AppRoutes.invoices ||
+        currentRoute == AppRoutes.createInvoice;
     final bool creditNotesSelected = currentRoute == AppRoutes.creditNotes;
     final bool debitNotesSelected = currentRoute == AppRoutes.debitNotes;
     final bool quotationsSelected = currentRoute == AppRoutes.quotations;
     final bool salesSelected =
-        invoicesSelected || creditNotesSelected || debitNotesSelected || quotationsSelected;
+        invoicesSelected ||
+        creditNotesSelected ||
+        debitNotesSelected ||
+        quotationsSelected;
 
     return Drawer(
       backgroundColor: Colors.transparent,
@@ -102,7 +107,9 @@ class _AppDrawerState extends State<AppDrawer> {
                               18,
                               26,
                             ),
-                            backgroundColor: Colors.white.withValues(alpha: 0.18),
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.18,
+                            ),
                             child: const Text(
                               'A',
                               style: TextStyle(
@@ -136,7 +143,10 @@ class _AppDrawerState extends State<AppDrawer> {
                                 ),
                                 SizedBox(
                                   height: AppResponsive.clamp(
-                                    AppResponsive.scaledByHeight(constraints, 8),
+                                    AppResponsive.scaledByHeight(
+                                      constraints,
+                                      8,
+                                    ),
                                     6,
                                     10,
                                   ),
@@ -163,13 +173,17 @@ class _AppDrawerState extends State<AppDrawer> {
                                           12,
                                           16,
                                         ),
-                                        color: Colors.white.withValues(alpha: 0.90),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.90,
+                                        ),
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
                                         'Admin',
                                         style: TextStyle(
-                                          color: Colors.white.withValues(alpha: 0.92),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.92,
+                                          ),
                                           fontWeight: FontWeight.w700,
                                           fontSize: AppResponsive.clamp(
                                             AppResponsive.sp(constraints, 12),
@@ -208,8 +222,9 @@ class _AppDrawerState extends State<AppDrawer> {
                         selected: dashboardSelected,
                         onTap: () {
                           Navigator.of(context).pop();
-                          Navigator.of(context)
-                              .pushReplacementNamed(AppRoutes.dashboard);
+                          Navigator.of(
+                            context,
+                          ).pushReplacementNamed(AppRoutes.dashboard);
                         },
                       ),
                     ),
@@ -229,8 +244,7 @@ class _AppDrawerState extends State<AppDrawer> {
                     ),
                     if (_salesExpanded)
                       Padding(
-                        padding:
-                            EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
+                        padding: EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
                         child: _DrawerItem(
                           icon: Icons.receipt_long_outlined,
                           label: 'Invoices',
@@ -240,15 +254,15 @@ class _AppDrawerState extends State<AppDrawer> {
                             if (currentRoute == AppRoutes.invoices) {
                               return;
                             }
-                            Navigator.of(context)
-                                .pushReplacementNamed(AppRoutes.invoices);
+                            Navigator.of(
+                              context,
+                            ).pushReplacementNamed(AppRoutes.invoices);
                           },
                         ),
                       ),
                     if (_salesExpanded)
                       Padding(
-                        padding:
-                            EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
+                        padding: EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
                         child: _DrawerItem(
                           icon: Icons.note_alt_outlined,
                           label: 'Credit Notes',
@@ -258,15 +272,15 @@ class _AppDrawerState extends State<AppDrawer> {
                             if (currentRoute == AppRoutes.creditNotes) {
                               return;
                             }
-                            Navigator.of(context)
-                                .pushReplacementNamed(AppRoutes.creditNotes);
+                            Navigator.of(
+                              context,
+                            ).pushReplacementNamed(AppRoutes.creditNotes);
                           },
                         ),
                       ),
                     if (_salesExpanded)
                       Padding(
-                        padding:
-                            EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
+                        padding: EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
                         child: _DrawerItem(
                           icon: Icons.note_add_outlined,
                           label: 'Debit Notes',
@@ -276,15 +290,15 @@ class _AppDrawerState extends State<AppDrawer> {
                             if (currentRoute == AppRoutes.debitNotes) {
                               return;
                             }
-                            Navigator.of(context)
-                                .pushReplacementNamed(AppRoutes.debitNotes);
+                            Navigator.of(
+                              context,
+                            ).pushReplacementNamed(AppRoutes.debitNotes);
                           },
                         ),
                       ),
                     if (_salesExpanded)
                       Padding(
-                        padding:
-                            EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
+                        padding: EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
                         child: _DrawerItem(
                           icon: Icons.description_outlined,
                           label: 'Quotations',
@@ -294,8 +308,9 @@ class _AppDrawerState extends State<AppDrawer> {
                             if (currentRoute == AppRoutes.quotations) {
                               return;
                             }
-                            Navigator.of(context)
-                                .pushReplacementNamed(AppRoutes.quotations);
+                            Navigator.of(
+                              context,
+                            ).pushReplacementNamed(AppRoutes.quotations);
                           },
                         ),
                       ),
@@ -315,8 +330,9 @@ class _AppDrawerState extends State<AppDrawer> {
                         label: 'Inventory',
                         onTap: () {
                           Navigator.of(context).pop();
-                          Navigator.of(context)
-                              .pushReplacementNamed(AppRoutes.products);
+                          Navigator.of(
+                            context,
+                          ).pushReplacementNamed(AppRoutes.products);
                         },
                       ),
                     ),
@@ -340,8 +356,9 @@ class _AppDrawerState extends State<AppDrawer> {
                         label: 'Customers & Vendors',
                         onTap: () {
                           Navigator.of(context).pop();
-                          Navigator.of(context)
-                              .pushReplacementNamed(AppRoutes.customers);
+                          Navigator.of(
+                            context,
+                          ).pushReplacementNamed(AppRoutes.customers);
                         },
                       ),
                     ),
@@ -414,8 +431,9 @@ class _AppDrawerState extends State<AppDrawer> {
                         color: const Color(0xFFD93025),
                         onTap: () {
                           Navigator.of(context).pop();
-                          Navigator.of(context)
-                              .pushReplacementNamed(AppRoutes.login);
+                          Navigator.of(
+                            context,
+                          ).pushReplacementNamed(AppRoutes.login);
                         },
                       ),
                     ),
@@ -504,11 +522,7 @@ class _DrawerItem extends StatelessWidget {
                   ),
                 ),
                 if (trailing != null)
-                  Icon(
-                    trailing,
-                    color: const Color(0xFF9AA5B6),
-                    size: 22,
-                  ),
+                  Icon(trailing, color: const Color(0xFF9AA5B6), size: 22),
               ],
             ),
           ),

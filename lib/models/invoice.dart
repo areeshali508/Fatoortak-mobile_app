@@ -1,10 +1,4 @@
-enum InvoiceStatus {
-  draft,
-  sent,
-  overdue,
-  paid,
-  none,
-}
+enum InvoiceStatus { draft, sent, overdue, paid, none }
 
 class InvoiceItem {
   final String product;
@@ -65,18 +59,12 @@ class Invoice {
     this.dueDate,
   });
 
-  double get subtotal => items.fold<double>(
-        0,
-        (double p, InvoiceItem e) => p + e.taxableAmount,
-      );
+  double get subtotal =>
+      items.fold<double>(0, (double p, InvoiceItem e) => p + e.taxableAmount);
 
-  double get vatAmount => items.fold<double>(
-        0,
-        (double p, InvoiceItem e) => p + e.taxAmount,
-      );
+  double get vatAmount =>
+      items.fold<double>(0, (double p, InvoiceItem e) => p + e.taxAmount);
 
-  double get total => items.fold<double>(
-        0,
-        (double p, InvoiceItem e) => p + e.total,
-      );
+  double get total =>
+      items.fold<double>(0, (double p, InvoiceItem e) => p + e.total);
 }

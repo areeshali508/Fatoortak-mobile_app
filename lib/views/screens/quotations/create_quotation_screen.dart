@@ -15,8 +15,8 @@ class CreateQuotationScreen extends StatefulWidget {
 
 class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
   void _nextStep() {
-    final CreateQuotationController ctrl =
-        context.read<CreateQuotationController>();
+    final CreateQuotationController ctrl = context
+        .read<CreateQuotationController>();
     final bool ok = ctrl.nextStep();
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -34,8 +34,8 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
   }
 
   Future<void> _pickIssueDate() async {
-    final CreateQuotationController ctrl =
-        context.read<CreateQuotationController>();
+    final CreateQuotationController ctrl = context
+        .read<CreateQuotationController>();
     final DateTime now = DateTime.now();
     final DateTime initial = ctrl.issueDate ?? now;
 
@@ -54,8 +54,8 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
   }
 
   Future<void> _pickValidUntil() async {
-    final CreateQuotationController ctrl =
-        context.read<CreateQuotationController>();
+    final CreateQuotationController ctrl = context
+        .read<CreateQuotationController>();
     final DateTime now = DateTime.now();
     final DateTime initial = ctrl.validUntil ?? ctrl.issueDate ?? now;
 
@@ -83,8 +83,8 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
   }
 
   Future<void> _openAddItemSheet() async {
-    final CreateQuotationController ctrl =
-        context.read<CreateQuotationController>();
+    final CreateQuotationController ctrl = context
+        .read<CreateQuotationController>();
     final QuotationItem? item = await showModalBottomSheet<QuotationItem>(
       context: context,
       isScrollControlled: true,
@@ -104,8 +104,8 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
   }
 
   void _submit() {
-    final CreateQuotationController ctrl =
-        context.read<CreateQuotationController>();
+    final CreateQuotationController ctrl = context
+        .read<CreateQuotationController>();
     final String? msg = ctrl.validateSubmit();
     if (msg != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -138,8 +138,8 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final CreateQuotationController ctrl =
-            context.watch<CreateQuotationController>();
+        final CreateQuotationController ctrl = context
+            .watch<CreateQuotationController>();
 
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
@@ -153,11 +153,7 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
           18,
         );
 
-        final List<String> stepTitles = <String>[
-          'Details',
-          'Items',
-          'Review',
-        ];
+        final List<String> stepTitles = <String>['Details', 'Items', 'Review'];
 
         Widget itemsBlock({required bool editable}) {
           if (ctrl.items.isEmpty) {
@@ -170,8 +166,10 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
               ),
               child: Column(
                 children: <Widget>[
-                  const Icon(Icons.receipt_long_outlined,
-                      color: Color(0xFF9AA5B6)),
+                  const Icon(
+                    Icons.receipt_long_outlined,
+                    color: Color(0xFF9AA5B6),
+                  ),
                   const SizedBox(height: 10),
                   const Text(
                     'No items added yet',
@@ -276,8 +274,9 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                                 ),
                               ),
                               Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                ),
                                 child: Text(
                                   '${it.qty}',
                                   style: const TextStyle(
@@ -448,6 +447,19 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 12),
+                        _LabeledDropdown<String>(
+                          label: 'Payment Terms',
+                          value: ctrl.paymentTerms,
+                          items: const <String>[
+                            'Due on Receipt',
+                            'Net 15 days',
+                            'Net 30 days',
+                            'Net 45 days',
+                            'Net 60 days',
+                          ],
+                          onChanged: (String v) => ctrl.paymentTerms = v,
+                        ),
                       ],
                     ),
                   ),
@@ -459,8 +471,10 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                       decoration: _dec(
                         label: 'Customer*',
                         hint: 'Search customer',
-                        prefix:
-                            const Icon(Icons.search, color: Color(0xFF9AA5B6)),
+                        prefix: const Icon(
+                          Icons.search,
+                          color: Color(0xFF9AA5B6),
+                        ),
                       ),
                       style: const TextStyle(
                         color: Color(0xFF0B1B4B),
@@ -536,6 +550,10 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                           label: 'Customer',
                           value: ctrl.customerController.text.trim(),
                         ),
+                        _SummaryRow(
+                          label: 'Payment Terms',
+                          value: ctrl.paymentTerms,
+                        ),
                       ],
                     ),
                   ),
@@ -590,9 +608,7 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
               decoration: const BoxDecoration(
                 color: Colors.white,
-                border: Border(
-                  top: BorderSide(color: Color(0xFFE9EEF5)),
-                ),
+                border: Border(top: BorderSide(color: Color(0xFFE9EEF5))),
               ),
               child: ctrl.currentStep == 2
                   ? Row(
@@ -602,8 +618,7 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                           height: 44,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(14),
-                            border:
-                                Border.all(color: const Color(0xFFE9EEF5)),
+                            border: Border.all(color: const Color(0xFFE9EEF5)),
                             color: Colors.white,
                           ),
                           child: IconButton(
@@ -621,8 +636,7 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -642,11 +656,8 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                             onPressed: ctrl.currentStep == 0 ? null : _prevStep,
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF0B1B4B),
-                              side: const BorderSide(
-                                color: Color(0xFFE9EEF5),
-                              ),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                              side: const BorderSide(color: Color(0xFFE9EEF5)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -664,8 +675,7 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -778,11 +788,7 @@ class _SectionCard extends StatelessWidget {
   final Widget child;
   final Widget? trailing;
 
-  const _SectionCard({
-    required this.title,
-    required this.child,
-    this.trailing,
-  });
+  const _SectionCard({required this.title, required this.child, this.trailing});
 
   @override
   Widget build(BuildContext context) {
@@ -847,13 +853,12 @@ class _LabeledDropdown<T> extends StatelessWidget {
       key: ValueKey<T>(value),
       initialValue: value,
       items: items
-          .map((T e) => DropdownMenuItem<T>(
-                value: e,
-                child: Text(
-                  e.toString(),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ))
+          .map(
+            (T e) => DropdownMenuItem<T>(
+              value: e,
+              child: Text(e.toString(), overflow: TextOverflow.ellipsis),
+            ),
+          )
           .toList(),
       onChanged: (T? v) {
         if (v == null) return;
@@ -863,7 +868,10 @@ class _LabeledDropdown<T> extends StatelessWidget {
         labelText: label,
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFFE9EEF5)),
@@ -901,8 +909,10 @@ class _DateField extends StatelessWidget {
           labelText: label,
           filled: true,
           fillColor: Colors.white,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: Color(0xFFE9EEF5)),
@@ -984,14 +994,25 @@ class _AddItemSheet extends StatefulWidget {
 class _AddItemSheetState extends State<_AddItemSheet> {
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _qtyController = TextEditingController(text: '1');
-  final TextEditingController _priceController =
-      TextEditingController(text: '0');
+  final TextEditingController _priceController = TextEditingController(
+    text: '0',
+  );
+  final TextEditingController _discountController = TextEditingController(
+    text: '0',
+  );
+  final TextEditingController _taxController = TextEditingController(
+    text: '15',
+  );
+
+  String _vatCategory = 'S - 15%';
 
   @override
   void dispose() {
     _descController.dispose();
     _qtyController.dispose();
     _priceController.dispose();
+    _discountController.dispose();
+    _taxController.dispose();
     super.dispose();
   }
 
@@ -1015,7 +1036,10 @@ class _AddItemSheetState extends State<_AddItemSheet> {
         filled: true,
         fillColor: Colors.white,
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFFE9EEF5)),
@@ -1061,12 +1085,56 @@ class _AddItemSheetState extends State<_AddItemSheet> {
               Expanded(
                 child: TextField(
                   controller: _priceController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: dec(label: 'Price (${widget.currency})'),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: TextField(
+                  controller: _discountController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: dec(label: 'Discount %', hint: '0'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  key: ValueKey<String>(_vatCategory),
+                  initialValue: _vatCategory,
+                  items: const <String>['S - 15%', 'Z - 0%', 'E - Exempt']
+                      .map(
+                        (String e) => DropdownMenuItem<String>(
+                          value: e,
+                          child: Text(e, overflow: TextOverflow.ellipsis),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (String? v) {
+                    if (v == null) return;
+                    setState(() => _vatCategory = v);
+                  },
+                  decoration: dec(label: 'VAT Category'),
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                  borderRadius: BorderRadius.circular(12),
+                  dropdownColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _taxController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: dec(label: 'Tax %', hint: '15'),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
@@ -1077,9 +1145,12 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                     : _descController.text.trim(),
                 qty: _parseInt(_qtyController.text, fallback: 1),
                 price: _parseDouble(_priceController.text, fallback: 0),
-                discountPercent: 0,
-                vatCategory: 'S - 15%',
-                taxPercent: 15,
+                discountPercent: _parseDouble(
+                  _discountController.text,
+                  fallback: 0,
+                ),
+                vatCategory: _vatCategory,
+                taxPercent: _parseDouble(_taxController.text, fallback: 15),
               );
               Navigator.of(context).pop(item);
             },

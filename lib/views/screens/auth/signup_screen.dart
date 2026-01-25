@@ -122,10 +122,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                       cardMargin,
                       AppResponsive.clamp(
-                        AppResponsive.scaledByHeight(constraints, 18),
-                        12,
-                        26,
-                      ) +
+                            AppResponsive.scaledByHeight(constraints, 18),
+                            12,
+                            26,
+                          ) +
                           bottomInset,
                     ),
                     child: Container(
@@ -347,8 +347,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                       MaterialTapTargetSize.shrinkWrap,
                                   value: _acceptedTerms,
                                   onChanged: (bool? value) => setState(() {
-                                    _acceptedTerms =
-                                        value ?? _acceptedTerms;
+                                    _acceptedTerms = value ?? _acceptedTerms;
                                   }),
                                 ),
                               ),
@@ -404,8 +403,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             height: btnH,
                             child: ElevatedButton(
                               onPressed: () async {
-                                final AuthController auth =
-                                    context.read<AuthController>();
+                                final AuthController auth = context
+                                    .read<AuthController>();
                                 final bool ok = await auth.signUp(
                                   fullName: _fullNameController.text.trim(),
                                   email: _emailController.text.trim(),
@@ -413,9 +412,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   password: _passwordController.text,
                                 );
                                 if (!context.mounted || !ok) return;
-                                Navigator.of(context).pushReplacementNamed(
-                                  AppRoutes.dashboard,
-                                );
+                                Navigator.of(
+                                  context,
+                                ).pushReplacementNamed(AppRoutes.dashboard);
                               },
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -460,9 +459,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               ),
                               GestureDetector(
                                 onTap: () {
-                                  Navigator.of(context).pushReplacementNamed(
-                                    AppRoutes.login,
-                                  );
+                                  Navigator.of(
+                                    context,
+                                  ).pushReplacementNamed(AppRoutes.login);
                                 },
                                 child: Text(
                                   'Login',
@@ -497,10 +496,7 @@ class _AuthHeader extends StatelessWidget {
   final BoxConstraints constraints;
   final double logoSize;
 
-  const _AuthHeader({
-    required this.constraints,
-    required this.logoSize,
-  });
+  const _AuthHeader({required this.constraints, required this.logoSize});
 
   @override
   Widget build(BuildContext context) {
@@ -519,15 +515,14 @@ class _AuthHeader extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        AppSplashLogo(
-          size: logoSize,
-          accent: AppColors.splashAccent,
+        AppSplashLogo(size: logoSize, accent: AppColors.splashAccent),
+        SizedBox(
+          height: AppResponsive.clamp(
+            AppResponsive.scaledByHeight(constraints, 16),
+            10,
+            18,
+          ),
         ),
-        SizedBox(height: AppResponsive.clamp(
-          AppResponsive.scaledByHeight(constraints, 16),
-          10,
-          18,
-        )),
         Text(
           'Fatoortak',
           style: TextStyle(
@@ -537,11 +532,13 @@ class _AuthHeader extends StatelessWidget {
             height: 1.0,
           ),
         ),
-        SizedBox(height: AppResponsive.clamp(
-          AppResponsive.scaledByHeight(constraints, 6),
-          4,
-          10,
-        )),
+        SizedBox(
+          height: AppResponsive.clamp(
+            AppResponsive.scaledByHeight(constraints, 6),
+            4,
+            10,
+          ),
+        ),
         Text(
           'فاتورتك',
           style: TextStyle(
@@ -648,10 +645,7 @@ class _CountryCodeField extends StatelessWidget {
   final BoxConstraints constraints;
   final String codeText;
 
-  const _CountryCodeField({
-    required this.constraints,
-    required this.codeText,
-  });
+  const _CountryCodeField({required this.constraints, required this.codeText});
 
   @override
   Widget build(BuildContext context) {
@@ -705,10 +699,7 @@ class _PasswordStrength extends StatelessWidget {
   final BoxConstraints constraints;
   final _StrengthLevel level;
 
-  const _PasswordStrength({
-    required this.constraints,
-    required this.level,
-  });
+  const _PasswordStrength({required this.constraints, required this.level});
 
   @override
   Widget build(BuildContext context) {
@@ -721,8 +712,8 @@ class _PasswordStrength extends StatelessWidget {
     final Color active = level == _StrengthLevel.medium
         ? const Color(0xFFFFB300)
         : (level == _StrengthLevel.strong
-            ? const Color(0xFF1DB954)
-            : const Color(0xFFFF5252));
+              ? const Color(0xFF1DB954)
+              : const Color(0xFFFF5252));
 
     final String label = switch (level) {
       _StrengthLevel.weak => 'Weak strength',
@@ -749,11 +740,9 @@ class _PasswordStrength extends StatelessWidget {
             }),
           ),
         ),
-        SizedBox(width: AppResponsive.clamp(
-          AppResponsive.vw(constraints, 3),
-          10,
-          16,
-        )),
+        SizedBox(
+          width: AppResponsive.clamp(AppResponsive.vw(constraints, 3), 10, 16),
+        ),
         Text(
           label,
           style: TextStyle(

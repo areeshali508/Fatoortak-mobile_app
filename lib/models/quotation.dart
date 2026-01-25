@@ -1,14 +1,6 @@
-enum QuotationStatus {
-  draft,
-  sent,
-}
+enum QuotationStatus { draft, sent }
 
-enum QuotationOutcomeStatus {
-  pending,
-  accepted,
-  declined,
-  expired,
-}
+enum QuotationOutcomeStatus { pending, accepted, declined, expired }
 
 class QuotationItem {
   final String description;
@@ -45,6 +37,7 @@ class Quotation {
   final DateTime? validUntil;
   final String currency;
   final double amount;
+  final String paymentTerms;
   final QuotationStatus status;
   final QuotationOutcomeStatus outcomeStatus;
   final List<QuotationItem> items;
@@ -57,6 +50,7 @@ class Quotation {
     required this.issueDate,
     required this.currency,
     required this.amount,
+    this.paymentTerms = 'Due on Receipt',
     required this.status,
     this.outcomeStatus = QuotationOutcomeStatus.pending,
     this.validUntil,

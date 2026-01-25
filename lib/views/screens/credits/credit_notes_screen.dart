@@ -20,10 +20,7 @@ class _SheetActionTile extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _SheetActionTile({
-    required this.label,
-    required this.onTap,
-  });
+  const _SheetActionTile({required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -49,10 +46,7 @@ class _SheetActionTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right,
-                  color: Color(0xFF9AA5B6),
-                ),
+                const Icon(Icons.chevron_right, color: Color(0xFF9AA5B6)),
               ],
             ),
           ),
@@ -296,13 +290,14 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
   }
 
   void _showComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Coming soon')));
   }
 
   Future<void> _openDateFilter() async {
-    final CreditNotesController notesCtrl = context.read<CreditNotesController>();
+    final CreditNotesController notesCtrl = context
+        .read<CreditNotesController>();
     final _DateAction? action = await showModalBottomSheet<_DateAction>(
       context: context,
       showDragHandle: true,
@@ -370,9 +365,10 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
   }
 
   Future<void> _openStatusFilter() async {
-    final CreditNotesController notesCtrl = context.read<CreditNotesController>();
-    final CreditNoteStatus? result =
-        await showModalBottomSheet<CreditNoteStatus?>(
+    final CreditNotesController notesCtrl = context
+        .read<CreditNotesController>();
+    final CreditNoteStatus?
+    result = await showModalBottomSheet<CreditNoteStatus?>(
       context: context,
       showDragHandle: true,
       backgroundColor: Colors.white,
@@ -415,7 +411,8 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
                 ),
                 _StatusOption(
                   label: 'Submitted',
-                  selected: notesCtrl.statusFilter == CreditNoteStatus.submitted,
+                  selected:
+                      notesCtrl.statusFilter == CreditNoteStatus.submitted,
                   onTap: () {
                     Navigator.of(ctx).pop(
                       notesCtrl.statusFilter == CreditNoteStatus.submitted
@@ -472,83 +469,87 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
   }
 
   Future<void> _openPaymentStatusFilter() async {
-    final CreditNotesController notesCtrl = context.read<CreditNotesController>();
+    final CreditNotesController notesCtrl = context
+        .read<CreditNotesController>();
     final CreditNotePaymentStatus? result =
         await showModalBottomSheet<CreditNotePaymentStatus?>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (BuildContext ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                const Text(
-                  'Payment Status',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF0B1B4B),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _StatusOption(
-                  label: 'All Payment Status',
-                  selected: notesCtrl.paymentStatusFilter == null,
-                  onTap: () => Navigator.of(ctx).pop(null),
-                ),
-                _StatusOption(
-                  label: 'Pending',
-                  selected:
-                      notesCtrl.paymentStatusFilter == CreditNotePaymentStatus.pending,
-                  onTap: () {
-                    Navigator.of(ctx).pop(
-                      notesCtrl.paymentStatusFilter ==
-                              CreditNotePaymentStatus.pending
-                          ? null
-                          : CreditNotePaymentStatus.pending,
-                    );
-                  },
-                ),
-                _StatusOption(
-                  label: 'Refunded',
-                  selected:
-                      notesCtrl.paymentStatusFilter == CreditNotePaymentStatus.refunded,
-                  onTap: () {
-                    Navigator.of(ctx).pop(
-                      notesCtrl.paymentStatusFilter ==
-                              CreditNotePaymentStatus.refunded
-                          ? null
-                          : CreditNotePaymentStatus.refunded,
-                    );
-                  },
-                ),
-                _StatusOption(
-                  label: 'Applied',
-                  selected:
-                      notesCtrl.paymentStatusFilter == CreditNotePaymentStatus.applied,
-                  onTap: () {
-                    Navigator.of(ctx).pop(
-                      notesCtrl.paymentStatusFilter ==
-                              CreditNotePaymentStatus.applied
-                          ? null
-                          : CreditNotePaymentStatus.applied,
-                    );
-                  },
-                ),
-              ],
-            ),
+          context: context,
+          showDragHandle: true,
+          backgroundColor: Colors.white,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
           ),
+          builder: (BuildContext ctx) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    const Text(
+                      'Payment Status',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Color(0xFF0B1B4B),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _StatusOption(
+                      label: 'All Payment Status',
+                      selected: notesCtrl.paymentStatusFilter == null,
+                      onTap: () => Navigator.of(ctx).pop(null),
+                    ),
+                    _StatusOption(
+                      label: 'Pending',
+                      selected:
+                          notesCtrl.paymentStatusFilter ==
+                          CreditNotePaymentStatus.pending,
+                      onTap: () {
+                        Navigator.of(ctx).pop(
+                          notesCtrl.paymentStatusFilter ==
+                                  CreditNotePaymentStatus.pending
+                              ? null
+                              : CreditNotePaymentStatus.pending,
+                        );
+                      },
+                    ),
+                    _StatusOption(
+                      label: 'Refunded',
+                      selected:
+                          notesCtrl.paymentStatusFilter ==
+                          CreditNotePaymentStatus.refunded,
+                      onTap: () {
+                        Navigator.of(ctx).pop(
+                          notesCtrl.paymentStatusFilter ==
+                                  CreditNotePaymentStatus.refunded
+                              ? null
+                              : CreditNotePaymentStatus.refunded,
+                        );
+                      },
+                    ),
+                    _StatusOption(
+                      label: 'Applied',
+                      selected:
+                          notesCtrl.paymentStatusFilter ==
+                          CreditNotePaymentStatus.applied,
+                      onTap: () {
+                        Navigator.of(ctx).pop(
+                          notesCtrl.paymentStatusFilter ==
+                                  CreditNotePaymentStatus.applied
+                              ? null
+                              : CreditNotePaymentStatus.applied,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
-      },
-    );
 
     if (!mounted) {
       return;
@@ -559,9 +560,11 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
 
   Future<void> _openCreateCreditNote() async {
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-    final CreditNotesController notesCtrl = context.read<CreditNotesController>();
-    final Object? result =
-        await Navigator.of(context).pushNamed(AppRoutes.createCreditNote);
+    final CreditNotesController notesCtrl = context
+        .read<CreditNotesController>();
+    final Object? result = await Navigator.of(
+      context,
+    ).pushNamed(AppRoutes.createCreditNote);
 
     if (!mounted || result == null || result is! CreditNote) {
       return;
@@ -619,8 +622,8 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final CreditNotesController ctrl =
-            context.watch<CreditNotesController>();
+        final CreditNotesController ctrl = context
+            .watch<CreditNotesController>();
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
           16,
@@ -673,8 +676,7 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
               ),
             ],
           ),
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.endFloat,
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           floatingActionButton: FloatingActionButton(
             onPressed: _openCreateCreditNote,
             backgroundColor: AppColors.primary,
@@ -737,9 +739,7 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
                           ctrl.dateRange != null ||
                           ctrl.statusFilter != null ||
                           ctrl.paymentStatusFilter != null))
-                    _NoResultsState(
-                      onClear: _clearFilters,
-                    )
+                    _NoResultsState(onClear: _clearFilters)
                   else if (ctrl.visibleNotes.isEmpty)
                     _EmptyState(
                       constraints: constraints,
@@ -947,8 +947,10 @@ class _CreditNoteCard extends StatelessWidget {
                       ),
                     ),
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: style.bg,
                         borderRadius: BorderRadius.circular(10),
@@ -1198,7 +1200,4 @@ class _NoResultsState extends StatelessWidget {
   }
 }
 
-enum _DateAction {
-  pick,
-  clear,
-}
+enum _DateAction { pick, clear }

@@ -17,9 +17,9 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   void _showComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Coming soon')));
   }
 
   void _onBottomTap(int index) {
@@ -134,21 +134,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           trendUp: metrics.first.trendUp,
                         ),
                       ),
-                      SizedBox(width: AppResponsive.clamp(
-                        AppResponsive.vw(constraints, 3.5),
-                        12,
-                        16,
-                      )),
+                      SizedBox(
+                        width: AppResponsive.clamp(
+                          AppResponsive.vw(constraints, 3.5),
+                          12,
+                          16,
+                        ),
+                      ),
                       Expanded(
                         child: _MetricCard(
                           constraints: constraints,
                           icon: metrics.length > 1
                               ? metrics[1].icon
                               : Icons.receipt_long_outlined,
-                          title: metrics.length > 1 ? metrics[1].title : 'Invoices',
+                          title: metrics.length > 1
+                              ? metrics[1].title
+                              : 'Invoices',
                           value: metrics.length > 1 ? metrics[1].value : '0',
                           trend: metrics.length > 1 ? metrics[1].trend : '+0%',
-                          trendUp: metrics.length > 1 ? metrics[1].trendUp : true,
+                          trendUp: metrics.length > 1
+                              ? metrics[1].trendUp
+                              : true,
                         ),
                       ),
                     ],
@@ -182,25 +188,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           deltaText: stats.first.deltaText,
                         ),
                       ),
-                      SizedBox(width: AppResponsive.clamp(
-                        AppResponsive.vw(constraints, 3.5),
-                        12,
-                        16,
-                      )),
+                      SizedBox(
+                        width: AppResponsive.clamp(
+                          AppResponsive.vw(constraints, 3.5),
+                          12,
+                          16,
+                        ),
+                      ),
                       Expanded(
                         child: _StatCard(
                           constraints: constraints,
-                          title: stats.length > 1 ? stats[1].title : 'ACTIVE NOW',
+                          title: stats.length > 1
+                              ? stats[1].title
+                              : 'ACTIVE NOW',
                           value: stats.length > 1 ? stats[1].value : '0',
-                          subtitle:
-                              stats.length > 1 ? stats[1].subtitle : '+0% vs yesterday',
+                          subtitle: stats.length > 1
+                              ? stats[1].subtitle
+                              : '+0% vs yesterday',
                           icon: stats.length > 1 ? stats[1].icon : Icons.circle,
                           accent: stats.length > 1
                               ? stats[1].accent
                               : const Color(0xFF1DB954),
                           showDot: stats.length > 1 ? stats[1].showDot : true,
-                          deltaText:
-                              stats.length > 1 ? stats[1].deltaText : '+0% vs yesterday',
+                          deltaText: stats.length > 1
+                              ? stats[1].deltaText
+                              : '+0% vs yesterday',
                         ),
                       ),
                     ],
@@ -392,7 +404,10 @@ class _MetricCard extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEFFAF3),
                   borderRadius: BorderRadius.circular(999),

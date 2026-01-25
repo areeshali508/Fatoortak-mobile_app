@@ -7,7 +7,8 @@ class AuthController extends ChangeNotifier {
   bool _isAuthenticated = false;
   bool _isLoading = false;
 
-  AuthController({required AuthRepository repository}) : _repository = repository;
+  AuthController({required AuthRepository repository})
+    : _repository = repository;
 
   bool get isAuthenticated => _isAuthenticated;
   bool get isLoading => _isLoading;

@@ -78,10 +78,7 @@ class _SheetOptionTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(
-                  Icons.chevron_right,
-                  color: Color(0xFF9AA5B6),
-                ),
+                const Icon(Icons.chevron_right, color: Color(0xFF9AA5B6)),
               ],
             ),
           ),
@@ -93,8 +90,8 @@ class _SheetOptionTile extends StatelessWidget {
 
 class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
   void _nextStep() {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
+    final CreateCreditNoteController ctrl = context
+        .read<CreateCreditNoteController>();
     final bool ok = ctrl.nextStep();
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -169,8 +166,8 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
   }
 
   Future<void> _pickIssueDate() async {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
+    final CreateCreditNoteController ctrl = context
+        .read<CreateCreditNoteController>();
     final DateTime now = DateTime.now();
     final DateTime initial = ctrl.issueDate ?? now;
 
@@ -198,8 +195,8 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
   }
 
   Future<void> _openAddItemSheet() async {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
+    final CreateCreditNoteController ctrl = context
+        .read<CreateCreditNoteController>();
     final CreditNoteItem? item = await showModalBottomSheet<CreditNoteItem>(
       context: context,
       isScrollControlled: true,
@@ -219,8 +216,8 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
   }
 
   void _saveDraft() {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
+    final CreateCreditNoteController ctrl = context
+        .read<CreateCreditNoteController>();
     final String? msg = ctrl.validateSubmit();
     if (msg != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -230,24 +227,28 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
   }
 
   void _validateZatcaDummy() {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
+    final CreateCreditNoteController ctrl = context
+        .read<CreateCreditNoteController>();
     final String? msg = ctrl.validateZatcaDummy();
     if (msg != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Validation successful. You can now submit.')),
+      const SnackBar(
+        content: Text('Validation successful. You can now submit.'),
+      ),
     );
   }
 
   void _submitToZatcaDummy() {
-    final CreateCreditNoteController ctrl =
-        context.read<CreateCreditNoteController>();
+    final CreateCreditNoteController ctrl = context
+        .read<CreateCreditNoteController>();
     if (!ctrl.zatcaValidated) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please validate before submitting to ZATCA')),
+        const SnackBar(
+          content: Text('Please validate before submitting to ZATCA'),
+        ),
       );
       return;
     }
@@ -288,8 +289,8 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final CreateCreditNoteController ctrl =
-            context.watch<CreateCreditNoteController>();
+        final CreateCreditNoteController ctrl = context
+            .watch<CreateCreditNoteController>();
 
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
@@ -303,11 +304,7 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
           18,
         );
 
-        final List<String> stepTitles = <String>[
-          'Details',
-          'Items',
-          'Review',
-        ];
+        final List<String> stepTitles = <String>['Details', 'Items', 'Review'];
 
         Widget itemsBlock({required bool editable}) {
           if (ctrl.items.isEmpty) {
@@ -320,8 +317,10 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
               ),
               child: Column(
                 children: <Widget>[
-                  const Icon(Icons.receipt_long_outlined,
-                      color: Color(0xFF9AA5B6)),
+                  const Icon(
+                    Icons.receipt_long_outlined,
+                    color: Color(0xFF9AA5B6),
+                  ),
                   const SizedBox(height: 10),
                   const Text(
                     'No items added yet',
@@ -426,8 +425,9 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                                 ),
                               ),
                               Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                ),
                                 child: Text(
                                   '${it.qty}',
                                   style: const TextStyle(
@@ -597,8 +597,10 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                       decoration: _dec(
                         label: '',
                         hint: 'Search or select invoice number',
-                        prefix:
-                            const Icon(Icons.search, color: Color(0xFF9AA5B6)),
+                        prefix: const Icon(
+                          Icons.search,
+                          color: Color(0xFF9AA5B6),
+                        ),
                       ).copyWith(labelText: null),
                       onTap: _selectInvoice,
                       style: const TextStyle(
@@ -617,8 +619,10 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                       decoration: _dec(
                         label: 'Customer',
                         hint: 'Search customer',
-                        prefix:
-                            const Icon(Icons.search, color: Color(0xFF9AA5B6)),
+                        prefix: const Icon(
+                          Icons.search,
+                          color: Color(0xFF9AA5B6),
+                        ),
                       ),
                       style: const TextStyle(
                         color: Color(0xFF0B1B4B),
@@ -630,10 +634,7 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                   const SizedBox(height: 12),
                   _SectionCard(
                     title: 'Customer Type',
-                    child: _SummaryRow(
-                      label: 'Type',
-                      value: ctrl.customerType,
-                    ),
+                    child: _SummaryRow(label: 'Type', value: ctrl.customerType),
                   ),
                   const SizedBox(height: 12),
                   _SectionCard(
@@ -772,9 +773,7 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
               decoration: const BoxDecoration(
                 color: Colors.white,
-                border: Border(
-                  top: BorderSide(color: Color(0xFFE9EEF5)),
-                ),
+                border: Border(top: BorderSide(color: Color(0xFFE9EEF5))),
               ),
               child: ctrl.currentStep == 2
                   ? Row(
@@ -785,8 +784,7 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF0B1B4B),
                               side: const BorderSide(color: Color(0xFFE9EEF5)),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -806,8 +804,7 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -831,10 +828,8 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                             onPressed: ctrl.currentStep == 0 ? null : _prevStep,
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF0B1B4B),
-                              side:
-                                  const BorderSide(color: Color(0xFFE9EEF5)),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                              side: const BorderSide(color: Color(0xFFE9EEF5)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -852,8 +847,7 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -966,11 +960,7 @@ class _SectionCard extends StatelessWidget {
   final Widget child;
   final Widget? trailing;
 
-  const _SectionCard({
-    required this.title,
-    required this.child,
-    this.trailing,
-  });
+  const _SectionCard({required this.title, required this.child, this.trailing});
 
   @override
   Widget build(BuildContext context) {
@@ -1035,13 +1025,12 @@ class _LabeledDropdown<T> extends StatelessWidget {
       key: ValueKey<T>(value),
       initialValue: value,
       items: items
-          .map((T e) => DropdownMenuItem<T>(
-                value: e,
-                child: Text(
-                  e.toString(),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ))
+          .map(
+            (T e) => DropdownMenuItem<T>(
+              value: e,
+              child: Text(e.toString(), overflow: TextOverflow.ellipsis),
+            ),
+          )
           .toList(),
       onChanged: (T? v) {
         if (v == null) return;
@@ -1051,7 +1040,10 @@ class _LabeledDropdown<T> extends StatelessWidget {
         labelText: label,
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFFE9EEF5)),
@@ -1089,8 +1081,10 @@ class _DateField extends StatelessWidget {
           labelText: label,
           filled: true,
           fillColor: Colors.white,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: Color(0xFFE9EEF5)),
@@ -1227,7 +1221,9 @@ class _AddItemSheet extends StatefulWidget {
 class _AddItemSheetState extends State<_AddItemSheet> {
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _qtyController = TextEditingController(text: '1');
-  final TextEditingController _priceController = TextEditingController(text: '0');
+  final TextEditingController _priceController = TextEditingController(
+    text: '0',
+  );
 
   @override
   void dispose() {
@@ -1257,7 +1253,10 @@ class _AddItemSheetState extends State<_AddItemSheet> {
         filled: true,
         fillColor: Colors.white,
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFFE9EEF5)),
@@ -1303,8 +1302,9 @@ class _AddItemSheetState extends State<_AddItemSheet> {
               Expanded(
                 child: TextField(
                   controller: _priceController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: dec(label: 'Price (${widget.currency})'),
                 ),
               ),

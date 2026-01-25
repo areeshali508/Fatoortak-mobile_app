@@ -14,7 +14,7 @@ class DebitNotesController extends ChangeNotifier {
   List<DebitNote> _notes = const <DebitNote>[];
 
   DebitNotesController({required DebitNoteRepository repository})
-      : _repository = repository;
+    : _repository = repository;
 
   bool get isLoading => _isLoading;
 
@@ -137,17 +137,16 @@ class DebitNotesController extends ChangeNotifier {
 
   int get clearedOrReportedCount => clearedCount + reportedCount;
 
-  double get debitsTotal => _notes.fold<double>(
-        0,
-        (double p, DebitNote e) => p + e.amount,
-      );
+  double get debitsTotal =>
+      _notes.fold<double>(0, (double p, DebitNote e) => p + e.amount);
 
   String get debitsLabel {
     const String currency = 'SAR';
     final double total = debitsTotal;
     final bool asInt = (total - total.truncateToDouble()).abs() < 0.000001;
-    final String formatted =
-        asInt ? total.toStringAsFixed(0) : total.toStringAsFixed(2);
+    final String formatted = asInt
+        ? total.toStringAsFixed(0)
+        : total.toStringAsFixed(2);
     return '$currency $formatted';
   }
 
@@ -160,8 +159,9 @@ class DebitNotesController extends ChangeNotifier {
   String amountLabel(DebitNote note) {
     final double total = note.amount;
     final bool asInt = (total - total.truncateToDouble()).abs() < 0.000001;
-    final String formatted =
-        asInt ? total.toStringAsFixed(0) : total.toStringAsFixed(2);
+    final String formatted = asInt
+        ? total.toStringAsFixed(0)
+        : total.toStringAsFixed(2);
     return '${note.currency} $formatted';
   }
 

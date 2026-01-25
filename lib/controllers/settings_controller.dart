@@ -9,7 +9,7 @@ class SettingsController extends ChangeNotifier {
   bool _pushNotifications = true;
 
   SettingsController({required SettingsRepository repository})
-      : _repository = repository;
+    : _repository = repository;
 
   bool get isLoading => _isLoading;
 

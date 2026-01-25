@@ -87,13 +87,13 @@ class InvoiceDetailsScreen extends StatelessWidget {
           18,
         );
 
-        final (_ChipStyle? stStyle, String stText) = _statusStyle(invoice.status);
+        final (_ChipStyle? stStyle, String stText) = _statusStyle(
+          invoice.status,
+        );
 
         return Scaffold(
           backgroundColor: const Color(0xFFF7FAFF),
-          appBar: AppBar(
-            title: const Text('Invoice Details'),
-          ),
+          appBar: AppBar(title: const Text('Invoice Details')),
           body: SafeArea(
             child: SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(hPad, gap, hPad, gap),
@@ -166,7 +166,10 @@ class InvoiceDetailsScreen extends StatelessWidget {
                     title: 'Summary',
                     child: Column(
                       children: <Widget>[
-                        _SummaryRow(label: 'Invoice #', value: invoice.invoiceNo),
+                        _SummaryRow(
+                          label: 'Invoice #',
+                          value: invoice.invoiceNo,
+                        ),
                         _SummaryRow(label: 'Customer', value: invoice.customer),
                         _SummaryRow(
                           label: 'Issue Date',
@@ -183,14 +186,23 @@ class InvoiceDetailsScreen extends StatelessWidget {
                           label: 'Customer Type',
                           value: invoice.customerType,
                         ),
-                        _SummaryRow(label: 'Invoice Type', value: invoice.invoiceType),
+                        _SummaryRow(
+                          label: 'Invoice Type',
+                          value: invoice.invoiceType,
+                        ),
                         _SummaryRow(
                           label: 'Payment Terms',
                           value: invoice.paymentTerms,
                         ),
                         _SummaryRow(label: 'Currency', value: invoice.currency),
-                        _SummaryRow(label: 'Subtotal', value: _formatNumber(invoice.subtotal)),
-                        _SummaryRow(label: 'VAT', value: _formatNumber(invoice.vatAmount)),
+                        _SummaryRow(
+                          label: 'Subtotal',
+                          value: _formatNumber(invoice.subtotal),
+                        ),
+                        _SummaryRow(
+                          label: 'VAT',
+                          value: _formatNumber(invoice.vatAmount),
+                        ),
                         _SummaryRow(label: 'Total', value: _amountLabel()),
                       ],
                     ),
@@ -214,8 +226,8 @@ class InvoiceDetailsScreen extends StatelessWidget {
                               final double lineTotal = it.total;
                               final bool asInt =
                                   (lineTotal - lineTotal.truncateToDouble())
-                                          .abs() <
-                                      0.000001;
+                                      .abs() <
+                                  0.000001;
                               final String formatted = asInt
                                   ? lineTotal.toStringAsFixed(0)
                                   : lineTotal.toStringAsFixed(2);

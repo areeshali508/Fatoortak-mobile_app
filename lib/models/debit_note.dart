@@ -1,16 +1,6 @@
-enum DebitNoteStatus {
-  draft,
-  submitted,
-  cleared,
-  reported,
-  rejected,
-}
+enum DebitNoteStatus { draft, submitted, cleared, reported, rejected }
 
-enum DebitNotePaymentStatus {
-  pending,
-  paid,
-  cancelled,
-}
+enum DebitNotePaymentStatus { pending, paid, cancelled }
 
 class DebitNoteItem {
   final String description;

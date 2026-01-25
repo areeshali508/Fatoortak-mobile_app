@@ -28,9 +28,9 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   }
 
   void _showComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Coming soon')));
   }
 
   Future<void> _openDateFilter() async {
@@ -218,7 +218,8 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final InvoiceController invoiceCtrl = context.watch<InvoiceController>();
+        final InvoiceController invoiceCtrl = context
+            .watch<InvoiceController>();
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
           16,
@@ -273,15 +274,17 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
               ),
             ],
           ),
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.endFloat,
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           floatingActionButton: FloatingActionButton(
             onPressed: () async {
-              final ScaffoldMessengerState messenger =
-                  ScaffoldMessenger.of(context);
-              final InvoiceController invCtrl = context.read<InvoiceController>();
-              final Object? result =
-                  await Navigator.of(context).pushNamed(AppRoutes.createInvoice);
+              final ScaffoldMessengerState messenger = ScaffoldMessenger.of(
+                context,
+              );
+              final InvoiceController invCtrl = context
+                  .read<InvoiceController>();
+              final Object? result = await Navigator.of(
+                context,
+              ).pushNamed(AppRoutes.createInvoice);
 
               if (!mounted || result == null || result is! Invoice) {
                 return;
@@ -391,10 +394,7 @@ class _SheetActionTile extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _SheetActionTile({
-    required this.label,
-    required this.onTap,
-  });
+  const _SheetActionTile({required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -420,10 +420,7 @@ class _SheetActionTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right,
-                  color: Color(0xFF9AA5B6),
-                ),
+                const Icon(Icons.chevron_right, color: Color(0xFF9AA5B6)),
               ],
             ),
           ),
@@ -648,10 +645,7 @@ class _Pill extends StatelessWidget {
   }
 }
 
-enum _DateAction {
-  pick,
-  clear,
-}
+enum _DateAction { pick, clear }
 
 class _InvoiceCard extends StatelessWidget {
   final String invoiceNo;
@@ -768,35 +762,23 @@ class _InvoiceCard extends StatelessWidget {
     switch (s) {
       case InvoiceStatus.draft:
         return (
-          const _StatusStyle(
-            bg: Color(0xFFF3F6FB),
-            fg: Color(0xFF6B7895),
-          ),
-          'Draft'
+          const _StatusStyle(bg: Color(0xFFF3F6FB), fg: Color(0xFF6B7895)),
+          'Draft',
         );
       case InvoiceStatus.sent:
         return (
-          const _StatusStyle(
-            bg: Color(0xFFE7F1FF),
-            fg: AppColors.primary,
-          ),
-          'Sent'
+          const _StatusStyle(bg: Color(0xFFE7F1FF), fg: AppColors.primary),
+          'Sent',
         );
       case InvoiceStatus.overdue:
         return (
-          const _StatusStyle(
-            bg: Color(0xFFFFE7E7),
-            fg: Color(0xFFD93025),
-          ),
-          'Overdue'
+          const _StatusStyle(bg: Color(0xFFFFE7E7), fg: Color(0xFFD93025)),
+          'Overdue',
         );
       case InvoiceStatus.paid:
         return (
-          const _StatusStyle(
-            bg: Color(0xFFEFFAF3),
-            fg: Color(0xFF1DB954),
-          ),
-          'Paid'
+          const _StatusStyle(bg: Color(0xFFEFFAF3), fg: Color(0xFF1DB954)),
+          'Paid',
         );
       case InvoiceStatus.none:
         return (null, '');

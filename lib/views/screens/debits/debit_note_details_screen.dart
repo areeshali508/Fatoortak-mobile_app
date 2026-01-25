@@ -18,8 +18,9 @@ class DebitNoteDetailsScreen extends StatelessWidget {
   String _amountLabel() {
     final double total = note.amount;
     final bool asInt = (total - total.truncateToDouble()).abs() < 0.000001;
-    final String formatted =
-        asInt ? total.toStringAsFixed(0) : total.toStringAsFixed(2);
+    final String formatted = asInt
+        ? total.toStringAsFixed(0)
+        : total.toStringAsFixed(2);
     return '${note.currency} $formatted';
   }
 
@@ -90,14 +91,13 @@ class DebitNoteDetailsScreen extends StatelessWidget {
         );
 
         final (_ChipStyle stStyle, String stText) = _statusStyle(note.status);
-        final (_ChipStyle payStyle, String payText) =
-            _paymentStyle(note.paymentStatus);
+        final (_ChipStyle payStyle, String payText) = _paymentStyle(
+          note.paymentStatus,
+        );
 
         return Scaffold(
           backgroundColor: const Color(0xFFF7FAFF),
-          appBar: AppBar(
-            title: const Text('Debit Note Details'),
-          ),
+          appBar: AppBar(title: const Text('Debit Note Details')),
           body: SafeArea(
             child: SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(hPad, gap, hPad, gap),
@@ -222,8 +222,8 @@ class DebitNoteDetailsScreen extends StatelessWidget {
                               final double lineTotal = it.total;
                               final bool asInt =
                                   (lineTotal - lineTotal.truncateToDouble())
-                                          .abs() <
-                                      0.000001;
+                                      .abs() <
+                                  0.000001;
                               final String formatted = asInt
                                   ? lineTotal.toStringAsFixed(0)
                                   : lineTotal.toStringAsFixed(2);

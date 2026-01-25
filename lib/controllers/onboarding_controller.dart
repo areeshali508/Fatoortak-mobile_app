@@ -3,11 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/onboarding.dart';
 import '../repositories/onboarding_repository.dart';
 
-enum OnboardingActionKind {
-  goToPage,
-  goLogin,
-  goSignup,
-}
+enum OnboardingActionKind { goToPage, goLogin, goSignup }
 
 class OnboardingAction {
   final OnboardingActionKind kind;
@@ -16,7 +12,7 @@ class OnboardingAction {
   const OnboardingAction._(this.kind, {this.pageIndex});
 
   const OnboardingAction.goToPage(int pageIndex)
-      : this._(OnboardingActionKind.goToPage, pageIndex: pageIndex);
+    : this._(OnboardingActionKind.goToPage, pageIndex: pageIndex);
 
   const OnboardingAction.goLogin() : this._(OnboardingActionKind.goLogin);
 
@@ -29,7 +25,7 @@ class OnboardingController extends ChangeNotifier {
   int _currentIndex = 0;
 
   OnboardingController({required OnboardingRepository repository})
-      : _repository = repository {
+    : _repository = repository {
     _pages = List<OnboardingPageModel>.unmodifiable(_repository.getPages());
   }
 

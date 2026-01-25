@@ -10,7 +10,7 @@ class CustomerController extends ChangeNotifier {
   List<Customer> _customers = const <Customer>[];
 
   CustomerController({required CustomerRepository repository})
-      : _repository = repository;
+    : _repository = repository;
 
   bool get isLoading => _isLoading;
 

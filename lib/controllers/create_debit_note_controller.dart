@@ -43,11 +43,14 @@ class CreateDebitNoteController extends ChangeNotifier {
     notifyListeners();
   }
 
-  final TextEditingController debitNoteNumberController =
-      TextEditingController(text: 'DN-2024-001');
-  final TextEditingController originalInvoiceController = TextEditingController();
+  final TextEditingController debitNoteNumberController = TextEditingController(
+    text: 'DN-2024-001',
+  );
+  final TextEditingController originalInvoiceController =
+      TextEditingController();
   final TextEditingController customerController = TextEditingController();
-  final TextEditingController reasonDescriptionController = TextEditingController();
+  final TextEditingController reasonDescriptionController =
+      TextEditingController();
   final TextEditingController termsController = TextEditingController();
 
   String? _originalInvoiceCustomerType;
@@ -169,19 +172,15 @@ class CreateDebitNoteController extends ChangeNotifier {
   }
 
   double get subtotal => _items.fold<double>(
-        0,
-        (double p, DebitNoteItem e) => p + e.taxableAmount,
-      );
+    0,
+    (double p, DebitNoteItem e) => p + e.taxableAmount,
+  );
 
-  double get vatAmount => _items.fold<double>(
-        0,
-        (double p, DebitNoteItem e) => p + e.taxAmount,
-      );
+  double get vatAmount =>
+      _items.fold<double>(0, (double p, DebitNoteItem e) => p + e.taxAmount);
 
-  double get total => _items.fold<double>(
-        0,
-        (double p, DebitNoteItem e) => p + e.total,
-      );
+  double get total =>
+      _items.fold<double>(0, (double p, DebitNoteItem e) => p + e.total);
 
   bool isStepValid(int step) {
     switch (step) {
@@ -255,8 +254,8 @@ class CreateDebitNoteController extends ChangeNotifier {
   DebitNote buildSubmitted({required String uuid, required String hash}) {
     final DebitNoteStatus finalStatus =
         (_originalInvoiceCustomerType ?? '').toLowerCase().contains('b2b')
-            ? DebitNoteStatus.cleared
-            : DebitNoteStatus.reported;
+        ? DebitNoteStatus.cleared
+        : DebitNoteStatus.reported;
 
     return DebitNote(
       id: debitNoteNumberController.text.trim(),

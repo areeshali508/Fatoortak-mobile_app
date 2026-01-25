@@ -31,9 +31,9 @@ class _DebitNotesScreenState extends State<DebitNotesScreen> {
   }
 
   void _showComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Coming soon')));
   }
 
   Future<void> _openDateFilter() async {
@@ -106,8 +106,8 @@ class _DebitNotesScreenState extends State<DebitNotesScreen> {
 
   Future<void> _openStatusFilter() async {
     final DebitNotesController notesCtrl = context.read<DebitNotesController>();
-    final DebitNoteStatus? result =
-        await showModalBottomSheet<DebitNoteStatus?>(
+    final DebitNoteStatus?
+    result = await showModalBottomSheet<DebitNoteStatus?>(
       context: context,
       showDragHandle: true,
       backgroundColor: Colors.white,
@@ -207,76 +207,80 @@ class _DebitNotesScreenState extends State<DebitNotesScreen> {
     final DebitNotesController notesCtrl = context.read<DebitNotesController>();
     final DebitNotePaymentStatus? result =
         await showModalBottomSheet<DebitNotePaymentStatus?>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (BuildContext ctx) {
-        return SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
-            shrinkWrap: true,
-            children: <Widget>[
-              const Text(
-                'Payment Status',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFF0B1B4B),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 10),
-              _StatusOption(
-                label: 'All Payment Status',
-                selected: notesCtrl.paymentStatusFilter == null,
-                onTap: () => Navigator.of(ctx).pop(null),
-              ),
-              _StatusOption(
-                label: 'Pending',
-                selected: notesCtrl.paymentStatusFilter ==
-                    DebitNotePaymentStatus.pending,
-                onTap: () {
-                  Navigator.of(ctx).pop(
-                    notesCtrl.paymentStatusFilter ==
-                            DebitNotePaymentStatus.pending
-                        ? null
-                        : DebitNotePaymentStatus.pending,
-                  );
-                },
-              ),
-              _StatusOption(
-                label: 'Paid',
-                selected:
-                    notesCtrl.paymentStatusFilter == DebitNotePaymentStatus.paid,
-                onTap: () {
-                  Navigator.of(ctx).pop(
-                    notesCtrl.paymentStatusFilter == DebitNotePaymentStatus.paid
-                        ? null
-                        : DebitNotePaymentStatus.paid,
-                  );
-                },
-              ),
-              _StatusOption(
-                label: 'Cancelled',
-                selected: notesCtrl.paymentStatusFilter ==
-                    DebitNotePaymentStatus.cancelled,
-                onTap: () {
-                  Navigator.of(ctx).pop(
-                    notesCtrl.paymentStatusFilter ==
-                            DebitNotePaymentStatus.cancelled
-                        ? null
-                        : DebitNotePaymentStatus.cancelled,
-                  );
-                },
-              ),
-            ],
+          context: context,
+          showDragHandle: true,
+          backgroundColor: Colors.white,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
           ),
+          builder: (BuildContext ctx) {
+            return SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
+                shrinkWrap: true,
+                children: <Widget>[
+                  const Text(
+                    'Payment Status',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFF0B1B4B),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _StatusOption(
+                    label: 'All Payment Status',
+                    selected: notesCtrl.paymentStatusFilter == null,
+                    onTap: () => Navigator.of(ctx).pop(null),
+                  ),
+                  _StatusOption(
+                    label: 'Pending',
+                    selected:
+                        notesCtrl.paymentStatusFilter ==
+                        DebitNotePaymentStatus.pending,
+                    onTap: () {
+                      Navigator.of(ctx).pop(
+                        notesCtrl.paymentStatusFilter ==
+                                DebitNotePaymentStatus.pending
+                            ? null
+                            : DebitNotePaymentStatus.pending,
+                      );
+                    },
+                  ),
+                  _StatusOption(
+                    label: 'Paid',
+                    selected:
+                        notesCtrl.paymentStatusFilter ==
+                        DebitNotePaymentStatus.paid,
+                    onTap: () {
+                      Navigator.of(ctx).pop(
+                        notesCtrl.paymentStatusFilter ==
+                                DebitNotePaymentStatus.paid
+                            ? null
+                            : DebitNotePaymentStatus.paid,
+                      );
+                    },
+                  ),
+                  _StatusOption(
+                    label: 'Cancelled',
+                    selected:
+                        notesCtrl.paymentStatusFilter ==
+                        DebitNotePaymentStatus.cancelled,
+                    onTap: () {
+                      Navigator.of(ctx).pop(
+                        notesCtrl.paymentStatusFilter ==
+                                DebitNotePaymentStatus.cancelled
+                            ? null
+                            : DebitNotePaymentStatus.cancelled,
+                      );
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
         );
-      },
-    );
 
     if (!mounted) {
       return;
@@ -288,8 +292,9 @@ class _DebitNotesScreenState extends State<DebitNotesScreen> {
   Future<void> _openCreateDebitNote() async {
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     final DebitNotesController notesCtrl = context.read<DebitNotesController>();
-    final Object? result =
-        await Navigator.of(context).pushNamed(AppRoutes.createDebitNote);
+    final Object? result = await Navigator.of(
+      context,
+    ).pushNamed(AppRoutes.createDebitNote);
 
     if (!mounted || result == null || result is! DebitNote) {
       return;
@@ -400,8 +405,7 @@ class _DebitNotesScreenState extends State<DebitNotesScreen> {
               ),
             ],
           ),
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.endFloat,
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           floatingActionButton: FloatingActionButton(
             onPressed: _openCreateDebitNote,
             backgroundColor: AppColors.primary,
@@ -526,10 +530,7 @@ class _SheetActionTile extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _SheetActionTile({
-    required this.label,
-    required this.onTap,
-  });
+  const _SheetActionTile({required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -555,10 +556,7 @@ class _SheetActionTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right,
-                  color: Color(0xFF9AA5B6),
-                ),
+                const Icon(Icons.chevron_right, color: Color(0xFF9AA5B6)),
               ],
             ),
           ),
@@ -994,8 +992,10 @@ class _DebitNoteCard extends StatelessWidget {
                       ),
                     ),
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: style.bg,
                         borderRadius: BorderRadius.circular(10),
@@ -1061,10 +1061,7 @@ class _EmptyState extends StatelessWidget {
   final BoxConstraints constraints;
   final VoidCallback onGetStarted;
 
-  const _EmptyState({
-    required this.constraints,
-    required this.onGetStarted,
-  });
+  const _EmptyState({required this.constraints, required this.onGetStarted});
 
   @override
   Widget build(BuildContext context) {

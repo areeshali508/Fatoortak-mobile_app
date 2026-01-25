@@ -20,8 +20,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final SettingsController settingsCtrl =
-            context.watch<SettingsController>();
+        final SettingsController settingsCtrl = context
+            .watch<SettingsController>();
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 6),
           16,
@@ -60,10 +60,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                _ProfileCard(
-                  constraints: constraints,
-                  radius: cardRadius,
-                ),
+                _ProfileCard(constraints: constraints, radius: cardRadius),
                 SizedBox(height: sectionGap),
                 const _SectionHeader('ACCOUNT'),
                 _SectionCard(
@@ -118,8 +115,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.notifications_outlined,
                       title: 'Push Notifications',
                       value: settingsCtrl.pushNotifications,
-                      onChanged: (bool v) =>
-                          context.read<SettingsController>().setPushNotifications(v),
+                      onChanged: (bool v) => context
+                          .read<SettingsController>()
+                          .setPushNotifications(v),
                     ),
                   ],
                 ),
@@ -171,8 +169,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () async {
                         await context.read<AuthController>().signOut();
                         if (!context.mounted) return;
-                        Navigator.of(context)
-                            .pushReplacementNamed(AppRoutes.login);
+                        Navigator.of(
+                          context,
+                        ).pushReplacementNamed(AppRoutes.login);
                       },
                     ),
                   ],
@@ -190,10 +189,7 @@ class _ProfileCard extends StatelessWidget {
   final BoxConstraints constraints;
   final double radius;
 
-  const _ProfileCard({
-    required this.constraints,
-    required this.radius,
-  });
+  const _ProfileCard({required this.constraints, required this.radius});
 
   @override
   Widget build(BuildContext context) {
@@ -236,11 +232,13 @@ class _ProfileCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  SizedBox(height: AppResponsive.clamp(
-                    AppResponsive.scaledByHeight(constraints, 14),
-                    10,
-                    18,
-                  )),
+                  SizedBox(
+                    height: AppResponsive.clamp(
+                      AppResponsive.scaledByHeight(constraints, 14),
+                      10,
+                      18,
+                    ),
+                  ),
                   Text(
                     'فاتورتك',
                     style: TextStyle(
@@ -253,11 +251,13 @@ class _ProfileCard extends StatelessWidget {
                       color: Colors.white,
                     ),
                   ),
-                  SizedBox(height: AppResponsive.clamp(
-                    AppResponsive.scaledByHeight(constraints, 6),
-                    4,
-                    10,
-                  )),
+                  SizedBox(
+                    height: AppResponsive.clamp(
+                      AppResponsive.scaledByHeight(constraints, 6),
+                      4,
+                      10,
+                    ),
+                  ),
                   Text(
                     'contact@fatoortak.sa',
                     style: TextStyle(
@@ -269,11 +269,13 @@ class _ProfileCard extends StatelessWidget {
                       color: Colors.white.withValues(alpha: 0.80),
                     ),
                   ),
-                  SizedBox(height: AppResponsive.clamp(
-                    AppResponsive.scaledByHeight(constraints, 14),
-                    10,
-                    18,
-                  )),
+                  SizedBox(
+                    height: AppResponsive.clamp(
+                      AppResponsive.scaledByHeight(constraints, 14),
+                      10,
+                      18,
+                    ),
+                  ),
                   TextButton(
                     onPressed: () {},
                     child: const Text(
@@ -320,10 +322,7 @@ class _SectionCard extends StatelessWidget {
   final List<Widget> children;
   final double radius;
 
-  const _SectionCard({
-    required this.children,
-    required this.radius,
-  });
+  const _SectionCard({required this.children, required this.radius});
 
   @override
   Widget build(BuildContext context) {
@@ -332,11 +331,7 @@ class _SectionCard extends StatelessWidget {
       items.add(children[i]);
       if (i != children.length - 1) {
         items.add(
-          const Divider(
-            height: 1,
-            thickness: 1,
-            color: Color(0xFFE9EEF5),
-          ),
+          const Divider(height: 1, thickness: 1, color: Color(0xFFE9EEF5)),
         );
       }
     }
@@ -346,9 +341,7 @@ class _SectionCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(radius),
       ),
-      child: Column(
-        children: items,
-      ),
+      child: Column(children: items),
     );
   }
 }
@@ -395,8 +388,8 @@ class _SettingsTile extends StatelessWidget {
       ),
       trailing: trailingText == null
           ? (showChevron
-              ? const Icon(Icons.chevron_right, color: Color(0xFF9AA5B6))
-              : null)
+                ? const Icon(Icons.chevron_right, color: Color(0xFF9AA5B6))
+                : null)
           : Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[

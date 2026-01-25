@@ -6,11 +6,7 @@ class AppSplashLogo extends StatelessWidget {
   final double size;
   final Color accent;
 
-  const AppSplashLogo({
-    super.key,
-    required this.size,
-    required this.accent,
-  });
+  const AppSplashLogo({super.key, required this.size, required this.accent});
 
   @override
   Widget build(BuildContext context) {
@@ -162,10 +158,7 @@ class _PhoneIllustration extends StatelessWidget {
               width: width * 0.14,
               height: width * 0.14,
               decoration: BoxDecoration(
-                border: Border.all(
-                  color: const Color(0xFFD8DFF1),
-                  width: 2,
-                ),
+                border: Border.all(color: const Color(0xFFD8DFF1), width: 2),
                 shape: BoxShape.circle,
               ),
             ),

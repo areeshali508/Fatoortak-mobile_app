@@ -14,7 +14,7 @@ class QuotationsController extends ChangeNotifier {
   List<Quotation> _quotations = const <Quotation>[];
 
   QuotationsController({required QuotationRepository repository})
-      : _repository = repository;
+    : _repository = repository;
 
   bool get isLoading => _isLoading;
 
@@ -129,20 +129,20 @@ class QuotationsController extends ChangeNotifier {
       .where((Quotation n) => n.status == QuotationStatus.draft)
       .length;
 
-  int get sentCount =>
-      _quotations.where((Quotation n) => n.status == QuotationStatus.sent).length;
+  int get sentCount => _quotations
+      .where((Quotation n) => n.status == QuotationStatus.sent)
+      .length;
 
-  double get quotationsTotal => _quotations.fold<double>(
-        0,
-        (double p, Quotation e) => p + e.amount,
-      );
+  double get quotationsTotal =>
+      _quotations.fold<double>(0, (double p, Quotation e) => p + e.amount);
 
   String get quotationsLabel {
     const String currency = 'SAR';
     final double total = quotationsTotal;
     final bool asInt = (total - total.truncateToDouble()).abs() < 0.000001;
-    final String formatted =
-        asInt ? total.toStringAsFixed(0) : total.toStringAsFixed(2);
+    final String formatted = asInt
+        ? total.toStringAsFixed(0)
+        : total.toStringAsFixed(2);
     return '$currency $formatted';
   }
 
@@ -155,8 +155,9 @@ class QuotationsController extends ChangeNotifier {
   String amountLabel(Quotation quotation) {
     final double total = quotation.amount;
     final bool asInt = (total - total.truncateToDouble()).abs() < 0.000001;
-    final String formatted =
-        asInt ? total.toStringAsFixed(0) : total.toStringAsFixed(2);
+    final String formatted = asInt
+        ? total.toStringAsFixed(0)
+        : total.toStringAsFixed(2);
     return '${quotation.currency} $formatted';
   }
 

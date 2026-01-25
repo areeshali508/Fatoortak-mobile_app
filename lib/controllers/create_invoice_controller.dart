@@ -71,8 +71,9 @@ class CreateInvoiceController extends ChangeNotifier {
     notifyListeners();
   }
 
-  final TextEditingController invoiceNumberController =
-      TextEditingController(text: 'INV-2023-001');
+  final TextEditingController invoiceNumberController = TextEditingController(
+    text: 'INV-2023-001',
+  );
   final TextEditingController customerController = TextEditingController();
   final TextEditingController notesController = TextEditingController();
   final TextEditingController termsController = TextEditingController();
@@ -183,17 +184,11 @@ class CreateInvoiceController extends ChangeNotifier {
   }
 
   double get vatAmount {
-    return _items.fold<double>(
-      0,
-      (double p, InvoiceItem e) => p + e.taxAmount,
-    );
+    return _items.fold<double>(0, (double p, InvoiceItem e) => p + e.taxAmount);
   }
 
   double get total {
-    return _items.fold<double>(
-      0,
-      (double p, InvoiceItem e) => p + e.total,
-    );
+    return _items.fold<double>(0, (double p, InvoiceItem e) => p + e.total);
   }
 
   String? validateSubmit({required bool draft}) {

@@ -11,9 +11,11 @@ class CreateQuotationController extends ChangeNotifier {
 
   String _company = 'Tech Solutions Ltd.';
   String _currency = 'SAR';
+  String _paymentTerms = 'Due on Receipt';
 
   String get company => _company;
   String get currency => _currency;
+  String get paymentTerms => _paymentTerms;
 
   set company(String v) {
     if (v == _company) return;
@@ -24,6 +26,12 @@ class CreateQuotationController extends ChangeNotifier {
   set currency(String v) {
     if (v == _currency) return;
     _currency = v;
+    notifyListeners();
+  }
+
+  set paymentTerms(String v) {
+    if (v == _paymentTerms) return;
+    _paymentTerms = v;
     notifyListeners();
   }
 
@@ -43,8 +51,9 @@ class CreateQuotationController extends ChangeNotifier {
     notifyListeners();
   }
 
-  final TextEditingController quotationNumberController =
-      TextEditingController(text: 'QTN-2026-001');
+  final TextEditingController quotationNumberController = TextEditingController(
+    text: 'QTN-2026-001',
+  );
   final TextEditingController customerController = TextEditingController();
   final TextEditingController notesController = TextEditingController();
   final TextEditingController termsController = TextEditingController();
@@ -96,19 +105,15 @@ class CreateQuotationController extends ChangeNotifier {
   }
 
   double get subtotal => _items.fold<double>(
-        0,
-        (double p, QuotationItem e) => p + e.taxableAmount,
-      );
+    0,
+    (double p, QuotationItem e) => p + e.taxableAmount,
+  );
 
-  double get vatAmount => _items.fold<double>(
-        0,
-        (double p, QuotationItem e) => p + e.taxAmount,
-      );
+  double get vatAmount =>
+      _items.fold<double>(0, (double p, QuotationItem e) => p + e.taxAmount);
 
-  double get total => _items.fold<double>(
-        0,
-        (double p, QuotationItem e) => p + e.total,
-      );
+  double get total =>
+      _items.fold<double>(0, (double p, QuotationItem e) => p + e.total);
 
   bool isStepValid(int step) {
     switch (step) {
@@ -170,6 +175,7 @@ class CreateQuotationController extends ChangeNotifier {
       validUntil: _validUntil,
       currency: _currency,
       amount: total,
+      paymentTerms: _paymentTerms,
       status: status,
       items: List<QuotationItem>.unmodifiable(_items),
       notes: notesController.text.trim(),

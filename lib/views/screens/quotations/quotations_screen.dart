@@ -20,10 +20,7 @@ class _SheetActionTile extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _SheetActionTile({
-    required this.label,
-    required this.onTap,
-  });
+  const _SheetActionTile({required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -49,10 +46,7 @@ class _SheetActionTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right,
-                  color: Color(0xFF9AA5B6),
-                ),
+                const Icon(Icons.chevron_right, color: Color(0xFF9AA5B6)),
               ],
             ),
           ),
@@ -296,9 +290,9 @@ class _QuotationsScreenState extends State<QuotationsScreen> {
   }
 
   void _showComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Coming soon')));
   }
 
   Future<void> _openDateFilter() async {
@@ -373,63 +367,63 @@ class _QuotationsScreenState extends State<QuotationsScreen> {
     final QuotationsController ctrl = context.read<QuotationsController>();
     final QuotationStatus? result =
         await showModalBottomSheet<QuotationStatus?>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (BuildContext ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                const Text(
-                  'Quotation Status',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF0B1B4B),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _StatusOption(
-                  label: 'All Status',
-                  selected: ctrl.statusFilter == null,
-                  onTap: () => Navigator.of(ctx).pop(null),
-                ),
-                _StatusOption(
-                  label: 'Draft',
-                  selected: ctrl.statusFilter == QuotationStatus.draft,
-                  onTap: () {
-                    Navigator.of(ctx).pop(
-                      ctrl.statusFilter == QuotationStatus.draft
-                          ? null
-                          : QuotationStatus.draft,
-                    );
-                  },
-                ),
-                _StatusOption(
-                  label: 'Sent',
-                  selected: ctrl.statusFilter == QuotationStatus.sent,
-                  onTap: () {
-                    Navigator.of(ctx).pop(
-                      ctrl.statusFilter == QuotationStatus.sent
-                          ? null
-                          : QuotationStatus.sent,
-                    );
-                  },
-                ),
-              ],
-            ),
+          context: context,
+          showDragHandle: true,
+          backgroundColor: Colors.white,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
           ),
+          builder: (BuildContext ctx) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    const Text(
+                      'Quotation Status',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Color(0xFF0B1B4B),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _StatusOption(
+                      label: 'All Status',
+                      selected: ctrl.statusFilter == null,
+                      onTap: () => Navigator.of(ctx).pop(null),
+                    ),
+                    _StatusOption(
+                      label: 'Draft',
+                      selected: ctrl.statusFilter == QuotationStatus.draft,
+                      onTap: () {
+                        Navigator.of(ctx).pop(
+                          ctrl.statusFilter == QuotationStatus.draft
+                              ? null
+                              : QuotationStatus.draft,
+                        );
+                      },
+                    ),
+                    _StatusOption(
+                      label: 'Sent',
+                      selected: ctrl.statusFilter == QuotationStatus.sent,
+                      onTap: () {
+                        Navigator.of(ctx).pop(
+                          ctrl.statusFilter == QuotationStatus.sent
+                              ? null
+                              : QuotationStatus.sent,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
-      },
-    );
 
     if (!mounted) {
       return;
@@ -440,8 +434,8 @@ class _QuotationsScreenState extends State<QuotationsScreen> {
 
   Future<void> _openOutcomeFilter() async {
     final QuotationsController ctrl = context.read<QuotationsController>();
-    final QuotationOutcomeStatus? result =
-        await showModalBottomSheet<QuotationOutcomeStatus?>(
+    final QuotationOutcomeStatus?
+    result = await showModalBottomSheet<QuotationOutcomeStatus?>(
       context: context,
       showDragHandle: true,
       backgroundColor: Colors.white,
@@ -474,7 +468,8 @@ class _QuotationsScreenState extends State<QuotationsScreen> {
                 _StatusOption(
                   label: 'Pending',
                   selected:
-                      ctrl.outcomeStatusFilter == QuotationOutcomeStatus.pending,
+                      ctrl.outcomeStatusFilter ==
+                      QuotationOutcomeStatus.pending,
                   onTap: () {
                     Navigator.of(ctx).pop(
                       ctrl.outcomeStatusFilter == QuotationOutcomeStatus.pending
@@ -485,11 +480,13 @@ class _QuotationsScreenState extends State<QuotationsScreen> {
                 ),
                 _StatusOption(
                   label: 'Accepted',
-                  selected: ctrl.outcomeStatusFilter ==
+                  selected:
+                      ctrl.outcomeStatusFilter ==
                       QuotationOutcomeStatus.accepted,
                   onTap: () {
                     Navigator.of(ctx).pop(
-                      ctrl.outcomeStatusFilter == QuotationOutcomeStatus.accepted
+                      ctrl.outcomeStatusFilter ==
+                              QuotationOutcomeStatus.accepted
                           ? null
                           : QuotationOutcomeStatus.accepted,
                     );
@@ -497,11 +494,13 @@ class _QuotationsScreenState extends State<QuotationsScreen> {
                 ),
                 _StatusOption(
                   label: 'Declined',
-                  selected: ctrl.outcomeStatusFilter ==
+                  selected:
+                      ctrl.outcomeStatusFilter ==
                       QuotationOutcomeStatus.declined,
                   onTap: () {
                     Navigator.of(ctx).pop(
-                      ctrl.outcomeStatusFilter == QuotationOutcomeStatus.declined
+                      ctrl.outcomeStatusFilter ==
+                              QuotationOutcomeStatus.declined
                           ? null
                           : QuotationOutcomeStatus.declined,
                     );
@@ -510,7 +509,8 @@ class _QuotationsScreenState extends State<QuotationsScreen> {
                 _StatusOption(
                   label: 'Expired',
                   selected:
-                      ctrl.outcomeStatusFilter == QuotationOutcomeStatus.expired,
+                      ctrl.outcomeStatusFilter ==
+                      QuotationOutcomeStatus.expired,
                   onTap: () {
                     Navigator.of(ctx).pop(
                       ctrl.outcomeStatusFilter == QuotationOutcomeStatus.expired
@@ -536,8 +536,9 @@ class _QuotationsScreenState extends State<QuotationsScreen> {
   Future<void> _openCreateQuotation() async {
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     final QuotationsController ctrl = context.read<QuotationsController>();
-    final Object? result =
-        await Navigator.of(context).pushNamed(AppRoutes.createQuotation);
+    final Object? result = await Navigator.of(
+      context,
+    ).pushNamed(AppRoutes.createQuotation);
 
     if (!mounted || result == null || result is! Quotation) {
       return;
@@ -648,8 +649,7 @@ class _QuotationsScreenState extends State<QuotationsScreen> {
               ),
             ],
           ),
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.endFloat,
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           floatingActionButton: FloatingActionButton(
             onPressed: _openCreateQuotation,
             backgroundColor: AppColors.primary,
@@ -921,8 +921,10 @@ class _QuotationCard extends StatelessWidget {
                       ),
                     ),
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: style.bg,
                         borderRadius: BorderRadius.circular(10),
@@ -1157,7 +1159,4 @@ class _NoResultsState extends StatelessWidget {
   }
 }
 
-enum _DateAction {
-  pick,
-  clear,
-}
+enum _DateAction { pick, clear }

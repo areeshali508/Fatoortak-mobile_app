@@ -1,16 +1,6 @@
-enum CreditNoteStatus {
-  draft,
-  submitted,
-  cleared,
-  reported,
-  rejected,
-}
+enum CreditNoteStatus { draft, submitted, cleared, reported, rejected }
 
-enum CreditNotePaymentStatus {
-  pending,
-  refunded,
-  applied,
-}
+enum CreditNotePaymentStatus { pending, refunded, applied }
 
 class CreditNoteItem {
   final String description;

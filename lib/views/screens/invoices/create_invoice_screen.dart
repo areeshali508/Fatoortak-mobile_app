@@ -16,7 +16,8 @@ class CreateInvoiceScreen extends StatefulWidget {
 
 class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   void _nextStep() {
-    final CreateInvoiceController ctrl = context.read<CreateInvoiceController>();
+    final CreateInvoiceController ctrl = context
+        .read<CreateInvoiceController>();
     final bool ok = ctrl.nextStep();
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -26,30 +27,38 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   }
 
   void _prevStep() {
-    final CreateInvoiceController ctrl = context.read<CreateInvoiceController>();
+    final CreateInvoiceController ctrl = context
+        .read<CreateInvoiceController>();
     ctrl.prevStep();
   }
 
   void _goToStep(int step) {
-    final CreateInvoiceController ctrl = context.read<CreateInvoiceController>();
+    final CreateInvoiceController ctrl = context
+        .read<CreateInvoiceController>();
     ctrl.goToStep(step);
   }
 
   void _submitInvoice({required bool draft}) {
-    final CreateInvoiceController ctrl = context.read<CreateInvoiceController>();
+    final CreateInvoiceController ctrl = context
+        .read<CreateInvoiceController>();
     final String? message = ctrl.validateSubmit(draft: draft);
     if (message != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
       return;
     }
 
-    final InvoiceStatus status = draft ? InvoiceStatus.draft : InvoiceStatus.sent;
+    final InvoiceStatus status = draft
+        ? InvoiceStatus.draft
+        : InvoiceStatus.sent;
     final Invoice invoice = ctrl.buildInvoice(status: status);
     Navigator.of(context).pop(invoice);
   }
 
   Future<void> _openPreviewSheet() async {
-    final CreateInvoiceController ctrl = context.read<CreateInvoiceController>();
+    final CreateInvoiceController ctrl = context
+        .read<CreateInvoiceController>();
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -81,7 +90,8 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   }
 
   Future<void> _openAddItemSheet() async {
-    final CreateInvoiceController ctrl = context.read<CreateInvoiceController>();
+    final CreateInvoiceController ctrl = context
+        .read<CreateInvoiceController>();
     final InvoiceItem? item = await showModalBottomSheet<InvoiceItem>(
       context: context,
       isScrollControlled: true,
@@ -103,7 +113,8 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   }
 
   Future<void> _pickDate({required bool issue}) async {
-    final CreateInvoiceController ctrl = context.read<CreateInvoiceController>();
+    final CreateInvoiceController ctrl = context
+        .read<CreateInvoiceController>();
     final DateTime now = DateTime.now();
     final DateTime initial = (issue ? ctrl.issueDate : ctrl.dueDate) ?? now;
 
@@ -163,8 +174,8 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final CreateInvoiceController ctrl =
-            context.watch<CreateInvoiceController>();
+        final CreateInvoiceController ctrl = context
+            .watch<CreateInvoiceController>();
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
           16,
@@ -368,26 +379,26 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: <Widget>[
-                          ...ctrl.items.asMap().entries.map(
-                            (MapEntry<int, InvoiceItem> entry) {
-                              final int idx = entry.key;
-                              final InvoiceItem item = entry.value;
-                              return _ItemCard(
-                                item: item,
-                                currency: ctrl.currency,
-                                onDecrementQty: () {
-                                  ctrl.decrementQtyAt(idx);
-                                },
-                                onIncrementQty: () {
-                                  ctrl.incrementQtyAt(idx);
-                                },
-                                showQtyStepper: true,
-                                onRemove: () {
-                                  ctrl.removeItemAt(idx);
-                                },
-                              );
-                            },
-                          ),
+                          ...ctrl.items.asMap().entries.map((
+                            MapEntry<int, InvoiceItem> entry,
+                          ) {
+                            final int idx = entry.key;
+                            final InvoiceItem item = entry.value;
+                            return _ItemCard(
+                              item: item,
+                              currency: ctrl.currency,
+                              onDecrementQty: () {
+                                ctrl.decrementQtyAt(idx);
+                              },
+                              onIncrementQty: () {
+                                ctrl.incrementQtyAt(idx);
+                              },
+                              showQtyStepper: true,
+                              onRemove: () {
+                                ctrl.removeItemAt(idx);
+                              },
+                            );
+                          }),
                         ],
                       ),
               );
@@ -518,9 +529,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
               decoration: const BoxDecoration(
                 color: Colors.white,
-                border: Border(
-                  top: BorderSide(color: Color(0xFFE9EEF5)),
-                ),
+                border: Border(top: BorderSide(color: Color(0xFFE9EEF5))),
               ),
               child: ctrl.currentStep == 3
                   ? Row(
@@ -530,8 +539,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                           height: 44,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(14),
-                            border:
-                                Border.all(color: const Color(0xFFE9EEF5)),
+                            border: Border.all(color: const Color(0xFFE9EEF5)),
                             color: Colors.white,
                           ),
                           child: IconButton(
@@ -549,8 +557,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -567,10 +574,8 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                             onPressed: () => _submitInvoice(draft: false),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF0B1B4B),
-                              side:
-                                  const BorderSide(color: Color(0xFFE9EEF5)),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                              side: const BorderSide(color: Color(0xFFE9EEF5)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -590,10 +595,8 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                             onPressed: ctrl.currentStep == 0 ? null : _prevStep,
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF0B1B4B),
-                              side:
-                                  const BorderSide(color: Color(0xFFE9EEF5)),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                              side: const BorderSide(color: Color(0xFFE9EEF5)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -611,8 +614,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -991,7 +993,8 @@ class _InvoicePreviewSheet extends StatelessWidget {
                 title: 'Additional Info',
                 child: Column(
                   children: <Widget>[
-                    if (notes.isNotEmpty) _PreviewRow(label: 'Notes', value: notes),
+                    if (notes.isNotEmpty)
+                      _PreviewRow(label: 'Notes', value: notes),
                     if (terms.isNotEmpty)
                       _PreviewRow(label: 'Terms & Conditions', value: terms),
                   ],
@@ -1144,11 +1147,7 @@ class _SectionCard extends StatelessWidget {
   final Widget child;
   final Widget? trailing;
 
-  const _SectionCard({
-    required this.title,
-    required this.child,
-    this.trailing,
-  });
+  const _SectionCard({required this.title, required this.child, this.trailing});
 
   @override
   Widget build(BuildContext context) {
@@ -1213,13 +1212,12 @@ class _LabeledDropdown<T> extends StatelessWidget {
       key: ValueKey<T>(value),
       initialValue: value,
       items: items
-          .map((T e) => DropdownMenuItem<T>(
-                value: e,
-                child: Text(
-                  e.toString(),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ))
+          .map(
+            (T e) => DropdownMenuItem<T>(
+              value: e,
+              child: Text(e.toString(), overflow: TextOverflow.ellipsis),
+            ),
+          )
           .toList(),
       onChanged: (T? v) {
         if (v == null) {
@@ -1231,7 +1229,10 @@ class _LabeledDropdown<T> extends StatelessWidget {
         labelText: label,
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFFE9EEF5)),
@@ -1269,8 +1270,10 @@ class _DateField extends StatelessWidget {
           labelText: label,
           filled: true,
           fillColor: Colors.white,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: Color(0xFFE9EEF5)),
@@ -1403,11 +1406,15 @@ class _AddItemSheet extends StatefulWidget {
 class _AddItemSheetState extends State<_AddItemSheet> {
   final TextEditingController _productController = TextEditingController();
   final TextEditingController _qtyController = TextEditingController(text: '1');
-  final TextEditingController _priceController =
-      TextEditingController(text: '0');
-  final TextEditingController _discountController =
-      TextEditingController(text: '0');
-  final TextEditingController _taxController = TextEditingController(text: '15');
+  final TextEditingController _priceController = TextEditingController(
+    text: '0',
+  );
+  final TextEditingController _discountController = TextEditingController(
+    text: '0',
+  );
+  final TextEditingController _taxController = TextEditingController(
+    text: '15',
+  );
 
   String _vatCategory = 'S - 15%';
 
@@ -1457,7 +1464,10 @@ class _AddItemSheetState extends State<_AddItemSheet> {
         filled: true,
         fillColor: Colors.white,
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFFE9EEF5)),
@@ -1554,11 +1564,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                 child: DropdownButtonFormField<String>(
                   key: ValueKey<String>(_vatCategory),
                   initialValue: _vatCategory,
-                  items: const <String>[
-                    'S - 15%',
-                    'Z - 0%',
-                    'E - Exempt',
-                  ]
+                  items: const <String>['S - 15%', 'Z - 0%', 'E - Exempt']
                       .map(
                         (String e) => DropdownMenuItem<String>(
                           value: e,
@@ -1659,9 +1665,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    textStyle: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                    ),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                   child: const Text('Cancel'),
                 ),
@@ -1680,9 +1684,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    textStyle: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                    ),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                   child: const Text('Add Item'),
                 ),

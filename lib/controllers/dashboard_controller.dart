@@ -10,7 +10,7 @@ class DashboardController extends ChangeNotifier {
   int _filterIndex = 0;
 
   DashboardController({required DashboardRepository repository})
-      : _repository = repository;
+    : _repository = repository;
 
   int get bottomIndex => _bottomIndex;
   int get filterIndex => _filterIndex;

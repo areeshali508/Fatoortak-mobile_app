@@ -4,10 +4,7 @@ class OnboardingFeatureModel {
   final IconData icon;
   final String text;
 
-  const OnboardingFeatureModel({
-    required this.icon,
-    required this.text,
-  });
+  const OnboardingFeatureModel({required this.icon, required this.text});
 }
 
 class OnboardingPageModel {

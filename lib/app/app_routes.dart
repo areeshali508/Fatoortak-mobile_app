@@ -176,9 +176,9 @@ class AppRoutes {
       case AppRoutes.settings:
         return MaterialPageRoute<void>(
           builder: (_) => ChangeNotifierProvider<SettingsController>(
-            create: (BuildContext ctx) => SettingsController(
-              repository: ctx.read<SettingsRepository>(),
-            )..load(),
+            create: (BuildContext ctx) =>
+                SettingsController(repository: ctx.read<SettingsRepository>())
+                  ..load(),
             child: const SettingsScreen(),
           ),
           settings: settings,

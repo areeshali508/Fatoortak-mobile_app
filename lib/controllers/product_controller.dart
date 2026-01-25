@@ -10,7 +10,7 @@ class ProductController extends ChangeNotifier {
   List<Product> _products = const <Product>[];
 
   ProductController({required ProductRepository repository})
-      : _repository = repository;
+    : _repository = repository;
 
   bool get isLoading => _isLoading;
 

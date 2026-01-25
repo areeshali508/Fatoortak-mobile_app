@@ -37,9 +37,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   void _showComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Coming soon')));
   }
 
   void _onBottomTap(int index) {
@@ -82,14 +82,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
         final List<_ProductVM> items = ctrl.products
             .asMap()
             .entries
-            .map((MapEntry<int, Product> e) => _ProductVM.fromProduct(
-                  product: e.value,
-                  index: e.key,
-                ))
+            .map(
+              (MapEntry<int, Product> e) =>
+                  _ProductVM.fromProduct(product: e.value, index: e.key),
+            )
             .where((_ProductVM p) {
               final String q = _searchController.text.trim().toLowerCase();
               if (q.isNotEmpty) {
-                final bool matches = p.name.toLowerCase().contains(q) ||
+                final bool matches =
+                    p.name.toLowerCase().contains(q) ||
                     p.sku.toLowerCase().contains(q) ||
                     p.category.toLowerCase().contains(q);
                 if (!matches) {
@@ -113,24 +114,30 @@ class _ProductsScreenState extends State<ProductsScreen> {
         final int inStockCount = ctrl.products
             .asMap()
             .entries
-            .map((MapEntry<int, Product> e) =>
-                _ProductVM.fromProduct(product: e.value, index: e.key))
+            .map(
+              (MapEntry<int, Product> e) =>
+                  _ProductVM.fromProduct(product: e.value, index: e.key),
+            )
             .where((_ProductVM p) => p.stockStatus == _StockStatus.inStock)
             .length;
 
         final int lowCount = ctrl.products
             .asMap()
             .entries
-            .map((MapEntry<int, Product> e) =>
-                _ProductVM.fromProduct(product: e.value, index: e.key))
+            .map(
+              (MapEntry<int, Product> e) =>
+                  _ProductVM.fromProduct(product: e.value, index: e.key),
+            )
             .where((_ProductVM p) => p.stockStatus == _StockStatus.low)
             .length;
 
         final int emptyCount = ctrl.products
             .asMap()
             .entries
-            .map((MapEntry<int, Product> e) =>
-                _ProductVM.fromProduct(product: e.value, index: e.key))
+            .map(
+              (MapEntry<int, Product> e) =>
+                  _ProductVM.fromProduct(product: e.value, index: e.key),
+            )
             .where((_ProductVM p) => p.stockStatus == _StockStatus.empty)
             .length;
 
@@ -138,8 +145,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
             .asMap()
             .entries
             .map((MapEntry<int, Product> e) {
-              final _ProductVM p =
-                  _ProductVM.fromProduct(product: e.value, index: e.key);
+              final _ProductVM p = _ProductVM.fromProduct(
+                product: e.value,
+                index: e.key,
+              );
               return e.value.price * max(0, p.units);
             })
             .fold(0.0, (double a, double b) => a + b);
@@ -189,7 +198,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
               padding: EdgeInsets.fromLTRB(hPad, gap, hPad, 0),
               child: ctrl.isLoading
                   ? const Center(
-                      child: CircularProgressIndicator(color: AppColors.primary),
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
                     )
                   : ListView(
                       padding: EdgeInsets.only(bottom: gap + 120),
@@ -204,10 +215,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               ),
                             ),
                             const SizedBox(width: 12),
-                            _IconPill(
-                              icon: Icons.tune,
-                              onTap: _showComingSoon,
-                            ),
+                            _IconPill(icon: Icons.tune, onTap: _showComingSoon),
                           ],
                         ),
                         SizedBox(height: gap),
@@ -460,8 +468,10 @@ class _InventoryValueCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEFFAF3),
                   borderRadius: BorderRadius.circular(999),
@@ -511,10 +521,7 @@ class _InventoryValueCard extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: <Color>[
-                      Color(0xFFEFF4FF),
-                      Color(0x00EFF4FF),
-                    ],
+                    colors: <Color>[Color(0xFFEFF4FF), Color(0x00EFF4FF)],
                   ),
                 ),
                 child: CustomPaint(
@@ -741,10 +748,7 @@ class _ProductCard extends StatelessWidget {
                     color: product.iconBg,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(
-                    product.icon,
-                    color: AppColors.primary,
-                  ),
+                  child: Icon(product.icon, color: AppColors.primary),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -812,11 +816,7 @@ class _ProductCard extends StatelessWidget {
   }
 }
 
-enum _StockStatus {
-  inStock,
-  low,
-  empty,
-}
+enum _StockStatus { inStock, low, empty }
 
 class _ProductVM {
   final String name;
@@ -837,7 +837,10 @@ class _ProductVM {
     required this.currency,
   });
 
-  factory _ProductVM.fromProduct({required Product product, required int index}) {
+  factory _ProductVM.fromProduct({
+    required Product product,
+    required int index,
+  }) {
     final List<String> cats = <String>[
       'Electronics',
       'Furniture',
@@ -902,17 +905,17 @@ class _ProductVM {
       case _StockStatus.inStock:
         return (
           const _BadgeStyle(bg: Color(0xFFEFFAF3), fg: Color(0xFF1DB954)),
-          '$units UNITS'
+          '$units UNITS',
         );
       case _StockStatus.low:
         return (
           const _BadgeStyle(bg: Color(0xFFFFF3E6), fg: Color(0xFFFF9500)),
-          '$units UNITS'
+          '$units UNITS',
         );
       case _StockStatus.empty:
         return (
           const _BadgeStyle(bg: Color(0xFFFFE7E7), fg: Color(0xFFFF3B30)),
-          'OUT OF STOCK'
+          'OUT OF STOCK',
         );
     }
   }

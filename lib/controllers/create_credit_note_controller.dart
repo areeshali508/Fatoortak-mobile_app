@@ -45,9 +45,11 @@ class CreateCreditNoteController extends ChangeNotifier {
 
   final TextEditingController creditNoteNumberController =
       TextEditingController(text: 'HNV-2024-001');
-  final TextEditingController originalInvoiceController = TextEditingController();
+  final TextEditingController originalInvoiceController =
+      TextEditingController();
   final TextEditingController customerController = TextEditingController();
-  final TextEditingController reasonDescriptionController = TextEditingController();
+  final TextEditingController reasonDescriptionController =
+      TextEditingController();
   final TextEditingController termsController = TextEditingController();
 
   String? _originalInvoiceCustomerType;
@@ -169,19 +171,15 @@ class CreateCreditNoteController extends ChangeNotifier {
   }
 
   double get subtotal => -_items.fold<double>(
-        0,
-        (double p, CreditNoteItem e) => p + e.taxableAmount,
-      );
+    0,
+    (double p, CreditNoteItem e) => p + e.taxableAmount,
+  );
 
-  double get vatAmount => -_items.fold<double>(
-        0,
-        (double p, CreditNoteItem e) => p + e.taxAmount,
-      );
+  double get vatAmount =>
+      -_items.fold<double>(0, (double p, CreditNoteItem e) => p + e.taxAmount);
 
-  double get total => -_items.fold<double>(
-        0,
-        (double p, CreditNoteItem e) => p + e.total,
-      );
+  double get total =>
+      -_items.fold<double>(0, (double p, CreditNoteItem e) => p + e.total);
 
   bool isStepValid(int step) {
     switch (step) {
@@ -237,7 +235,9 @@ class CreateCreditNoteController extends ChangeNotifier {
     return null;
   }
 
-  CreditNote buildCreditNote({CreditNoteStatus status = CreditNoteStatus.draft}) {
+  CreditNote buildCreditNote({
+    CreditNoteStatus status = CreditNoteStatus.draft,
+  }) {
     return CreditNote(
       id: creditNoteNumberController.text.trim(),
       customer: customerController.text.trim(),
@@ -255,8 +255,8 @@ class CreateCreditNoteController extends ChangeNotifier {
   CreditNote buildSubmitted({required String uuid, required String hash}) {
     final CreditNoteStatus finalStatus =
         (_originalInvoiceCustomerType ?? '').toLowerCase().contains('b2b')
-            ? CreditNoteStatus.cleared
-            : CreditNoteStatus.reported;
+        ? CreditNoteStatus.cleared
+        : CreditNoteStatus.reported;
 
     return CreditNote(
       id: creditNoteNumberController.text.trim(),

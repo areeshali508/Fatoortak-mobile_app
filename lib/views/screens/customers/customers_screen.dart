@@ -27,9 +27,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
   }
 
   void _comingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Coming soon')));
   }
 
   void _onBottomTap(int index) {
@@ -68,10 +68,10 @@ class _CustomersScreenState extends State<CustomersScreen> {
         final List<_CustomerVM> customers = ctrl.customers
             .asMap()
             .entries
-            .map((MapEntry<int, Customer> e) => _CustomerVM.fromCustomer(
-                  customer: e.value,
-                  index: e.key,
-                ))
+            .map(
+              (MapEntry<int, Customer> e) =>
+                  _CustomerVM.fromCustomer(customer: e.value, index: e.key),
+            )
             .where((_CustomerVM c) {
               switch (_filterIndex) {
                 case 1:
@@ -102,22 +102,13 @@ class _CustomersScreenState extends State<CustomersScreen> {
             actions: <Widget>[
               IconButton(
                 onPressed: _comingSoon,
-                icon: const Icon(
-                  Icons.download_rounded,
-                ),
+                icon: const Icon(Icons.download_rounded),
               ),
               IconButton(
                 onPressed: _comingSoon,
-                icon: const Icon(
-                  Icons.search,
-                ),
+                icon: const Icon(Icons.search),
               ),
-              IconButton(
-                onPressed: _comingSoon,
-                icon: const Icon(
-                  Icons.add,
-                ),
-              ),
+              IconButton(onPressed: _comingSoon, icon: const Icon(Icons.add)),
             ],
           ),
           body: SafeArea(
@@ -169,26 +160,26 @@ class _CustomersScreenState extends State<CustomersScreen> {
                             ),
                           )
                         : customers.isEmpty
-                            ? const Center(
-                                child: Text(
-                                  'No customers',
-                                  style: TextStyle(
-                                    color: Color(0xFF9AA5B6),
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              )
-                            : ListView.builder(
-                                padding: EdgeInsets.only(bottom: gap + 110),
-                                itemCount: customers.length,
-                                itemBuilder: (BuildContext context, int i) {
-                                  final _CustomerVM c = customers[i];
-                                  return _CustomerCard(
-                                    customer: c,
-                                    onTap: _comingSoon,
-                                  );
-                                },
+                        ? const Center(
+                            child: Text(
+                              'No customers',
+                              style: TextStyle(
+                                color: Color(0xFF9AA5B6),
+                                fontWeight: FontWeight.w800,
                               ),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: EdgeInsets.only(bottom: gap + 110),
+                            itemCount: customers.length,
+                            itemBuilder: (BuildContext context, int i) {
+                              final _CustomerVM c = customers[i];
+                              return _CustomerCard(
+                                customer: c,
+                                onTap: _comingSoon,
+                              );
+                            },
+                          ),
                   ),
                 ],
               ),
@@ -433,8 +424,11 @@ class _CustomerVM {
   }
 
   String get initials {
-    final List<String> parts =
-        name.trim().split(RegExp(r'\s+')).where((String p) => p.isNotEmpty).toList();
+    final List<String> parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((String p) => p.isNotEmpty)
+        .toList();
     if (parts.isEmpty) {
       return 'C';
     }

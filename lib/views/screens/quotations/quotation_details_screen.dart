@@ -37,15 +37,9 @@ class QuotationDetailsScreen extends StatelessWidget {
   _ChipStyle _statusStyle(QuotationStatus status) {
     switch (status) {
       case QuotationStatus.draft:
-        return const _ChipStyle(
-          bg: Color(0xFFF3F6FB),
-          fg: Color(0xFF6B7895),
-        );
+        return const _ChipStyle(bg: Color(0xFFF3F6FB), fg: Color(0xFF6B7895));
       case QuotationStatus.sent:
-        return const _ChipStyle(
-          bg: Color(0xFFE7F1FF),
-          fg: AppColors.primary,
-        );
+        return const _ChipStyle(bg: Color(0xFFE7F1FF), fg: AppColors.primary);
     }
   }
 
@@ -61,25 +55,13 @@ class QuotationDetailsScreen extends StatelessWidget {
   _ChipStyle _outcomeStyle(QuotationOutcomeStatus status) {
     switch (status) {
       case QuotationOutcomeStatus.pending:
-        return const _ChipStyle(
-          bg: Color(0xFFF3F6FB),
-          fg: Color(0xFF6B7895),
-        );
+        return const _ChipStyle(bg: Color(0xFFF3F6FB), fg: Color(0xFF6B7895));
       case QuotationOutcomeStatus.accepted:
-        return const _ChipStyle(
-          bg: Color(0xFFEFFAF3),
-          fg: Color(0xFF1DB954),
-        );
+        return const _ChipStyle(bg: Color(0xFFEFFAF3), fg: Color(0xFF1DB954));
       case QuotationOutcomeStatus.declined:
-        return const _ChipStyle(
-          bg: Color(0xFFFFE7E7),
-          fg: Color(0xFFD93025),
-        );
+        return const _ChipStyle(bg: Color(0xFFFFE7E7), fg: Color(0xFFD93025));
       case QuotationOutcomeStatus.expired:
-        return const _ChipStyle(
-          bg: Color(0xFFFFF4E5),
-          fg: Color(0xFFB35A00),
-        );
+        return const _ChipStyle(bg: Color(0xFFFFF4E5), fg: Color(0xFFB35A00));
     }
   }
 
@@ -100,9 +82,7 @@ class QuotationDetailsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7FAFF),
-      appBar: AppBar(
-        title: const Text('Quotation Details'),
-      ),
+      appBar: AppBar(title: const Text('Quotation Details')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
@@ -175,7 +155,10 @@ class QuotationDetailsScreen extends StatelessWidget {
               title: 'Summary',
               child: Column(
                 children: <Widget>[
-                  _SummaryRow(label: 'Valid Until', value: _fmtDate(quotation.validUntil)),
+                  _SummaryRow(
+                    label: 'Valid Until',
+                    value: _fmtDate(quotation.validUntil),
+                  ),
                   _SummaryRow(label: 'Notes', value: quotation.notes),
                   _SummaryRow(label: 'Terms', value: quotation.terms),
                 ],
@@ -201,13 +184,16 @@ class QuotationDetailsScreen extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: const Color(0xFFF7FAFF),
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: const Color(0xFFE9EEF5)),
+                              border: Border.all(
+                                color: const Color(0xFFE9EEF5),
+                              ),
                             ),
                             child: Row(
                               children: <Widget>[
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: <Widget>[
                                       Text(
                                         it.description,

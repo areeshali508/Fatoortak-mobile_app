@@ -96,10 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
               return Column(
                 children: <Widget>[
                   SizedBox(height: headerTopGap),
-                  _LoginHeader(
-                    constraints: constraints,
-                    logoSize: logoSize,
-                  ),
+                  _LoginHeader(constraints: constraints, logoSize: logoSize),
                   SizedBox(height: headerToCardGap),
                   Expanded(
                     child: Container(
@@ -146,11 +143,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                       height: 1.1,
                                     ),
                                   ),
-                                  SizedBox(height: AppResponsive.clamp(
-                                    AppResponsive.scaledByHeight(constraints, 8),
-                                    6,
-                                    12,
-                                  )),
+                                  SizedBox(
+                                    height: AppResponsive.clamp(
+                                      AppResponsive.scaledByHeight(
+                                        constraints,
+                                        8,
+                                      ),
+                                      6,
+                                      12,
+                                    ),
+                                  ),
                                   Text(
                                     'Sign in to manage your invoices',
                                     textAlign: TextAlign.center,
@@ -191,18 +193,23 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     ),
                                   ),
-                                  SizedBox(height: AppResponsive.clamp(
-                                    AppResponsive.scaledByHeight(constraints, 8),
-                                    6,
-                                    12,
-                                  )),
+                                  SizedBox(
+                                    height: AppResponsive.clamp(
+                                      AppResponsive.scaledByHeight(
+                                        constraints,
+                                        8,
+                                      ),
+                                      6,
+                                      12,
+                                    ),
+                                  ),
                                   Align(
                                     alignment: Alignment.centerRight,
                                     child: TextButton(
                                       onPressed: () {
-                                        Navigator.of(context).pushNamed(
-                                          AppRoutes.forgotPassword,
-                                        );
+                                        Navigator.of(
+                                          context,
+                                        ).pushNamed(AppRoutes.forgotPassword);
                                       },
                                       child: Text(
                                         'Forgot Password?',
@@ -218,25 +225,32 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     ),
                                   ),
-                                  SizedBox(height: AppResponsive.clamp(
-                                    AppResponsive.scaledByHeight(constraints, 10),
-                                    8,
-                                    14,
-                                  )),
+                                  SizedBox(
+                                    height: AppResponsive.clamp(
+                                      AppResponsive.scaledByHeight(
+                                        constraints,
+                                        10,
+                                      ),
+                                      8,
+                                      14,
+                                    ),
+                                  ),
                                   SizedBox(
                                     height: btnH,
                                     child: ElevatedButton(
                                       onPressed: () async {
-                                        final AuthController auth =
-                                            context.read<AuthController>();
+                                        final AuthController auth = context
+                                            .read<AuthController>();
                                         final bool ok = await auth.signIn(
-                                          usernameOrEmail:
-                                              _usernameController.text.trim(),
+                                          usernameOrEmail: _usernameController
+                                              .text
+                                              .trim(),
                                           password: _passwordController.text,
                                         );
                                         if (!context.mounted || !ok) return;
-                                        Navigator.of(context)
-                                            .pushReplacementNamed(
+                                        Navigator.of(
+                                          context,
+                                        ).pushReplacementNamed(
                                           AppRoutes.dashboard,
                                         );
                                       },
@@ -253,11 +267,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     ),
                                   ),
-                                  SizedBox(height: AppResponsive.clamp(
-                                    AppResponsive.scaledByHeight(constraints, 14),
-                                    10,
-                                    18,
-                                  )),
+                                  SizedBox(
+                                    height: AppResponsive.clamp(
+                                      AppResponsive.scaledByHeight(
+                                        constraints,
+                                        14,
+                                      ),
+                                      10,
+                                      18,
+                                    ),
+                                  ),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: <Widget>[
@@ -274,8 +293,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                       GestureDetector(
                                         onTap: () {
-                                          Navigator.of(context)
-                                              .pushReplacementNamed(
+                                          Navigator.of(
+                                            context,
+                                          ).pushReplacementNamed(
                                             AppRoutes.signup,
                                           );
                                         },
@@ -312,21 +332,31 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: <Widget>[
-                                SizedBox(height: AppResponsive.clamp(
-                                  AppResponsive.scaledByHeight(constraints, 14),
-                                  10,
-                                  18,
-                                )),
+                                SizedBox(
+                                  height: AppResponsive.clamp(
+                                    AppResponsive.scaledByHeight(
+                                      constraints,
+                                      14,
+                                    ),
+                                    10,
+                                    18,
+                                  ),
+                                ),
                                 const Divider(
                                   height: 1,
                                   color: Color(0xFFE9EEF5),
                                   thickness: 1,
                                 ),
-                                SizedBox(height: AppResponsive.clamp(
-                                  AppResponsive.scaledByHeight(constraints, 12),
-                                  10,
-                                  18,
-                                )),
+                                SizedBox(
+                                  height: AppResponsive.clamp(
+                                    AppResponsive.scaledByHeight(
+                                      constraints,
+                                      12,
+                                    ),
+                                    10,
+                                    18,
+                                  ),
+                                ),
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
@@ -364,10 +394,7 @@ class _LoginHeader extends StatelessWidget {
   final BoxConstraints constraints;
   final double logoSize;
 
-  const _LoginHeader({
-    required this.constraints,
-    required this.logoSize,
-  });
+  const _LoginHeader({required this.constraints, required this.logoSize});
 
   @override
   Widget build(BuildContext context) {
@@ -386,15 +413,14 @@ class _LoginHeader extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        AppSplashLogo(
-          size: logoSize,
-          accent: AppColors.splashAccent,
+        AppSplashLogo(size: logoSize, accent: AppColors.splashAccent),
+        SizedBox(
+          height: AppResponsive.clamp(
+            AppResponsive.scaledByHeight(constraints, 16),
+            10,
+            18,
+          ),
         ),
-        SizedBox(height: AppResponsive.clamp(
-          AppResponsive.scaledByHeight(constraints, 16),
-          10,
-          18,
-        )),
         Text(
           'Fatoortak',
           style: TextStyle(
@@ -404,11 +430,13 @@ class _LoginHeader extends StatelessWidget {
             height: 1.0,
           ),
         ),
-        SizedBox(height: AppResponsive.clamp(
-          AppResponsive.scaledByHeight(constraints, 6),
-          4,
-          10,
-        )),
+        SizedBox(
+          height: AppResponsive.clamp(
+            AppResponsive.scaledByHeight(constraints, 6),
+            4,
+            10,
+          ),
+        ),
         Text(
           'فاتورتك',
           style: TextStyle(
@@ -495,11 +523,13 @@ class _BottomLoginShortcut extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Icon(Icons.fingerprint, color: AppColors.primary, size: iconSize),
-        SizedBox(height: AppResponsive.clamp(
-          AppResponsive.scaledByHeight(constraints, 6),
-          4,
-          10,
-        )),
+        SizedBox(
+          height: AppResponsive.clamp(
+            AppResponsive.scaledByHeight(constraints, 6),
+            4,
+            10,
+          ),
+        ),
         Text(
           'LOGIN',
           style: TextStyle(
@@ -616,4 +646,3 @@ class _LangChip extends StatelessWidget {
     );
   }
 }
-
