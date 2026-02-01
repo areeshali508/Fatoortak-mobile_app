@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../app/app_routes.dart';
+import '../../../controllers/auth_controller.dart';
 import '../../../controllers/invoice_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
@@ -21,6 +23,35 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   int _filterIndex = 0;
 
   final TextEditingController _searchController = TextEditingController();
+
+  bool _requestedInitialLoad = false;
+
+  Future<void> _reloadInvoices() async {
+    final AuthController auth = context.read<AuthController>();
+    final Map<String, dynamic>? company = auth.myCompany;
+    final String? companyId = (company?['_id'] ?? company?['id'])
+        ?.toString()
+        .trim();
+    final InvoiceController invoiceCtrl = context.read<InvoiceController>();
+    await invoiceCtrl.loadInvoices(companyId: companyId);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _reloadInvoices();
+      if (!mounted) return;
+
+      final InvoiceController invoiceCtrl = context.read<InvoiceController>();
+      if (invoiceCtrl.errorMessage != null &&
+          invoiceCtrl.errorMessage!.trim().isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(invoiceCtrl.errorMessage!)),
+        );
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -47,30 +78,32 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                const Text(
-                  'Date Range',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF0B1B4B),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  const Text(
+                    'Date Range',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFF0B1B4B),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                _SheetActionTile(
-                  label: 'Select Start to End',
-                  onTap: () => Navigator.of(ctx).pop(_DateAction.pick),
-                ),
-                if (invoiceCtrl.dateRange != null)
+                  const SizedBox(height: 10),
                   _SheetActionTile(
-                    label: 'Clear Date Range',
-                    onTap: () => Navigator.of(ctx).pop(_DateAction.clear),
+                    label: 'Select Start to End',
+                    onTap: () => Navigator.of(ctx).pop(_DateAction.pick),
                   ),
-              ],
+                  if (invoiceCtrl.dateRange != null)
+                    _SheetActionTile(
+                      label: 'Clear Date Range',
+                      onTap: () => Navigator.of(ctx).pop(_DateAction.clear),
+                    ),
+                ],
+              ),
             ),
           ),
         );
@@ -115,74 +148,111 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                const Text(
-                  'Invoice Status',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF0B1B4B),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  const Text(
+                    'Invoice Status',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFF0B1B4B),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                if (invoiceCtrl.statusFilter != null) ...<Widget>[
+                  const SizedBox(height: 10),
+                  if (invoiceCtrl.statusFilter != null) ...<Widget>[
+                    _StatusOption(
+                      label: 'Clear Filter',
+                      selected: false,
+                      onTap: () {
+                        Navigator.of(ctx).pop(InvoiceStatus.none);
+                      },
+                    ),
+                  ],
                   _StatusOption(
-                    label: 'Clear Filter',
-                    selected: false,
+                    label: 'Draft',
+                    selected: invoiceCtrl.statusFilter == InvoiceStatus.draft,
                     onTap: () {
-                      Navigator.of(ctx).pop(InvoiceStatus.none);
+                      Navigator.of(ctx).pop(
+                        invoiceCtrl.statusFilter == InvoiceStatus.draft
+                            ? InvoiceStatus.none
+                            : InvoiceStatus.draft,
+                      );
+                    },
+                  ),
+                  _StatusOption(
+                    label: 'Sent',
+                    selected: invoiceCtrl.statusFilter == InvoiceStatus.sent,
+                    onTap: () {
+                      Navigator.of(ctx).pop(
+                        invoiceCtrl.statusFilter == InvoiceStatus.sent
+                            ? InvoiceStatus.none
+                            : InvoiceStatus.sent,
+                      );
+                    },
+                  ),
+                  _StatusOption(
+                    label: 'Paid',
+                    selected: invoiceCtrl.statusFilter == InvoiceStatus.paid,
+                    onTap: () {
+                      Navigator.of(ctx).pop(
+                        invoiceCtrl.statusFilter == InvoiceStatus.paid
+                            ? InvoiceStatus.none
+                            : InvoiceStatus.paid,
+                      );
+                    },
+                  ),
+                  _StatusOption(
+                    label: 'Partially Paid',
+                    selected: invoiceCtrl.statusFilter ==
+                        InvoiceStatus.partiallyPaid,
+                    onTap: () {
+                      Navigator.of(ctx).pop(
+                        invoiceCtrl.statusFilter == InvoiceStatus.partiallyPaid
+                            ? InvoiceStatus.none
+                            : InvoiceStatus.partiallyPaid,
+                      );
+                    },
+                  ),
+                  _StatusOption(
+                    label: 'Overdue',
+                    selected: invoiceCtrl.statusFilter == InvoiceStatus.overdue,
+                    onTap: () {
+                      Navigator.of(ctx).pop(
+                        invoiceCtrl.statusFilter == InvoiceStatus.overdue
+                            ? InvoiceStatus.none
+                            : InvoiceStatus.overdue,
+                      );
+                    },
+                  ),
+                  _StatusOption(
+                    label: 'Cancelled',
+                    selected: invoiceCtrl.statusFilter ==
+                        InvoiceStatus.cancelled,
+                    onTap: () {
+                      Navigator.of(ctx).pop(
+                        invoiceCtrl.statusFilter == InvoiceStatus.cancelled
+                            ? InvoiceStatus.none
+                            : InvoiceStatus.cancelled,
+                      );
+                    },
+                  ),
+                  _StatusOption(
+                    label: 'Void',
+                    selected: invoiceCtrl.statusFilter == InvoiceStatus.voided,
+                    onTap: () {
+                      Navigator.of(ctx).pop(
+                        invoiceCtrl.statusFilter == InvoiceStatus.voided
+                            ? InvoiceStatus.none
+                            : InvoiceStatus.voided,
+                      );
                     },
                   ),
                 ],
-                _StatusOption(
-                  label: 'Draft',
-                  selected: invoiceCtrl.statusFilter == InvoiceStatus.draft,
-                  onTap: () {
-                    Navigator.of(ctx).pop(
-                      invoiceCtrl.statusFilter == InvoiceStatus.draft
-                          ? InvoiceStatus.none
-                          : InvoiceStatus.draft,
-                    );
-                  },
-                ),
-                _StatusOption(
-                  label: 'Sent',
-                  selected: invoiceCtrl.statusFilter == InvoiceStatus.sent,
-                  onTap: () {
-                    Navigator.of(ctx).pop(
-                      invoiceCtrl.statusFilter == InvoiceStatus.sent
-                          ? InvoiceStatus.none
-                          : InvoiceStatus.sent,
-                    );
-                  },
-                ),
-                _StatusOption(
-                  label: 'Paid',
-                  selected: invoiceCtrl.statusFilter == InvoiceStatus.paid,
-                  onTap: () {
-                    Navigator.of(ctx).pop(
-                      invoiceCtrl.statusFilter == InvoiceStatus.paid
-                          ? InvoiceStatus.none
-                          : InvoiceStatus.paid,
-                    );
-                  },
-                ),
-                _StatusOption(
-                  label: 'Overdue',
-                  selected: invoiceCtrl.statusFilter == InvoiceStatus.overdue,
-                  onTap: () {
-                    Navigator.of(ctx).pop(
-                      invoiceCtrl.statusFilter == InvoiceStatus.overdue
-                          ? InvoiceStatus.none
-                          : InvoiceStatus.overdue,
-                    );
-                  },
-                ),
-              ],
+              ),
             ),
           ),
         );
@@ -219,6 +289,20 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
+        final AuthController auth = context.watch<AuthController>();
+        final Map<String, dynamic>? company = auth.myCompany;
+        final String? companyId = (company?['_id'] ?? company?['id'])
+            ?.toString()
+            .trim();
+
+        if (!_requestedInitialLoad && companyId != null && companyId.isNotEmpty) {
+          _requestedInitialLoad = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            if (!mounted) return;
+            await _reloadInvoices();
+          });
+        }
+
         final InvoiceController invoiceCtrl = context
             .watch<InvoiceController>();
         final double hPad = AppResponsive.clamp(
@@ -234,6 +318,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
         );
 
         final List<Invoice> visibleInvoices = invoiceCtrl.visibleInvoices;
+        final bool isLoading = invoiceCtrl.isLoading;
 
         return Scaffold(
           backgroundColor: const Color(0xFFF7FAFF),
@@ -305,55 +390,132 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
             },
           ),
           body: SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                hPad,
-                gap,
-                hPad,
-                AppResponsive.clamp(
-                  AppResponsive.scaledByHeight(constraints, 110),
-                  100,
-                  140,
+            child: RefreshIndicator(
+              onRefresh: _reloadInvoices,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(
+                  hPad,
+                  gap,
+                  hPad,
+                  AppResponsive.clamp(
+                    AppResponsive.scaledByHeight(constraints, 110),
+                    100,
+                    140,
+                  ),
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  _SearchField(
-                    constraints: constraints,
-                    controller: _searchController,
-                    onChanged: (String v) {
-                      invoiceCtrl.setSearchQuery(v);
-                    },
-                  ),
-                  SizedBox(height: gap),
-                  _FilterRow(
-                    constraints: constraints,
-                    index: _filterIndex,
-                    onChanged: (int i) => setState(() => _filterIndex = i),
-                    dateSelected: invoiceCtrl.dateRange != null,
-                    onDate: _openDateFilter,
-                    moreSelected: invoiceCtrl.statusFilter != null,
-                    onMoreFilters: _openMoreFilters,
-                  ),
-                  SizedBox(height: gap),
-                  ...visibleInvoices.map((Invoice inv) {
-                    return _InvoiceCard(
-                      invoiceNo: inv.invoiceNo,
-                      customer: inv.customer,
-                      date: invoiceCtrl.dateLabel(inv.issueDate),
-                      amount: invoiceCtrl.amountLabel(inv),
-                      status: inv.status,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => InvoiceDetailsScreen(invoice: inv),
-                          ),
-                        );
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    _SearchField(
+                      constraints: constraints,
+                      controller: _searchController,
+                      onChanged: (String v) {
+                        invoiceCtrl.setSearchQuery(v);
                       },
-                    );
-                  }),
-                ],
+                    ),
+                    SizedBox(height: gap),
+                    _FilterRow(
+                      constraints: constraints,
+                      index: _filterIndex,
+                      onChanged: (int i) => setState(() => _filterIndex = i),
+                      dateSelected: invoiceCtrl.dateRange != null,
+                      onDate: _openDateFilter,
+                      moreSelected: invoiceCtrl.statusFilter != null,
+                      onMoreFilters: _openMoreFilters,
+                    ),
+                    SizedBox(height: gap),
+                    Skeletonizer(
+                      enabled: isLoading,
+                      child: AbsorbPointer(
+                        absorbing: isLoading,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: isLoading
+                              ? List<Widget>.generate(6, (int i) {
+                                  return _InvoiceCard(
+                                    invoiceNo: '----',
+                                    customer: 'Loading',
+                                    date: '----',
+                                    amount: '----',
+                                    status: InvoiceStatus.draft,
+                                    onTap: () {},
+                                  );
+                                })
+                              : invoiceCtrl.errorMessage != null &&
+                                      invoiceCtrl.errorMessage!
+                                          .trim()
+                                          .isNotEmpty
+                                  ? <Widget>[
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 14,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
+                                          children: <Widget>[
+                                            Text(
+                                              invoiceCtrl.errorMessage!,
+                                              textAlign: TextAlign.center,
+                                              style: const TextStyle(
+                                                color: Color(0xFFD93025),
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            ElevatedButton(
+                                              onPressed: _reloadInvoices,
+                                              child: const Text('Retry'),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ]
+                                  : visibleInvoices.isEmpty
+                                      ? <Widget>[
+                                          const Padding(
+                                            padding: EdgeInsets.symmetric(
+                                              vertical: 28,
+                                            ),
+                                            child: Text(
+                                              'No invoices found',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: Color(0xFF6B7895),
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ]
+                                      : visibleInvoices
+                                          .map((Invoice inv) {
+                                            return _InvoiceCard(
+                                              invoiceNo: inv.invoiceNo,
+                                              customer: inv.customer,
+                                              date: invoiceCtrl
+                                                  .dateLabel(inv.issueDate),
+                                              amount:
+                                                  invoiceCtrl.amountLabel(inv),
+                                              status: inv.status,
+                                              onTap: () {
+                                                Navigator.of(context).push(
+                                                  MaterialPageRoute<void>(
+                                                    builder: (_) =>
+                                                        InvoiceDetailsScreen(
+                                                      invoice: inv,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            );
+                                          })
+                                          .toList(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -777,6 +939,21 @@ class _InvoiceCard extends StatelessWidget {
         return (
           const _StatusStyle(bg: Color(0xFFEFFAF3), fg: Color(0xFF1DB954)),
           'Paid',
+        );
+      case InvoiceStatus.partiallyPaid:
+        return (
+          const _StatusStyle(bg: Color(0xFFFFF7E6), fg: Color(0xFFB26A00)),
+          'Partially Paid',
+        );
+      case InvoiceStatus.cancelled:
+        return (
+          const _StatusStyle(bg: Color(0xFFF3F6FB), fg: Color(0xFF6B7895)),
+          'Cancelled',
+        );
+      case InvoiceStatus.voided:
+        return (
+          const _StatusStyle(bg: Color(0xFFF0F0F0), fg: Color(0xFF111827)),
+          'Void',
         );
       case InvoiceStatus.none:
         return (null, '');

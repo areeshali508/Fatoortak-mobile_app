@@ -1,9 +1,12 @@
 import 'dart:math';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../app/app_routes.dart';
+import '../../../controllers/auth_controller.dart';
 import '../../../controllers/product_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
@@ -22,19 +25,47 @@ class _ProductsScreenState extends State<ProductsScreen> {
   int _segmentIndex = 0;
 
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ProductController>().refresh();
+      _reload();
     });
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  String? _companyId() {
+    final Map<String, dynamic>? company = context.read<AuthController>().myCompany;
+    final String? id = (company?['_id'] ?? company?['id'])?.toString().trim();
+    if (id == null || id.isEmpty) return null;
+    return id;
+  }
+
+  Future<void> _reload({String? search}) async {
+    final String? companyId = _companyId();
+    await context.read<ProductController>().refresh(
+      companyId: companyId,
+      page: 1,
+      limit: 50,
+      search: search,
+    );
+  }
+
+  void _onSearchChanged(String q) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      _reload(search: q.trim().isEmpty ? null : q.trim());
+    });
+    setState(() {});
   }
 
   void _showComingSoon() {
@@ -52,7 +83,31 @@ class _ProductsScreenState extends State<ProductsScreen> {
         return;
       }
 
-      await context.read<ProductController>().addProduct(product);
+      final String? companyId = _companyId();
+      if (companyId == null || companyId.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Company not loaded')),
+        );
+        return;
+      }
+
+      final ProductController pc = context.read<ProductController>();
+      final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+      final String searchText = _searchController.text.trim();
+
+      await pc.addProductToBackend(
+        draft: product,
+        companyId: companyId,
+      );
+      if (!mounted) return;
+      if (pc.errorMessage != null && pc.errorMessage!.trim().isNotEmpty) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(pc.errorMessage!)),
+        );
+        return;
+      }
+
+      await _reload(search: searchText.isEmpty ? null : searchText);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -85,6 +140,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final ProductController ctrl = context.watch<ProductController>();
+        final bool isLoading = ctrl.isLoading;
 
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
@@ -98,37 +154,50 @@ class _ProductsScreenState extends State<ProductsScreen> {
           18,
         );
 
-        final List<_ProductVM> items = ctrl.products
-            .asMap()
-            .entries
-            .map(
-              (MapEntry<int, Product> e) =>
-                  _ProductVM.fromProduct(product: e.value, index: e.key),
-            )
-            .where((_ProductVM p) {
-              final String q = _searchController.text.trim().toLowerCase();
-              if (q.isNotEmpty) {
-                final bool matches =
-                    p.name.toLowerCase().contains(q) ||
-                    p.sku.toLowerCase().contains(q) ||
-                    p.category.toLowerCase().contains(q);
-                if (!matches) {
-                  return false;
-                }
-              }
+        final List<_ProductVM> items = isLoading
+            ? List<_ProductVM>.generate(
+                6,
+                (int i) => _ProductVM(
+                  name: 'Loading',
+                  sku: '----',
+                  category: '----',
+                  active: true,
+                  units: 0,
+                  price: 0,
+                  currency: 'SAR',
+                ),
+              )
+            : ctrl.products
+                .asMap()
+                .entries
+                .map(
+                  (MapEntry<int, Product> e) =>
+                      _ProductVM.fromProduct(product: e.value, index: e.key),
+                )
+                .where((_ProductVM p) {
+                  final String q = _searchController.text.trim().toLowerCase();
+                  if (q.isNotEmpty) {
+                    final bool matches =
+                        p.name.toLowerCase().contains(q) ||
+                        p.sku.toLowerCase().contains(q) ||
+                        p.category.toLowerCase().contains(q);
+                    if (!matches) {
+                      return false;
+                    }
+                  }
 
-              switch (_segmentIndex) {
-                case 1:
-                  return p.active;
-                case 2:
-                  return p.category.toLowerCase() == 'services';
-                case 3:
-                  return !p.active;
-                default:
-                  return true;
-              }
-            })
-            .toList();
+                  switch (_segmentIndex) {
+                    case 1:
+                      return p.active;
+                    case 2:
+                      return p.category.toLowerCase() == 'services';
+                    case 3:
+                      return !p.active;
+                    default:
+                      return true;
+                  }
+                })
+                .toList();
 
         final int inStockCount = ctrl.products
             .asMap()
@@ -215,22 +284,38 @@ class _ProductsScreenState extends State<ProductsScreen> {
           body: SafeArea(
             child: Padding(
               padding: EdgeInsets.fromLTRB(hPad, gap, hPad, 0),
-              child: ctrl.isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primary,
-                      ),
-                    )
-                  : ListView(
+              child: RefreshIndicator(
+                onRefresh: () => _reload(
+                  search: _searchController.text.trim().isEmpty
+                      ? null
+                      : _searchController.text.trim(),
+                ),
+                child: Skeletonizer(
+                  enabled: isLoading,
+                  child: AbsorbPointer(
+                    absorbing: isLoading,
+                    child: ListView(
                       padding: EdgeInsets.only(bottom: gap + 120),
                       children: <Widget>[
+                        if (!isLoading &&
+                            (ctrl.errorMessage ?? '').trim().isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              ctrl.errorMessage!,
+                              style: const TextStyle(
+                                color: Color(0xFFD93025),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
                         Row(
                           children: <Widget>[
                             Expanded(
                               child: _SearchField(
                                 constraints: constraints,
                                 controller: _searchController,
-                                onChanged: (_) => setState(() {}),
+                                onChanged: _onSearchChanged,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -307,7 +392,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           ),
                         ),
                         SizedBox(height: gap),
-                        if (items.isEmpty)
+                        if (!isLoading && items.isEmpty)
                           const Padding(
                             padding: EdgeInsets.only(top: 24),
                             child: Center(
@@ -329,6 +414,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           }),
                       ],
                     ),
+                  ),
+                ),
+              ),
             ),
           ),
           floatingActionButton: SizedBox(

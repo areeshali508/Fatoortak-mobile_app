@@ -1,25 +1,31 @@
-enum InvoiceStatus { draft, sent, overdue, paid, none }
+enum InvoiceStatus { draft, sent, overdue, paid, partiallyPaid, cancelled, voided, none }
 
 class InvoiceItem {
+  final String productId;
   final String product;
   final int qty;
   final double price;
-  final double discountPercent;
+  final double discount;
   final String vatCategory;
   final double taxPercent;
 
   const InvoiceItem({
+    required this.productId,
     required this.product,
     required this.qty,
     required this.price,
-    required this.discountPercent,
+    required this.discount,
     required this.vatCategory,
     required this.taxPercent,
   });
 
   double get gross => qty * price;
 
-  double get discountAmount => gross * (discountPercent / 100);
+  double get discountAmount {
+    if (discount <= 0) return 0;
+    if (discount >= gross) return gross;
+    return discount;
+  }
 
   double get taxableAmount => gross - discountAmount;
 
@@ -29,6 +35,7 @@ class InvoiceItem {
 }
 
 class Invoice {
+  final String id;
   final String invoiceNo;
   final String customer;
   final DateTime issueDate;
@@ -44,6 +51,7 @@ class Invoice {
   final String terms;
 
   const Invoice({
+    required this.id,
     required this.invoiceNo,
     required this.customer,
     required this.issueDate,

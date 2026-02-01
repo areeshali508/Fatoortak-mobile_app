@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../app/app_routes.dart';
+import '../../../controllers/auth_controller.dart';
 import '../../../controllers/customer_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
@@ -23,7 +25,18 @@ class _CustomersScreenState extends State<CustomersScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<CustomerController>().refresh();
+      final AuthController auth = context.read<AuthController>();
+      final Map<String, dynamic>? company = auth.myCompany;
+      final String? companyId =
+          (company?['_id'] ?? company?['id'])?.toString().trim();
+      if (companyId == null || companyId.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Company not loaded')),
+        );
+        return;
+      }
+      context.read<CustomerController>().refresh(companyId: companyId);
     });
   }
 
@@ -53,6 +66,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final CustomerController ctrl = context.watch<CustomerController>();
+        final bool isLoading = ctrl.isLoading;
 
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
@@ -66,26 +80,37 @@ class _CustomersScreenState extends State<CustomersScreen> {
           18,
         );
 
-        final List<_CustomerVM> customers = ctrl.customers
-            .asMap()
-            .entries
-            .map(
-              (MapEntry<int, Customer> e) =>
-                  _CustomerVM.fromCustomer(customer: e.value, index: e.key),
-            )
-            .where((_CustomerVM c) {
-              switch (_filterIndex) {
-                case 1:
-                  return c.vip;
-                case 2:
-                  return c.active;
-                case 3:
-                  return !c.active;
-                default:
-                  return true;
-              }
-            })
-            .toList();
+        final List<_CustomerVM> customers = isLoading
+            ? List<_CustomerVM>.generate(
+                6,
+                (int i) => const _CustomerVM(
+                  name: 'Loading',
+                  company: '----',
+                  active: true,
+                  vip: true,
+                  ytdAmount: 0,
+                ),
+              )
+            : ctrl.customers
+                .asMap()
+                .entries
+                .map(
+                  (MapEntry<int, Customer> e) =>
+                      _CustomerVM.fromCustomer(customer: e.value, index: e.key),
+                )
+                .where((_CustomerVM c) {
+                  switch (_filterIndex) {
+                    case 1:
+                      return c.vip;
+                    case 2:
+                      return c.active;
+                    case 3:
+                      return !c.active;
+                    default:
+                      return true;
+                  }
+                })
+                .toList();
 
         return Scaffold(
           backgroundColor: const Color(0xFFF7FAFF),
@@ -154,33 +179,33 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   ),
                   SizedBox(height: gap),
                   Expanded(
-                    child: ctrl.isLoading
-                        ? const Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.primary,
-                            ),
-                          )
-                        : customers.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'No customers',
-                              style: TextStyle(
-                                color: Color(0xFF9AA5B6),
-                                fontWeight: FontWeight.w800,
+                    child: Skeletonizer(
+                      enabled: isLoading,
+                      child: AbsorbPointer(
+                        absorbing: isLoading,
+                        child: customers.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  'No customers',
+                                  style: TextStyle(
+                                    color: Color(0xFF9AA5B6),
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: EdgeInsets.only(bottom: gap + 110),
+                                itemCount: customers.length,
+                                itemBuilder: (BuildContext context, int i) {
+                                  final _CustomerVM c = customers[i];
+                                  return _CustomerCard(
+                                    customer: c,
+                                    onTap: _comingSoon,
+                                  );
+                                },
                               ),
-                            ),
-                          )
-                        : ListView.builder(
-                            padding: EdgeInsets.only(bottom: gap + 110),
-                            itemCount: customers.length,
-                            itemBuilder: (BuildContext context, int i) {
-                              final _CustomerVM c = customers[i];
-                              return _CustomerCard(
-                                customer: c,
-                                onTap: _comingSoon,
-                              );
-                            },
-                          ),
+                      ),
+                    ),
                   ),
                 ],
               ),

@@ -95,7 +95,7 @@ class CreateCreditNoteController extends ChangeNotifier {
             description: it.product,
             qty: it.qty,
             price: it.price,
-            discountPercent: it.discountPercent,
+            discount: it.discount,
             vatCategory: it.vatCategory,
             taxPercent: it.taxPercent,
           ),
@@ -131,7 +131,7 @@ class CreateCreditNoteController extends ChangeNotifier {
       description: cur.description,
       qty: cur.qty + 1,
       price: cur.price,
-      discountPercent: cur.discountPercent,
+      discount: cur.discount,
       vatCategory: cur.vatCategory,
       taxPercent: cur.taxPercent,
     );
@@ -150,7 +150,7 @@ class CreateCreditNoteController extends ChangeNotifier {
       description: cur.description,
       qty: cur.qty - 1,
       price: cur.price,
-      discountPercent: cur.discountPercent,
+      discount: cur.discount,
       vatCategory: cur.vatCategory,
       taxPercent: cur.taxPercent,
     );

@@ -22,6 +22,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (BuildContext context, BoxConstraints constraints) {
         final SettingsController settingsCtrl = context
             .watch<SettingsController>();
+        final Map<String, dynamic>? company = context.watch<AuthController>().myCompany;
+        final Object? creds = company?['zatcaCredentials'];
+        final String zatcaStatus = (creds is Map<String, dynamic>
+                ? creds['status']?.toString()
+                : null)
+            ?.trim() ??
+            '';
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 6),
           16,
@@ -92,6 +99,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.storefront_outlined,
                       title: 'Company Info',
                       onTap: () {},
+                    ),
+                    _SettingsTile(
+                      icon: Icons.verified_outlined,
+                      title: 'ZATCA Setup',
+                      trailingText: zatcaStatus.isEmpty ? 'Not started' : zatcaStatus,
+                      onTap: () => Navigator.of(context).pushNamed(
+                        AppRoutes.zatcaSetup,
+                      ),
                     ),
                     _SettingsTile(
                       icon: Icons.receipt_long_outlined,

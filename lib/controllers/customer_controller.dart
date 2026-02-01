@@ -20,11 +20,11 @@ class CustomerController extends ChangeNotifier {
     _repository = repository;
   }
 
-  Future<void> refresh() async {
+  Future<void> refresh({required String companyId}) async {
     _isLoading = true;
     notifyListeners();
     try {
-      _customers = await _repository.listCustomers();
+      _customers = await _repository.listCustomers(companyId: companyId);
     } finally {
       _isLoading = false;
       notifyListeners();

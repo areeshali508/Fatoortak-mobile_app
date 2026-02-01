@@ -32,6 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final Color bgTop = AppColors.splashTop;
     final Color bgBottom = AppColors.splashBottom;
+    final bool authLoading = context.watch<AuthController>().isLoading;
 
     return Scaffold(
       body: DecoratedBox(
@@ -238,7 +239,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   SizedBox(
                                     height: btnH,
                                     child: ElevatedButton(
-                                      onPressed: () async {
+                                      onPressed: authLoading
+                                          ? null
+                                          : () async {
                                         final AuthController auth = context
                                             .read<AuthController>();
                                         final bool ok = await auth.signIn(
@@ -247,7 +250,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                               .trim(),
                                           password: _passwordController.text,
                                         );
-                                        if (!context.mounted || !ok) return;
+                                        if (!context.mounted) return;
+                                        if (!ok) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                auth.errorMessage ??
+                                                    'Sign in failed',
+                                              ),
+                                            ),
+                                          );
+                                          return;
+                                        }
                                         Navigator.of(
                                           context,
                                         ).pushReplacementNamed(
@@ -264,6 +279,85 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ),
                                           fontWeight: FontWeight.w800,
                                         ),
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(height: fieldGap),
+                                  SizedBox(
+                                    height: btnH,
+                                    child: OutlinedButton(
+                                      onPressed: authLoading
+                                          ? null
+                                          : () async {
+                                              final AuthController auth =
+                                                  context.read<AuthController>();
+                                              final bool ok =
+                                                  await auth.signInWithGoogle();
+                                              if (!context.mounted) return;
+                                              if (!ok) {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      'Google sign-in cancelled or failed',
+                                                    ),
+                                                  ),
+                                                );
+                                                return;
+                                              }
+                                              Navigator.of(context)
+                                                  .pushReplacementNamed(
+                                                AppRoutes.dashboard,
+                                              );
+                                            },
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor:
+                                            const Color(0xFF0B1B4B),
+                                        side: const BorderSide(
+                                          color: Color(0xFFE2EAF6),
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(14),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: <Widget>[
+                                          Container(
+                                            width: 26,
+                                            height: 26,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF7FAFF),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: const Color(0xFFE2EAF6),
+                                              ),
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: const Text(
+                                              'G',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w900,
+                                                color: AppColors.primary,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            'Continue with Google',
+                                            style: TextStyle(
+                                              fontSize: AppResponsive.clamp(
+                                                AppResponsive.sp(constraints, 15),
+                                                13,
+                                                16,
+                                              ),
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),

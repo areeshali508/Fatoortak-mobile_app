@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 
 import '../../../controllers/create_quotation_controller.dart';
+import '../../../models/customer.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
+import '../../../models/product.dart';
 import '../../../models/quotation.dart';
+import '../../../repositories/product_repository.dart';
 
 class CreateQuotationScreen extends StatefulWidget {
   const CreateQuotationScreen({super.key});
@@ -13,7 +17,209 @@ class CreateQuotationScreen extends StatefulWidget {
   State<CreateQuotationScreen> createState() => _CreateQuotationScreenState();
 }
 
+class _QuickAddCustomerSheet extends StatefulWidget {
+  const _QuickAddCustomerSheet();
+
+  @override
+  State<_QuickAddCustomerSheet> createState() => _QuickAddCustomerSheetState();
+}
+
+class _QuickAddCustomerSheetState extends State<_QuickAddCustomerSheet> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _taxIdController = TextEditingController();
+  String _type = 'B2B';
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _taxIdController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final CreateQuotationController ctrl = context.watch<CreateQuotationController>();
+
+    InputDecoration dec({required String label, String? hint}) {
+      return InputDecoration(
+        labelText: label,
+        hintText: hint,
+        hintStyle: const TextStyle(color: Color(0xFF9AA5B6)),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE9EEF5)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
+        ),
+      );
+    }
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          16,
+          8,
+          16,
+          16 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              const Text(
+                'New Customer',
+                style: TextStyle(
+                  color: Color(0xFF0B1B4B),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _nameController,
+                decoration: dec(label: 'Customer Name*'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _type,
+                isExpanded: true,
+                items: const <String>['B2B', 'B2C']
+                    .map(
+                      (String e) => DropdownMenuItem<String>(
+                        value: e,
+                        child: Text(e),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (String? v) {
+                  if (v == null) return;
+                  setState(() => _type = v);
+                },
+                decoration: dec(label: 'Customer Type*'),
+                icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                borderRadius: BorderRadius.circular(12),
+                dropdownColor: Colors.white,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _emailController,
+                decoration: dec(label: 'Email', hint: 'Optional'),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _phoneController,
+                decoration: dec(label: 'Phone', hint: 'Optional'),
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _taxIdController,
+                decoration: dec(label: 'Tax ID', hint: 'Optional'),
+                keyboardType: TextInputType.number,
+              ),
+              if ((ctrl.errorMessage ?? '').trim().isNotEmpty) ...<Widget>[
+                const SizedBox(height: 10),
+                Text(
+                  ctrl.errorMessage!.trim(),
+                  style: const TextStyle(
+                    color: Color(0xFFD93025),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: ctrl.isCreatingCustomer
+                    ? null
+                    : () async {
+                        final String name = _nameController.text.trim();
+                        if (name.isEmpty) return;
+                        final Customer? created = await context
+                            .read<CreateQuotationController>()
+                            .createCustomerQuick(
+                              customerName: name,
+                              customerType: _type,
+                              email: _emailController.text.trim(),
+                              phone: _phoneController.text.trim(),
+                              taxId: _taxIdController.text.trim(),
+                            );
+                        if (!mounted) return;
+                        if (created != null) {
+                          Navigator.of(context).pop();
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                child: ctrl.isCreatingCustomer
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Create Customer'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
+  bool _requestedInitial = false;
+
+  Future<void> _openQuickAddCustomerSheet() async {
+    final CreateQuotationController ctrl =
+        context.read<CreateQuotationController>();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) => ChangeNotifierProvider<CreateQuotationController>.value(
+        value: ctrl,
+        child: const _QuickAddCustomerSheet(),
+      ),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_requestedInitial) return;
+    _requestedInitial = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await context.read<CreateQuotationController>().loadCustomers();
+    });
+  }
+
   void _nextStep() {
     final CreateQuotationController ctrl = context
         .read<CreateQuotationController>();
@@ -93,7 +299,10 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
-      builder: (_) => _AddItemSheet(currency: ctrl.currency),
+      builder: (_) => _AddItemSheet(
+        currency: ctrl.currency,
+        companyId: ctrl.companyId ?? '',
+      ),
     );
 
     if (!mounted || item == null) {
@@ -114,7 +323,11 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
-      builder: (_) => _AddItemSheet(currency: ctrl.currency, initialItem: initial),
+      builder: (_) => _AddItemSheet(
+        currency: ctrl.currency,
+        initialItem: initial,
+        companyId: ctrl.companyId ?? '',
+      ),
     );
 
     if (!mounted || item == null) {
@@ -125,14 +338,21 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
   }
 
   void _submit() {
-    final CreateQuotationController ctrl = context
-        .read<CreateQuotationController>();
-    final String? msg = ctrl.validateSubmit();
-    if (msg != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-      return;
-    }
-    Navigator.of(context).pop(ctrl.buildQuotation());
+    () async {
+      final CreateQuotationController ctrl = context
+          .read<CreateQuotationController>();
+      final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+      final Quotation? created = await ctrl.submit();
+      if (!mounted) return;
+      if (created != null) {
+        Navigator.of(context).pop(created);
+        return;
+      }
+      final String msg = ctrl.errorMessage ?? 'Failed to create quotation';
+      if (msg.trim().isNotEmpty) {
+        messenger.showSnackBar(SnackBar(content: Text(msg)));
+      }
+    }();
   }
 
   InputDecoration _dec({required String label, String? hint, Widget? prefix}) {
@@ -299,80 +519,94 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        '${it.total.toStringAsFixed(2)} ${ctrl.currency}',
-                        style: const TextStyle(
-                          color: Color(0xFF0B1B4B),
-                          fontWeight: FontWeight.w900,
-                          fontSize: 12,
-                        ),
-                      ),
-                      if (editable) ...<Widget>[
-                        const SizedBox(width: 10),
-                        IconButton(
-                          onPressed: () => _openEditItemSheet(e.key, it),
-                          icon: const Icon(Icons.edit_outlined, size: 18),
-                          color: const Color(0xFF9AA5B6),
-                        ),
-                        Container(
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF7FAFF),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFE9EEF5)),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: <Widget>[
+                          Text(
+                            '${it.total.toStringAsFixed(2)} ${ctrl.currency}',
+                            style: const TextStyle(
+                              color: Color(0xFF0B1B4B),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 12,
+                            ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              IconButton(
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                  minWidth: 32,
-                                  minHeight: 32,
+                          if (editable) ...<Widget>[
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              alignment: WrapAlignment.end,
+                              children: <Widget>[
+                                IconButton(
+                                  onPressed: () => _openEditItemSheet(e.key, it),
+                                  icon: const Icon(Icons.edit_outlined, size: 18),
+                                  color: const Color(0xFF9AA5B6),
                                 ),
-                                onPressed: () => ctrl.decrementQtyAt(e.key),
-                                icon: const Icon(
-                                  Icons.remove,
-                                  size: 18,
-                                  color: Color(0xFF6B7895),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                ),
-                                child: Text(
-                                  '${it.qty}',
-                                  style: const TextStyle(
-                                    color: Color(0xFF0B1B4B),
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 12,
+                                Container(
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF7FAFF),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(0xFFE9EEF5),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: <Widget>[
+                                      IconButton(
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 32,
+                                          minHeight: 32,
+                                        ),
+                                        onPressed: () => ctrl.decrementQtyAt(e.key),
+                                        icon: const Icon(
+                                          Icons.remove,
+                                          size: 18,
+                                          color: Color(0xFF6B7895),
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                        ),
+                                        child: Text(
+                                          '${it.qty}',
+                                          style: const TextStyle(
+                                            color: Color(0xFF0B1B4B),
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 32,
+                                          minHeight: 32,
+                                        ),
+                                        onPressed: () => ctrl.incrementQtyAt(e.key),
+                                        icon: const Icon(
+                                          Icons.add,
+                                          size: 18,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
-                              IconButton(
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                  minWidth: 32,
-                                  minHeight: 32,
+                                IconButton(
+                                  onPressed: () => ctrl.removeItemAt(e.key),
+                                  icon: const Icon(Icons.close, size: 18),
+                                  color: const Color(0xFF9AA5B6),
                                 ),
-                                onPressed: () => ctrl.incrementQtyAt(e.key),
-                                icon: const Icon(
-                                  Icons.add,
-                                  size: 18,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        IconButton(
-                          onPressed: () => ctrl.removeItemAt(e.key),
-                          icon: const Icon(Icons.close, size: 18),
-                          color: const Color(0xFF9AA5B6),
-                        ),
-                      ],
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
                     ],
                   ),
                 );
@@ -419,7 +653,7 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Row(
                 children: <Widget>[
                   const Expanded(
@@ -432,12 +666,17 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                       ),
                     ),
                   ),
-                  Text(
-                    '${ctrl.total.toStringAsFixed(2)} ${ctrl.currency}',
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 14,
+                  Flexible(
+                    child: Text(
+                      '${ctrl.total.toStringAsFixed(2)} ${ctrl.currency}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ],
@@ -460,10 +699,7 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                         _LabeledDropdown<String>(
                           label: 'Company*',
                           value: ctrl.company,
-                          items: const <String>[
-                            'Tech Solutions Ltd.',
-                            'Fatoortak Business',
-                          ],
+                          items: <String>[ctrl.company],
                           onChanged: (String v) => ctrl.company = v,
                         ),
                         const SizedBox(height: 12),
@@ -530,22 +766,116 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                   const SizedBox(height: 12),
                   _SectionCard(
                     title: 'Customer',
-                    child: TextField(
-                      controller: ctrl.customerController,
-                      decoration: _dec(
-                        label: 'Customer*',
-                        hint: 'Search customer',
-                        prefix: const Icon(
-                          Icons.search,
-                          color: Color(0xFF9AA5B6),
-                        ),
-                      ),
-                      style: const TextStyle(
-                        color: Color(0xFF0B1B4B),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
-                      ),
-                    ),
+                    child: ctrl.isLoadingCustomers
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 10),
+                              child: CircularProgressIndicator(
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          )
+                        : Builder(
+                            builder: (BuildContext context) {
+                              final String q =
+                                  ctrl.customerController.text.trim().toLowerCase();
+                              final List<Customer> filtered = ctrl.customers
+                                  .where((Customer c) {
+                                    if (q.isEmpty) return true;
+                                    return c.name.toLowerCase().contains(q) ||
+                                        c.id.toLowerCase().contains(q);
+                                  })
+                                  .toList();
+                              final List<String> ids = filtered
+                                  .map((Customer c) => c.id)
+                                  .where((String id) => id.trim().isNotEmpty)
+                                  .toList();
+                              final String? selected = ctrl.selectedCustomerId;
+                              final String? safeSelected =
+                                  (selected != null && ids.contains(selected))
+                                      ? selected
+                                      : null;
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: <Widget>[
+                                  TextField(
+                                    controller: ctrl.customerController,
+                                    onChanged: (_) => setState(() {}),
+                                    decoration: _dec(
+                                      label: 'Search Customer',
+                                      hint: 'Type name or ID...',
+                                      prefix: const Icon(
+                                        Icons.search,
+                                        color: Color(0xFF9AA5B6),
+                                      ),
+                                    ),
+                                    style: const TextStyle(
+                                      color: Color(0xFF0B1B4B),
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton.icon(
+                                      onPressed: ctrl.isCreatingCustomer
+                                          ? null
+                                          : _openQuickAddCustomerSheet,
+                                      icon: ctrl.isCreatingCustomer
+                                          ? const SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: AppColors.primary,
+                                              ),
+                                            )
+                                          : const Icon(Icons.add, size: 18),
+                                      label: const Text('New Customer'),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: AppColors.primary,
+                                        textStyle: const TextStyle(
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 6,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  _LabeledDropdown<String>(
+                                    label: 'Select Customer*',
+                                    value: safeSelected,
+                                    items: ids,
+                                    itemBuilder: (String id) {
+                                      final Customer? c = ctrl.customers
+                                          .cast<Customer?>()
+                                          .firstWhere(
+                                            (Customer? c) => c?.id == id,
+                                            orElse: () => null,
+                                          );
+                                      return c == null
+                                          ? id
+                                          : '${c.name} (${c.id})';
+                                    },
+                                    onChanged: (String v) {
+                                      final Customer? c = ctrl.customers
+                                          .cast<Customer?>()
+                                          .firstWhere(
+                                            (Customer? c) => c?.id == v,
+                                            orElse: () => null,
+                                          );
+                                      ctrl.selectCustomer(c);
+                                    },
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
                   ),
                   const SizedBox(height: 12),
                   _SectionCard(
@@ -640,7 +970,9 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
             leading: const BackButton(),
           ),
           body: SafeArea(
-            child: SingleChildScrollView(
+            child: AbsorbPointer(
+              absorbing: ctrl.isSubmitting,
+              child: SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
                 hPad,
                 gap,
@@ -664,6 +996,7 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                   stepContent(),
                 ],
               ),
+            ),
             ),
           ),
           bottomNavigationBar: SafeArea(
@@ -696,7 +1029,7 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: _submit,
+                            onPressed: ctrl.isSubmitting ? null : _submit,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
@@ -708,7 +1041,16 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
-                            child: const Text('Save Quotation'),
+                            child: ctrl.isSubmitting
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text('Save Quotation'),
                           ),
                         ),
                       ],
@@ -900,27 +1242,33 @@ class _SectionCard extends StatelessWidget {
 
 class _LabeledDropdown<T> extends StatelessWidget {
   final String label;
-  final T value;
+  final T? value;
   final List<T> items;
   final ValueChanged<T> onChanged;
+  final String Function(T v)? itemBuilder;
 
   const _LabeledDropdown({
     required this.label,
     required this.value,
     required this.items,
     required this.onChanged,
+    this.itemBuilder,
   });
 
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
-      key: ValueKey<T>(value),
+      key: ValueKey<T?>(value),
       initialValue: value,
+      isExpanded: true,
       items: items
           .map(
             (T e) => DropdownMenuItem<T>(
               value: e,
-              child: Text(e.toString(), overflow: TextOverflow.ellipsis),
+              child: Text(
+                itemBuilder == null ? e.toString() : itemBuilder!(e),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           )
           .toList(),
@@ -1049,14 +1397,20 @@ class _SummaryRow extends StatelessWidget {
 class _AddItemSheet extends StatefulWidget {
   final String currency;
   final QuotationItem? initialItem;
+  final String companyId;
 
-  const _AddItemSheet({required this.currency, this.initialItem});
+  const _AddItemSheet({
+    required this.currency,
+    required this.companyId,
+    this.initialItem,
+  });
 
   @override
   State<_AddItemSheet> createState() => _AddItemSheetState();
 }
 
 class _AddItemSheetState extends State<_AddItemSheet> {
+  final TextEditingController _productSearchController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _qtyController = TextEditingController(text: '1');
   final TextEditingController _priceController = TextEditingController(
@@ -1071,11 +1425,20 @@ class _AddItemSheetState extends State<_AddItemSheet> {
 
   String _vatCategory = 'S - 15%';
 
+  Timer? _searchDebounce;
+  Product? _selectedProduct;
+  List<Product> _suggestions = const <Product>[];
+  bool _isSearching = false;
+  String? _productError;
+
   @override
   void initState() {
     super.initState();
     final QuotationItem? it = widget.initialItem;
     if (it == null) return;
+    if (it.productId.trim().isNotEmpty) {
+      _productSearchController.text = it.description;
+    }
     _descController.text = it.description;
     _qtyController.text = it.qty.toString();
     _priceController.text = it.price.toString();
@@ -1094,12 +1457,96 @@ class _AddItemSheetState extends State<_AddItemSheet> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
+    _productSearchController.dispose();
     _descController.dispose();
     _qtyController.dispose();
     _priceController.dispose();
     _discountController.dispose();
     _taxController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String _) {
+    _searchDebounce?.cancel();
+    setState(() {
+      _selectedProduct = null;
+      _productError = null;
+    });
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      _searchProducts();
+    });
+  }
+
+  Future<void> _searchProducts() async {
+    final String q = _productSearchController.text.trim();
+    if (q.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _suggestions = const <Product>[];
+        _isSearching = false;
+        _productError = null;
+      });
+      return;
+    }
+
+    final String companyId = widget.companyId.trim();
+    if (companyId.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _suggestions = const <Product>[];
+        _isSearching = false;
+        _productError = 'Please select a company first';
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isSearching = true;
+      _productError = null;
+    });
+
+    try {
+      final List<Product> products = await context.read<ProductRepository>().listProducts(
+            companyId: companyId,
+            page: 1,
+            limit: 20,
+            search: q,
+          );
+      if (!mounted) return;
+      setState(() {
+        _suggestions = products;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _suggestions = const <Product>[];
+        _productError = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isSearching = false);
+      }
+    }
+  }
+
+  void _selectProduct(Product p) {
+    final double tax = p.taxRate;
+    setState(() {
+      _selectedProduct = p;
+      _suggestions = const <Product>[];
+      _productError = null;
+      _productSearchController.text = p.name;
+      _descController.text = p.name;
+      _priceController.text = p.price.toString();
+      _taxController.text = tax.toString();
+      if (tax.abs() < 0.000001) {
+        _vatCategory = 'Z - 0%';
+      } else {
+        _vatCategory = 'S - 15%';
+      }
+    });
   }
 
   int _parseInt(String v, {int fallback = 1}) {
@@ -1154,6 +1601,103 @@ class _AddItemSheetState extends State<_AddItemSheet> {
           ),
           const SizedBox(height: 14),
           TextField(
+            controller: _productSearchController,
+            onChanged: _onSearchChanged,
+            decoration: dec(
+              label: 'Product',
+              hint: 'Search by name or SKU...',
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (_isSearching)
+            const SizedBox(
+              height: 28,
+              child: Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else if (_suggestions.isNotEmpty)
+            Container(
+              constraints: const BoxConstraints(maxHeight: 180),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE9EEF5)),
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: _suggestions.length,
+                separatorBuilder: (BuildContext context, int index) =>
+                    const Divider(height: 1),
+                itemBuilder: (BuildContext context, int index) {
+                  final Product p = _suggestions[index];
+                  final String sku = p.sku.trim();
+                  return ListTile(
+                    dense: true,
+                    title: Text(
+                      p.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF0B1B4B),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13,
+                      ),
+                    ),
+                    subtitle: sku.isEmpty
+                        ? null
+                        : Text(
+                            'SKU: $sku',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF6B7895),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                    onTap: () => _selectProduct(p),
+                  );
+                },
+              ),
+            )
+          else if (_productSearchController.text.trim().isNotEmpty)
+            const Text(
+              'No products found',
+              style: TextStyle(
+                color: Color(0xFF6B7895),
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
+            ),
+          if (_selectedProduct != null) ...<Widget>[
+            const SizedBox(height: 8),
+            Text(
+              'Selected: ${_selectedProduct!.name}',
+              style: const TextStyle(
+                color: Color(0xFF6B7895),
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
+            ),
+          ],
+          if (_productError != null && _productError!.trim().isNotEmpty) ...<Widget>[
+            const SizedBox(height: 8),
+            Text(
+              _productError!,
+              style: const TextStyle(
+                color: Color(0xFFD93025),
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          TextField(
             controller: _descController,
             decoration: dec(label: 'Description', hint: 'Product or service'),
           ),
@@ -1196,6 +1740,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                 child: DropdownButtonFormField<String>(
                   key: ValueKey<String>(_vatCategory),
                   initialValue: _vatCategory,
+                  isExpanded: true,
                   items: const <String>['S - 15%', 'Z - 0%', 'E - Exempt']
                       .map(
                         (String e) => DropdownMenuItem<String>(
@@ -1226,6 +1771,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
           ElevatedButton(
             onPressed: () {
               final QuotationItem item = QuotationItem(
+                productId: _selectedProduct?.id ?? widget.initialItem?.productId ?? '',
                 description: _descController.text.trim().isEmpty
                     ? 'Custom item'
                     : _descController.text.trim(),

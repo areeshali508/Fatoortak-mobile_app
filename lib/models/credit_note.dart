@@ -6,7 +6,7 @@ class CreditNoteItem {
   final String description;
   final int qty;
   final double price;
-  final double discountPercent;
+  final double discount;
   final String vatCategory;
   final double taxPercent;
 
@@ -14,14 +14,18 @@ class CreditNoteItem {
     required this.description,
     required this.qty,
     required this.price,
-    required this.discountPercent,
+    required this.discount,
     required this.vatCategory,
     required this.taxPercent,
   });
 
   double get gross => qty * price;
 
-  double get discountAmount => gross * (discountPercent / 100);
+  double get discountAmount {
+    if (discount <= 0) return 0;
+    if (discount >= gross) return gross;
+    return discount;
+  }
 
   double get taxableAmount => gross - discountAmount;
 

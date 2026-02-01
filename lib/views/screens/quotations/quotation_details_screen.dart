@@ -1,12 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../app/app_routes.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../models/quotation.dart';
+import '../../../repositories/quotation_repository.dart';
 
-class QuotationDetailsScreen extends StatelessWidget {
+class QuotationDetailsScreen extends StatefulWidget {
   final Quotation quotation;
 
   const QuotationDetailsScreen({super.key, required this.quotation});
+
+  @override
+  State<QuotationDetailsScreen> createState() => _QuotationDetailsScreenState();
+}
+
+class _QuotationDetailsScreenState extends State<QuotationDetailsScreen> {
+  bool _isConverting = false;
+
+  Quotation get quotation => widget.quotation;
+
+  Future<void> _convertToInvoice() async {
+    if (_isConverting) return;
+    final QuotationRepository repo = context.read<QuotationRepository>();
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final NavigatorState nav = Navigator.of(context);
+
+    final String quotationId =
+        widget.quotation.apiId.trim().isNotEmpty ? widget.quotation.apiId : widget.quotation.id;
+
+    setState(() => _isConverting = true);
+    try {
+      final String? invoiceId = await repo.convertToInvoice(quotationId: quotationId);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            invoiceId == null || invoiceId.trim().isEmpty
+                ? 'Converted to invoice'
+                : 'Converted to invoice ($invoiceId)',
+          ),
+        ),
+      );
+      nav.pushNamedAndRemoveUntil(AppRoutes.invoices, (Route<dynamic> r) => false);
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) {
+        setState(() => _isConverting = false);
+      }
+    }
+  }
 
   String _fmtDate(DateTime? d) {
     if (d == null) {
@@ -84,9 +129,11 @@ class QuotationDetailsScreen extends StatelessWidget {
       backgroundColor: const Color(0xFFF7FAFF),
       appBar: AppBar(title: const Text('Quotation Details')),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
-          children: <Widget>[
+        child: AbsorbPointer(
+          absorbing: _isConverting,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+            children: <Widget>[
             _SectionCard(
               title: 'Quotation',
               child: Column(
@@ -117,6 +164,8 @@ class QuotationDetailsScreen extends StatelessWidget {
                   const SizedBox(height: 10),
                   Text(
                     quotation.customer,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Color(0xFF0B1B4B),
                       fontWeight: FontWeight.w800,
@@ -136,14 +185,25 @@ class QuotationDetailsScreen extends StatelessWidget {
                           ),
                         ),
                       ),
-                      _Chip(
-                        text: _statusText(quotation.status),
-                        style: _statusStyle(quotation.status),
-                      ),
-                      const SizedBox(width: 8),
-                      _Chip(
-                        text: _outcomeText(quotation.outcomeStatus),
-                        style: _outcomeStyle(quotation.outcomeStatus),
+                      Flexible(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            alignment: WrapAlignment.end,
+                            children: <Widget>[
+                              _Chip(
+                                text: _statusText(quotation.status),
+                                style: _statusStyle(quotation.status),
+                              ),
+                              _Chip(
+                                text: _outcomeText(quotation.outcomeStatus),
+                                style: _outcomeStyle(quotation.outcomeStatus),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -230,7 +290,32 @@ class QuotationDetailsScreen extends StatelessWidget {
                       ],
                     ),
             ),
-          ],
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              onPressed: _isConverting ? null : _convertToInvoice,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                textStyle: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              icon: _isConverting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.swap_horiz),
+              label: Text(_isConverting ? 'Converting...' : 'Convert to Invoice'),
+            ),
+            ],
+          ),
         ),
       ),
     );

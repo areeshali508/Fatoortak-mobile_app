@@ -6,12 +6,18 @@ class AuthController extends ChangeNotifier {
   AuthRepository _repository;
   bool _isAuthenticated = false;
   bool _isLoading = false;
+  String? _errorMessage;
+  Map<String, dynamic>? _profile;
+  Map<String, dynamic>? _myCompany;
 
   AuthController({required AuthRepository repository})
     : _repository = repository;
 
   bool get isAuthenticated => _isAuthenticated;
   bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
+  Map<String, dynamic>? get profile => _profile;
+  Map<String, dynamic>? get myCompany => _myCompany;
 
   void updateRepository(AuthRepository repository) {
     _repository = repository;
@@ -22,12 +28,42 @@ class AuthController extends ChangeNotifier {
     required String password,
   }) async {
     _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
     try {
       final bool ok = await _repository.signIn(
         usernameOrEmail: usernameOrEmail,
         password: password,
       );
+      if (!ok) return false;
+
+      _profile = await _repository.getProfile();
+      _myCompany = await _repository.getMyCompany();
+      _isAuthenticated = true;
+      return true;
+    } catch (e) {
+      if (e is AuthApiException) {
+        _errorMessage = e.statusCode == null
+            ? e.message
+            : '${e.message} (${e.statusCode})';
+      } else {
+        _errorMessage = 'Sign in failed';
+      }
+      _profile = null;
+      _myCompany = null;
+      _isAuthenticated = false;
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> signInWithGoogle() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final bool ok = await _repository.signInWithGoogle();
       if (ok) {
         _isAuthenticated = true;
       }
@@ -39,24 +75,34 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<bool> signUp({
-    required String fullName,
+    required String firstName,
+    required String lastName,
     required String email,
-    required String phone,
     required String password,
   }) async {
     _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
     try {
       final bool ok = await _repository.signUp(
-        fullName: fullName,
+        firstName: firstName,
+        lastName: lastName,
         email: email,
-        phone: phone,
         password: password,
       );
       if (ok) {
         _isAuthenticated = true;
       }
       return ok;
+    } catch (e) {
+      if (e is AuthApiException) {
+        _errorMessage = e.statusCode == null
+            ? e.message
+            : '${e.message} (${e.statusCode})';
+      } else {
+        _errorMessage = 'Sign up failed';
+      }
+      return false;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -66,10 +112,43 @@ class AuthController extends ChangeNotifier {
   Future<void> signOut() async {
     await _repository.signOut();
     _isAuthenticated = false;
+    _errorMessage = null;
+    _profile = null;
+    _myCompany = null;
     notifyListeners();
   }
 
   Future<void> sendPasswordResetLink({required String email}) async {
     await _repository.sendPasswordResetLink(email: email);
+  }
+
+  Future<Map<String, dynamic>?> getProfile() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      return await _repository.getProfile();
+    } catch (e) {
+      if (e is AuthApiException) {
+        _errorMessage = e.statusCode == null
+            ? e.message
+            : '${e.message} (${e.statusCode})';
+      } else {
+        _errorMessage = 'Failed to load profile';
+      }
+      return null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> refreshMyCompany() async {
+    try {
+      _myCompany = await _repository.getMyCompany();
+      notifyListeners();
+    } catch (_) {
+      // ignore
+    }
   }
 }

@@ -1,130 +1,24 @@
 import 'package:flutter/material.dart';
 
 import '../models/invoice.dart';
+import '../repositories/invoice_repository.dart';
 
 class InvoiceController extends ChangeNotifier {
-  final List<Invoice> _invoices = <Invoice>[
-    Invoice(
-      invoiceNo: 'INV-1024',
-      customer: 'Ahmed Traders',
-      issueDate: DateTime(2026, 1, 12),
-      dueDate: DateTime(2026, 1, 12),
-      currency: 'SAR',
-      status: InvoiceStatus.draft,
-      company: 'Tech Solutions Ltd.',
-      customerType: 'B2B (Business)',
-      invoiceType: 'Tax Invoice (Standard)',
-      paymentTerms: 'Immediate',
-      items: const <InvoiceItem>[
-        InvoiceItem(
-          product: 'Services',
-          qty: 1,
-          price: 2500,
-          discountPercent: 0,
-          vatCategory: '-',
-          taxPercent: 0,
-        ),
-      ],
-      notes: '',
-      terms: '',
-    ),
-    Invoice(
-      invoiceNo: 'INV-1023',
-      customer: 'Global Tech Ltd',
-      issueDate: DateTime(2026, 1, 10),
-      dueDate: DateTime(2026, 1, 10),
-      currency: 'SAR',
-      status: InvoiceStatus.sent,
-      company: 'Tech Solutions Ltd.',
-      customerType: 'B2B (Business)',
-      invoiceType: 'Tax Invoice (Standard)',
-      paymentTerms: 'Immediate',
-      items: const <InvoiceItem>[
-        InvoiceItem(
-          product: 'Services',
-          qty: 1,
-          price: 8400,
-          discountPercent: 0,
-          vatCategory: '-',
-          taxPercent: 0,
-        ),
-      ],
-      notes: '',
-      terms: '',
-    ),
-    Invoice(
-      invoiceNo: 'INV-1021',
-      customer: 'Logistics Co',
-      issueDate: DateTime(2026, 1, 1),
-      dueDate: DateTime(2026, 1, 1),
-      currency: 'SAR',
-      status: InvoiceStatus.overdue,
-      company: 'Tech Solutions Ltd.',
-      customerType: 'B2B (Business)',
-      invoiceType: 'Tax Invoice (Standard)',
-      paymentTerms: 'Immediate',
-      items: const <InvoiceItem>[
-        InvoiceItem(
-          product: 'Services',
-          qty: 1,
-          price: 4500,
-          discountPercent: 0,
-          vatCategory: '-',
-          taxPercent: 0,
-        ),
-      ],
-      notes: '',
-      terms: '',
-    ),
-    Invoice(
-      invoiceNo: 'INV-1022',
-      customer: 'Creative Studio',
-      issueDate: DateTime(2026, 1, 5),
-      dueDate: DateTime(2026, 1, 5),
-      currency: 'SAR',
-      status: InvoiceStatus.paid,
-      company: 'Tech Solutions Ltd.',
-      customerType: 'B2B (Business)',
-      invoiceType: 'Tax Invoice (Standard)',
-      paymentTerms: 'Immediate',
-      items: const <InvoiceItem>[
-        InvoiceItem(
-          product: 'Services',
-          qty: 1,
-          price: 1200,
-          discountPercent: 0,
-          vatCategory: '-',
-          taxPercent: 0,
-        ),
-      ],
-      notes: '',
-      terms: '',
-    ),
-    Invoice(
-      invoiceNo: 'INV-1019',
-      customer: 'Foodies Inc',
-      issueDate: DateTime(2025, 12, 28),
-      dueDate: DateTime(2025, 12, 28),
-      currency: 'SAR',
-      status: InvoiceStatus.none,
-      company: 'Tech Solutions Ltd.',
-      customerType: 'B2B (Business)',
-      invoiceType: 'Tax Invoice (Standard)',
-      paymentTerms: 'Immediate',
-      items: const <InvoiceItem>[
-        InvoiceItem(
-          product: 'Services',
-          qty: 1,
-          price: 350,
-          discountPercent: 0,
-          vatCategory: '-',
-          taxPercent: 0,
-        ),
-      ],
-      notes: '',
-      terms: '',
-    ),
-  ];
+  InvoiceRepository _repository;
+  List<Invoice> _invoices = <Invoice>[];
+
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  InvoiceController({required InvoiceRepository repository})
+    : _repository = repository;
+
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
+
+  void updateRepository(InvoiceRepository repository) {
+    _repository = repository;
+  }
 
   InvoiceStatus? _statusFilter;
   DateTimeRange? _dateRange;
@@ -134,6 +28,20 @@ class InvoiceController extends ChangeNotifier {
   InvoiceStatus? get statusFilter => _statusFilter;
   DateTimeRange? get dateRange => _dateRange;
   String get searchQuery => _searchQuery;
+
+  Future<void> loadInvoices({String? companyId}) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      _invoices = await _repository.getInvoices(companyId: companyId);
+    } catch (e) {
+      _errorMessage = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
   void setSearchQuery(String q) {
     final String next = q.trim();

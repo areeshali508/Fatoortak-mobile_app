@@ -57,7 +57,7 @@ class _CreateDebitNoteScreenState extends State<CreateDebitNoteScreen> {
           description: 'Debit Adjustment',
           qty: 1,
           price: amount,
-          discountPercent: 0,
+          discount: 0,
           vatCategory: 'Standard',
           taxPercent: 15,
         ),

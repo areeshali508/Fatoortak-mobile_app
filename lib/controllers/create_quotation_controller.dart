@@ -1,8 +1,24 @@
 import 'package:flutter/material.dart';
 
+import '../controllers/auth_controller.dart';
+import '../models/customer.dart';
 import '../models/quotation.dart';
+import '../repositories/customer_repository.dart';
+import '../repositories/quotation_repository.dart';
 
 class CreateQuotationController extends ChangeNotifier {
+  final QuotationRepository _quotationRepository;
+  final CustomerRepository _customerRepository;
+  final AuthController _auth;
+
+  CreateQuotationController({
+    required QuotationRepository quotationRepository,
+    required CustomerRepository customerRepository,
+    required AuthController auth,
+  }) : _quotationRepository = quotationRepository,
+       _customerRepository = customerRepository,
+       _auth = auth;
+
   int _currentStep = 0;
   int _maxStepReached = 0;
 
@@ -13,9 +29,189 @@ class CreateQuotationController extends ChangeNotifier {
   String _currency = 'SAR';
   String _paymentTerms = 'Due on Receipt';
 
+  String? _companyId;
+  String? _selectedCustomerId;
+  List<Customer> _customers = const <Customer>[];
+  bool _isLoadingCustomers = false;
+  bool _isCreatingCustomer = false;
+  bool _isSubmitting = false;
+  String? _errorMessage;
+
   String get company => _company;
   String get currency => _currency;
   String get paymentTerms => _paymentTerms;
+
+  String? get companyId => _companyId;
+  String? get selectedCustomerId => _selectedCustomerId;
+  List<Customer> get customers => _customers;
+  bool get isLoadingCustomers => _isLoadingCustomers;
+  bool get isCreatingCustomer => _isCreatingCustomer;
+  bool get isSubmitting => _isSubmitting;
+  String? get errorMessage => _errorMessage;
+
+  void setCompany({required String companyId, required String companyName}) {
+    _companyId = companyId.trim();
+    _company = companyName;
+    notifyListeners();
+  }
+
+  void selectCustomer(Customer? c) {
+    if (c == null) {
+      _selectedCustomerId = null;
+      customerController.text = '';
+      notifyListeners();
+      return;
+    }
+    _selectedCustomerId = c.id;
+    customerController.text = c.name;
+    notifyListeners();
+  }
+
+  Future<void> loadNextQuotationNumber() async {
+    final String id = (_companyId ?? '').trim();
+    if (id.isEmpty) return;
+
+    final String current = quotationNumberController.text.trim();
+    final bool shouldPrefill =
+        current.isEmpty ||
+        current == 'QTN-2026-001' ||
+        current.startsWith('QTN-') ||
+        current == 'QUO-2026-000001' ||
+        current.startsWith('QUO-');
+    if (!shouldPrefill) return;
+
+    try {
+      final String? next =
+          await _quotationRepository.getNextQuotationNumber(companyId: id);
+      if (next != null && next.trim().isNotEmpty) {
+        quotationNumberController.text = next.trim();
+        notifyListeners();
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<Customer?> createCustomerQuick({
+    required String customerName,
+    required String customerType,
+    String email = '',
+    String phone = '',
+    String taxId = '',
+  }) async {
+    String? companyId = _companyId;
+    if (companyId == null || companyId.trim().isEmpty) {
+      Map<String, dynamic>? company = _auth.myCompany;
+      String? id = (company?['_id'] ?? company?['id'])?.toString().trim();
+      if (id == null || id.isEmpty) {
+        await _auth.refreshMyCompany();
+        company = _auth.myCompany;
+        id = (company?['_id'] ?? company?['id'])?.toString().trim();
+      }
+      if (id != null && id.trim().isNotEmpty) {
+        companyId = id.trim();
+        final String name = (company?['companyName'] ?? company?['name'])
+                ?.toString()
+                .trim() ??
+            '';
+        setCompany(
+          companyId: companyId,
+          companyName: name.isNotEmpty ? name : _company,
+        );
+      }
+    }
+
+    if (companyId == null || companyId.trim().isEmpty) {
+      _errorMessage = 'Company not loaded';
+      notifyListeners();
+      return null;
+    }
+
+    _isCreatingCustomer = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final Customer created = await _customerRepository.createCustomer(
+        companyId: companyId.trim(),
+        customerName: customerName,
+        customerType: customerType,
+        email: email,
+        phone: phone,
+        taxId: taxId,
+      );
+
+      await loadCustomers();
+      final Customer? resolved = _customers
+          .cast<Customer?>()
+          .firstWhere((Customer? c) => c?.id == created.id, orElse: () => null);
+      selectCustomer(resolved ?? created);
+      return resolved ?? created;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return null;
+    } finally {
+      _isCreatingCustomer = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadCustomers() async {
+    String? companyId = _companyId;
+    if (companyId == null || companyId.trim().isEmpty) {
+      Map<String, dynamic>? company = _auth.myCompany;
+      String? id = (company?['_id'] ?? company?['id'])?.toString().trim();
+      if (id == null || id.isEmpty) {
+        await _auth.refreshMyCompany();
+        company = _auth.myCompany;
+        id = (company?['_id'] ?? company?['id'])?.toString().trim();
+      }
+      if (id != null && id.trim().isNotEmpty) {
+        companyId = id.trim();
+        final String name = (company?['companyName'] ?? company?['name'])
+                ?.toString()
+                .trim() ??
+            '';
+        setCompany(
+          companyId: companyId,
+          companyName: name.isNotEmpty ? name : _company,
+        );
+      }
+    }
+
+    await loadNextQuotationNumber();
+
+    if (companyId == null || companyId.trim().isEmpty) {
+      _errorMessage = 'Company not loaded';
+      notifyListeners();
+      return;
+    }
+
+    _isLoadingCustomers = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      _customers = await _customerRepository.listCustomers(
+        companyId: companyId.trim(),
+        page: 1,
+        limit: 50,
+      );
+
+      final String sel = (_selectedCustomerId ?? '').trim();
+      if (sel.isNotEmpty) {
+        final bool exists = _customers.any((Customer c) => c.id == sel);
+        if (!exists) {
+          _selectedCustomerId = null;
+          customerController.text = '';
+        }
+      }
+    } catch (e) {
+      _customers = const <Customer>[];
+      _errorMessage = e.toString();
+    } finally {
+      _isLoadingCustomers = false;
+      notifyListeners();
+    }
+  }
 
   set company(String v) {
     if (v == _company) return;
@@ -52,7 +248,7 @@ class CreateQuotationController extends ChangeNotifier {
   }
 
   final TextEditingController quotationNumberController = TextEditingController(
-    text: 'QTN-2026-001',
+    text: 'QUO-2026-000001',
   );
   final TextEditingController customerController = TextEditingController();
   final TextEditingController notesController = TextEditingController();
@@ -82,6 +278,7 @@ class CreateQuotationController extends ChangeNotifier {
     if (index < 0 || index >= _items.length) return;
     final QuotationItem cur = _items[index];
     _items[index] = QuotationItem(
+      productId: cur.productId,
       description: cur.description,
       qty: cur.qty + 1,
       price: cur.price,
@@ -100,6 +297,7 @@ class CreateQuotationController extends ChangeNotifier {
       return;
     }
     _items[index] = QuotationItem(
+      productId: cur.productId,
       description: cur.description,
       qty: cur.qty - 1,
       price: cur.price,
@@ -165,12 +363,77 @@ class CreateQuotationController extends ChangeNotifier {
   }
 
   String? validateSubmit() {
-    if (quotationNumberController.text.trim().isEmpty ||
-        customerController.text.trim().isEmpty ||
-        _issueDate == null) {
+    if ((_companyId ?? '').trim().isEmpty) {
+      return 'Company not loaded';
+    }
+    if ((_selectedCustomerId ?? '').trim().isEmpty) {
+      return 'Please select a customer';
+    }
+
+    final String sel = _selectedCustomerId!.trim();
+    final bool exists = _customers.any((Customer c) => c.id == sel);
+    if (!exists) {
+      return 'Please select a valid customer';
+    }
+
+    if (quotationNumberController.text.trim().isEmpty || _issueDate == null) {
       return 'Please complete required fields before saving';
     }
+    if (_items.isEmpty) {
+      return 'Please add at least one item';
+    }
     return null;
+  }
+
+  Future<Quotation?> submit() async {
+    final String? msg = validateSubmit();
+    if (msg != null) {
+      _errorMessage = msg;
+      notifyListeners();
+      return null;
+    }
+
+    final String companyId = _companyId!.trim();
+    final String customerId = _selectedCustomerId!.trim();
+    _isSubmitting = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final Quotation created = await _quotationRepository.createQuotation(
+        companyId: companyId,
+        customerId: customerId,
+        items: List<QuotationItem>.unmodifiable(_items),
+        quoteNumber: quotationNumberController.text.trim(),
+        issueDate: _issueDate,
+        currency: _currency,
+        paymentTerms: _paymentTerms,
+        terms: termsController.text.trim(),
+        validUntil: _validUntil,
+        notes: notesController.text.trim(),
+      );
+      return created;
+    } catch (e) {
+      final String msg = e.toString();
+      final String lower = msg.toLowerCase();
+      if (lower.contains('customer not found') || lower.contains('not accessible')) {
+        _errorMessage =
+            'Customer or selected product is not accessible for this company. Try creating a new customer (B2B/B2C) and/or submit the quotation item without selecting a product.';
+      } else if (lower.contains('e11000') &&
+          lower.contains('quote') &&
+          lower.contains('number')) {
+        _errorMessage =
+            'Quotation numbering conflict on the server. Please contact support/admin to reset quotation numbering for your company.';
+      } else if (lower.contains('quotation number conflict')) {
+        _errorMessage =
+            'Quotation numbering conflict on the server. Please contact support/admin to reset quotation numbering for your company.';
+      } else {
+        _errorMessage = msg;
+      }
+      return null;
+    } finally {
+      _isSubmitting = false;
+      notifyListeners();
+    }
   }
 
   Quotation buildQuotation({QuotationStatus status = QuotationStatus.draft}) {

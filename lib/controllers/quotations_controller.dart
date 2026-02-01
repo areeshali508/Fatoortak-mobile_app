@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../controllers/auth_controller.dart';
 import '../models/quotation.dart';
 import '../repositories/quotation_repository.dart';
 
 class QuotationsController extends ChangeNotifier {
   final QuotationRepository _repository;
+  final AuthController _auth;
 
   bool _isLoading = false;
   String _searchQuery = '';
@@ -13,8 +15,9 @@ class QuotationsController extends ChangeNotifier {
   QuotationOutcomeStatus? _outcomeStatusFilter;
   List<Quotation> _quotations = const <Quotation>[];
 
-  QuotationsController({required QuotationRepository repository})
-    : _repository = repository;
+  QuotationsController({required QuotationRepository repository, required AuthController auth})
+    : _repository = repository,
+      _auth = auth;
 
   bool get isLoading => _isLoading;
 
@@ -31,14 +34,33 @@ class QuotationsController extends ChangeNotifier {
   Future<void> addQuotation(Quotation quotation) async {
     _quotations = <Quotation>[quotation, ..._quotations];
     notifyListeners();
-    await _repository.addQuotation(quotation);
   }
 
   Future<void> refresh() async {
     _isLoading = true;
     notifyListeners();
     try {
-      _quotations = await _repository.listQuotations();
+      Map<String, dynamic>? company = _auth.myCompany;
+      String? companyId = (company?['_id'] ?? company?['id'])?.toString().trim();
+      if (companyId == null || companyId.isEmpty) {
+        await _auth.refreshMyCompany();
+        company = _auth.myCompany;
+        companyId = (company?['_id'] ?? company?['id'])?.toString().trim();
+      }
+
+      if (companyId == null || companyId.isEmpty) {
+        _quotations = const <Quotation>[];
+        return;
+      }
+
+      _quotations = await _repository.listQuotations(
+        companyId: companyId,
+        page: 1,
+        limit: 50,
+        status: _statusFilter == null
+            ? null
+            : (_statusFilter == QuotationStatus.sent ? 'sent' : 'draft'),
+      );
     } finally {
       _isLoading = false;
       notifyListeners();

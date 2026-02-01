@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../controllers/auth_controller.dart';
 import '../controllers/create_invoice_controller.dart';
 import '../controllers/create_credit_note_controller.dart';
 import '../controllers/create_debit_note_controller.dart';
@@ -13,12 +14,15 @@ import '../controllers/quotations_controller.dart';
 import '../controllers/onboarding_controller.dart';
 import '../controllers/settings_controller.dart';
 import '../models/product.dart';
+import '../repositories/customer_repository.dart';
+import '../repositories/invoice_repository.dart';
 import '../repositories/onboarding_repository.dart';
 import '../repositories/dashboard_repository.dart';
 import '../repositories/credit_note_repository.dart';
 import '../repositories/debit_note_repository.dart';
 import '../repositories/quotation_repository.dart';
 import '../repositories/settings_repository.dart';
+import '../repositories/company_repository.dart';
 import '../views/screens/dashboard/dashboard_screen.dart';
 import '../views/screens/auth/login_screen.dart';
 import '../views/screens/auth/forgot_password_screen.dart';
@@ -36,6 +40,7 @@ import '../views/screens/customers/customers_screen.dart';
 import '../views/screens/products/products_screen.dart';
 import '../views/screens/products/add_product_screen.dart';
 import '../views/screens/settings/settings_screen.dart';
+import '../views/screens/settings/zatca_setup_screen.dart';
 import '../views/screens/splash/splash_screen.dart';
 
 class AppRoutes {
@@ -57,6 +62,7 @@ class AppRoutes {
   static const String forgotPassword = '/forgot-password';
   static const String signup = '/signup';
   static const String settings = '/settings';
+  static const String zatcaSetup = '/zatca-setup';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -93,7 +99,11 @@ class AppRoutes {
       case AppRoutes.createInvoice:
         return MaterialPageRoute<void>(
           builder: (_) => ChangeNotifierProvider<CreateInvoiceController>(
-            create: (_) => CreateInvoiceController(),
+            create: (BuildContext ctx) => CreateInvoiceController(
+              invoiceRepository: ctx.read<InvoiceRepository>(),
+              customerRepository: ctx.read<CustomerRepository>(),
+              companyRepository: ctx.read<CompanyRepository>(),
+            ),
             child: const CreateInvoiceScreen(),
           ),
           settings: settings,
@@ -139,6 +149,7 @@ class AppRoutes {
           builder: (_) => ChangeNotifierProvider<QuotationsController>(
             create: (BuildContext ctx) => QuotationsController(
               repository: ctx.read<QuotationRepository>(),
+              auth: ctx.read<AuthController>(),
             ),
             child: const QuotationsScreen(),
           ),
@@ -147,7 +158,11 @@ class AppRoutes {
       case AppRoutes.createQuotation:
         return MaterialPageRoute<void>(
           builder: (_) => ChangeNotifierProvider<CreateQuotationController>(
-            create: (_) => CreateQuotationController(),
+            create: (BuildContext ctx) => CreateQuotationController(
+              quotationRepository: ctx.read<QuotationRepository>(),
+              customerRepository: ctx.read<CustomerRepository>(),
+              auth: ctx.read<AuthController>(),
+            ),
             child: const CreateQuotationScreen(),
           ),
           settings: settings,
@@ -193,6 +208,11 @@ class AppRoutes {
                   ..load(),
             child: const SettingsScreen(),
           ),
+          settings: settings,
+        );
+      case AppRoutes.zatcaSetup:
+        return MaterialPageRoute<void>(
+          builder: (_) => const ZatcaSetupScreen(),
           settings: settings,
         );
       default:

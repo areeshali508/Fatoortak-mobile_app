@@ -16,23 +16,19 @@ class SignUpScreen extends StatefulWidget {
 
 class _SignUpScreenState extends State<SignUpScreen> {
   bool _obscure = true;
-  bool _obscureConfirm = true;
   bool _acceptedTerms = false;
 
-  final TextEditingController _fullNameController = TextEditingController();
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
 
   @override
   void dispose() {
-    _fullNameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -40,6 +36,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Widget build(BuildContext context) {
     final Color bgTop = AppColors.splashBottom;
     const Color surface = Color(0xFFF7FAFF);
+    final bool isLoading = context.watch<AuthController>().isLoading;
 
     return Scaffold(
       body: LayoutBuilder(
@@ -192,7 +189,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           SizedBox(height: sectionGap),
                           _FieldLabel(
                             constraints: constraints,
-                            text: 'Full Name',
+                            text: 'First Name',
                           ),
                           SizedBox(
                             height: AppResponsive.clamp(
@@ -203,10 +200,29 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                           _SignupTextField(
                             constraints: constraints,
-                            hintText: 'e.g. Ahmed Ali',
+                            hintText: 'e.g. Ahmed',
                             prefixIcon: Icons.person_outline,
                             obscureText: false,
-                            controller: _fullNameController,
+                            controller: _firstNameController,
+                          ),
+                          SizedBox(height: fieldGap),
+                          _FieldLabel(
+                            constraints: constraints,
+                            text: 'Last Name',
+                          ),
+                          SizedBox(
+                            height: AppResponsive.clamp(
+                              AppResponsive.scaledByHeight(constraints, 8),
+                              6,
+                              12,
+                            ),
+                          ),
+                          _SignupTextField(
+                            constraints: constraints,
+                            hintText: 'e.g. Ali',
+                            prefixIcon: Icons.person_outline,
+                            obscureText: false,
+                            controller: _lastNameController,
                           ),
                           SizedBox(height: fieldGap),
                           _FieldLabel(
@@ -226,42 +242,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             prefixIcon: Icons.mail_outline,
                             obscureText: false,
                             controller: _emailController,
-                          ),
-                          SizedBox(height: fieldGap),
-                          _FieldLabel(
-                            constraints: constraints,
-                            text: 'Phone Number',
-                          ),
-                          SizedBox(
-                            height: AppResponsive.clamp(
-                              AppResponsive.scaledByHeight(constraints, 8),
-                              6,
-                              12,
-                            ),
-                          ),
-                          Row(
-                            children: <Widget>[
-                              _CountryCodeField(
-                                constraints: constraints,
-                                codeText: '+966',
-                              ),
-                              SizedBox(
-                                width: AppResponsive.clamp(
-                                  AppResponsive.vw(constraints, 3),
-                                  10,
-                                  16,
-                                ),
-                              ),
-                              Expanded(
-                                child: _SignupTextField(
-                                  constraints: constraints,
-                                  hintText: '5X XXX XXXX',
-                                  prefixIcon: Icons.phone_outlined,
-                                  obscureText: false,
-                                  controller: _phoneController,
-                                ),
-                              ),
-                            ],
                           ),
                           SizedBox(height: fieldGap),
                           _FieldLabel(
@@ -303,36 +283,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           _PasswordStrength(
                             constraints: constraints,
                             level: _StrengthLevel.medium,
-                          ),
-                          SizedBox(height: fieldGap),
-                          _FieldLabel(
-                            constraints: constraints,
-                            text: 'Confirm Password',
-                          ),
-                          SizedBox(
-                            height: AppResponsive.clamp(
-                              AppResponsive.scaledByHeight(constraints, 8),
-                              6,
-                              12,
-                            ),
-                          ),
-                          _SignupTextField(
-                            constraints: constraints,
-                            hintText: '••••••••',
-                            prefixIcon: Icons.lock_reset_outlined,
-                            obscureText: _obscureConfirm,
-                            controller: _confirmPasswordController,
-                            suffix: IconButton(
-                              onPressed: () => setState(() {
-                                _obscureConfirm = !_obscureConfirm;
-                              }),
-                              icon: Icon(
-                                _obscureConfirm
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined,
-                                color: const Color(0xFF9AA5B6),
-                              ),
-                            ),
                           ),
                           SizedBox(height: sectionGap),
                           Row(
@@ -402,16 +352,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           SizedBox(
                             height: btnH,
                             child: ElevatedButton(
-                              onPressed: () async {
+                              onPressed: isLoading
+                                  ? null
+                                  : () async {
                                 final AuthController auth = context
                                     .read<AuthController>();
                                 final bool ok = await auth.signUp(
-                                  fullName: _fullNameController.text.trim(),
+                                  firstName: _firstNameController.text.trim(),
+                                  lastName: _lastNameController.text.trim(),
                                   email: _emailController.text.trim(),
-                                  phone: _phoneController.text.trim(),
                                   password: _passwordController.text,
                                 );
-                                if (!context.mounted || !ok) return;
+                                if (!context.mounted) return;
+                                if (!ok) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        auth.errorMessage ?? 'Sign up failed',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
                                 Navigator.of(
                                   context,
                                 ).pushReplacementNamed(AppRoutes.dashboard);
@@ -420,7 +382,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: <Widget>[
                                   Text(
-                                    'Sign Up',
+                                    isLoading ? 'Signing Up...' : 'Sign Up',
                                     style: TextStyle(
                                       fontSize: AppResponsive.clamp(
                                         AppResponsive.sp(constraints, 16),
@@ -636,58 +598,6 @@ class _SignupTextField extends StatelessWidget {
             borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _CountryCodeField extends StatelessWidget {
-  final BoxConstraints constraints;
-  final String codeText;
-
-  const _CountryCodeField({required this.constraints, required this.codeText});
-
-  @override
-  Widget build(BuildContext context) {
-    final double radius = AppResponsive.clamp(
-      AppResponsive.scaledByHeight(constraints, 16),
-      12,
-      18,
-    );
-
-    final double fieldH = AppResponsive.clamp(
-      AppResponsive.scaledByHeight(constraints, 56),
-      50,
-      64,
-    );
-
-    return Container(
-      height: fieldH,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFF),
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: const Color(0xFFE2EAF6)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const Text('🇸🇦', style: TextStyle(fontSize: 16)),
-          const SizedBox(width: 8),
-          Text(
-            codeText,
-            style: const TextStyle(
-              color: Color(0xFF0B1B4B),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(width: 6),
-          const Icon(
-            Icons.keyboard_arrow_down,
-            size: 20,
-            color: Color(0xFF6B7895),
-          ),
-        ],
       ),
     );
   }

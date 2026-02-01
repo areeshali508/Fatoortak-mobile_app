@@ -1,13 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
+import '../../../controllers/zatca_controller.dart';
 import '../../../models/invoice.dart';
 
 class InvoiceDetailsScreen extends StatelessWidget {
   final Invoice invoice;
 
   const InvoiceDetailsScreen({super.key, required this.invoice});
+
+  Future<void> _validateZatca(BuildContext context) async {
+    final ZatcaController ctrl = context.read<ZatcaController>();
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+
+    await ctrl.validateInvoice(invoiceId: invoice.id);
+
+    if (!context.mounted) {
+      return;
+    }
+
+    final String? err = ctrl.errorMessage;
+    if (err != null && err.trim().isNotEmpty) {
+      messenger.showSnackBar(SnackBar(content: Text(err)));
+      return;
+    }
+
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: const Text('ZATCA Validation'),
+        content: SingleChildScrollView(
+          child: Text((ctrl.lastResult ?? const <String, dynamic>{}).toString()),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
 
   String _fmtDate(DateTime d) {
     const List<String> months = <String>[
@@ -66,6 +102,21 @@ class InvoiceDetailsScreen extends StatelessWidget {
           const _ChipStyle(bg: Color(0xFFEFFAF3), fg: Color(0xFF1DB954)),
           'Paid',
         );
+      case InvoiceStatus.partiallyPaid:
+        return (
+          const _ChipStyle(bg: Color(0xFFFFF7E6), fg: Color(0xFFB26A00)),
+          'Partially Paid',
+        );
+      case InvoiceStatus.cancelled:
+        return (
+          const _ChipStyle(bg: Color(0xFFF3F6FB), fg: Color(0xFF6B7895)),
+          'Cancelled',
+        );
+      case InvoiceStatus.voided:
+        return (
+          const _ChipStyle(bg: Color(0xFFF0F0F0), fg: Color(0xFF111827)),
+          'Void',
+        );
       case InvoiceStatus.none:
         return (null, '');
     }
@@ -75,6 +126,8 @@ class InvoiceDetailsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
+        final ZatcaController zatcaCtrl = context.watch<ZatcaController>();
+        final bool isLoading = zatcaCtrl.isLoading;
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
           16,
@@ -95,11 +148,15 @@ class InvoiceDetailsScreen extends StatelessWidget {
           backgroundColor: const Color(0xFFF7FAFF),
           appBar: AppBar(title: const Text('Invoice Details')),
           body: SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(hPad, gap, hPad, gap),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
+            child: Skeletonizer(
+              enabled: isLoading,
+              child: AbsorbPointer(
+                absorbing: isLoading,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(hPad, gap, hPad, gap),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -315,7 +372,37 @@ class InvoiceDetailsScreen extends StatelessWidget {
                       ),
                     ),
                   ],
+                  SizedBox(height: gap),
+                  _SectionCard(
+                    title: 'ZATCA',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        Text(
+                          invoice.id.isEmpty
+                              ? 'Invoice ID not available'
+                              : 'Invoice ID: ${invoice.id}',
+                          style: const TextStyle(
+                            color: Color(0xFF6B7895),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        ElevatedButton(
+                          onPressed: invoice.id.isEmpty
+                              ? null
+                              : () => _validateZatca(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                          ),
+                          child: const Text('Validate with ZATCA'),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
+                  ),
+                ),
               ),
             ),
           ),

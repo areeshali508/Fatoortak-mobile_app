@@ -423,7 +423,7 @@ class _CreateDebitNoteWizardScreenState
                                   ),
                                 ),
                                 Text(
-                                  'Discount: ${it.discountPercent.toStringAsFixed(2)}%',
+                                  'Discount: ${it.discount.toStringAsFixed(2)} ${ctrl.currency}',
                                   style: const TextStyle(
                                     color: Color(0xFF6B7895),
                                     fontWeight: FontWeight.w700,
@@ -1308,7 +1308,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
     _descController.text = it.description;
     _qtyController.text = it.qty.toString();
     _priceController.text = it.price.toString();
-    _discountController.text = it.discountPercent.toString();
+    _discountController.text = it.discount.toString();
     _taxController.text = it.taxPercent.toString();
     _vatCategory = it.vatCategory;
     const List<String> vatOptions = <String>[
@@ -1416,7 +1416,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                   controller: _discountController,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  decoration: dec(label: 'Discount %', hint: '0'),
+                  decoration: dec(label: 'Discount', hint: '0'),
                 ),
               ),
               const SizedBox(width: 12),
@@ -1463,8 +1463,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                     : _descController.text.trim(),
                 qty: _parseInt(_qtyController.text, fallback: 1),
                 price: _parseDouble(_priceController.text, fallback: 0),
-                discountPercent:
-                    _parseDouble(_discountController.text, fallback: 0),
+                discount: _parseDouble(_discountController.text, fallback: 0),
                 vatCategory: _vatCategory,
                 taxPercent: _parseDouble(_taxController.text, fallback: 15),
               );

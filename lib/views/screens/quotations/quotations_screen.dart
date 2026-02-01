@@ -884,12 +884,17 @@ class _QuotationCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Text(
-                      amount,
-                      style: const TextStyle(
-                        color: Color(0xFF0B1B4B),
-                        fontWeight: FontWeight.w900,
-                        fontSize: 16,
+                    Flexible(
+                      child: Text(
+                        amount,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          color: Color(0xFF0B1B4B),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                        ),
                       ),
                     ),
                   ],
@@ -897,6 +902,8 @@ class _QuotationCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   customer,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Color(0xFF0B1B4B),
                     fontWeight: FontWeight.w800,
