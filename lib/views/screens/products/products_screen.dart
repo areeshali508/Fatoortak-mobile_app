@@ -43,7 +43,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   String? _companyId() {
-    final Map<String, dynamic>? company = context.read<AuthController>().myCompany;
+    final Map<String, dynamic>? company = context.read<AuthController>().activeCompany;
     final String? id = (company?['_id'] ?? company?['id'])?.toString().trim();
     if (id == null || id.isEmpty) return null;
     return id;

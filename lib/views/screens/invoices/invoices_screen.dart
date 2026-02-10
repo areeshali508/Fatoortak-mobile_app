@@ -8,6 +8,7 @@ import '../../../controllers/invoice_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
 import '../../../models/invoice.dart';
+import '../../../repositories/company_repository.dart';
 import '../../layout/app_drawer.dart';
 import '../../widgets/buttons/primary_add_fab.dart';
 import 'invoice_details_screen.dart';
@@ -26,9 +27,190 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
 
   bool _requestedInitialLoad = false;
 
+  bool _isLoadingCompanies = false;
+  List<Map<String, dynamic>> _companies = const <Map<String, dynamic>>[];
+  String? _selectedCompanyId;
+
+  String _companyLabelById(String? id) {
+    final String key = (id ?? '').trim();
+    if (key.isEmpty) return '';
+    try {
+      final Map<String, dynamic> c = _companies.firstWhere(
+        (Map<String, dynamic> c) =>
+            (c['_id'] ?? c['id'])?.toString().trim() == key,
+      );
+      final String label = (c['companyName'] ?? c['name'] ?? key)
+              ?.toString()
+              .trim() ??
+          key;
+      return label.isEmpty ? key : label;
+    } catch (_) {
+      return key;
+    }
+  }
+
+  Future<void> _openCompanyPicker() async {
+    if (_isLoadingCompanies || _companies.isEmpty) return;
+    final String? selected = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (BuildContext ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                const Text(
+                  'Select Company',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFF0B1B4B),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _companies.length,
+                    separatorBuilder: (BuildContext context, int index) =>
+                        const SizedBox(height: 8),
+                    itemBuilder: (BuildContext context, int i) {
+                      final Map<String, dynamic> c = _companies[i];
+                      final String id =
+                          (c['_id'] ?? c['id'])?.toString().trim() ?? '';
+                      final String label =
+                          (c['companyName'] ?? c['name'] ?? id)
+                                  ?.toString()
+                                  .trim() ??
+                              id;
+                      final bool isSelected =
+                          (id.isNotEmpty && id == (_selectedCompanyId ?? '').trim());
+
+                      return Material(
+                        color: const Color(0xFFF7FAFF),
+                        borderRadius: BorderRadius.circular(14),
+                        child: InkWell(
+                          onTap: id.isEmpty ? null : () => Navigator.of(ctx).pop(id),
+                          borderRadius: BorderRadius.circular(14),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            child: Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: Text(
+                                    label.isEmpty ? id : label,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xFF0B1B4B),
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                                Icon(
+                                  isSelected
+                                      ? Icons.radio_button_checked
+                                      : Icons.radio_button_off,
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : const Color(0xFF9AA5B6),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    final String next = (selected ?? '').trim();
+    if (next.isEmpty || next == (_selectedCompanyId ?? '').trim()) return;
+    try {
+      final Map<String, dynamic> picked = _companies.firstWhere(
+        (Map<String, dynamic> c) =>
+            (c['_id'] ?? c['id'])?.toString().trim() == next,
+      );
+      if (!mounted) return;
+      setState(() {
+        _selectedCompanyId = next;
+      });
+      context.read<AuthController>().setActiveCompany(picked);
+      await _reloadInvoices();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to change company')),
+      );
+    }
+  }
+
+  Future<void> _loadCompanies() async {
+    if (_isLoadingCompanies) return;
+    _isLoadingCompanies = true;
+    if (mounted) setState(() {});
+    try {
+      final CompanyRepository repo = context.read<CompanyRepository>();
+      final List<Map<String, dynamic>> list =
+          await repo.listCompanyMaps(page: 1, limit: 50);
+      if (!mounted) return;
+      setState(() {
+        _companies = List<Map<String, dynamic>>.unmodifiable(list);
+      });
+    } finally {
+      _isLoadingCompanies = false;
+      if (mounted) setState(() {});
+    }
+  }
+
+  void _syncSelectedCompanyFromAuth() {
+    final AuthController auth = context.read<AuthController>();
+    final String? activeId = auth.activeCompanyId;
+    final Set<String> ids = _companies
+        .map((Map<String, dynamic> c) => (c['_id'] ?? c['id'])?.toString().trim() ?? '')
+        .where((String s) => s.isNotEmpty)
+        .toSet();
+
+    if (activeId != null && activeId.trim().isNotEmpty && ids.contains(activeId)) {
+      _selectedCompanyId = activeId;
+      return;
+    }
+
+    if (ids.isNotEmpty) {
+      _selectedCompanyId = ids.first;
+      try {
+        final Map<String, dynamic> selected = _companies.firstWhere(
+          (Map<String, dynamic> c) =>
+              (c['_id'] ?? c['id'])?.toString().trim() == _selectedCompanyId,
+        );
+        auth.setActiveCompany(selected);
+      } catch (_) {
+        // ignore
+      }
+    }
+  }
+
   Future<void> _reloadInvoices() async {
     final AuthController auth = context.read<AuthController>();
-    final Map<String, dynamic>? company = auth.myCompany;
+    final Map<String, dynamic>? company = auth.activeCompany;
     final String? companyId = (company?['_id'] ?? company?['id'])
         ?.toString()
         .trim();
@@ -40,6 +222,12 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _loadCompanies();
+      if (!mounted) return;
+      setState(() {
+        _syncSelectedCompanyFromAuth();
+      });
+
       await _reloadInvoices();
       if (!mounted) return;
 
@@ -290,7 +478,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final AuthController auth = context.watch<AuthController>();
-        final Map<String, dynamic>? company = auth.myCompany;
+        final Map<String, dynamic>? company = auth.activeCompany;
         final String? companyId = (company?['_id'] ?? company?['id'])
             ?.toString()
             .trim();
@@ -325,6 +513,87 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
           drawer: const AppDrawer(),
           appBar: AppBar(
             title: const Text('Invoices'),
+            bottom: _companies.isEmpty
+                ? null
+                : PreferredSize(
+                    preferredSize: const Size.fromHeight(66),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: InkWell(
+                        onTap: _openCompanyPicker,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE9EEF5)),
+                            boxShadow: const <BoxShadow>[
+                              BoxShadow(
+                                color: Color(0x0A0B1B4B),
+                                blurRadius: 10,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF2F6FF),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.apartment_rounded,
+                                  color: AppColors.primary,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    const Text(
+                                      'Company',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Color(0xFF9AA5B6),
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _companyLabelById(_selectedCompanyId),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Color(0xFF0B1B4B),
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                color: Color(0xFF9AA5B6),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
             leading: Builder(
               builder: (BuildContext context) {
                 return IconButton(

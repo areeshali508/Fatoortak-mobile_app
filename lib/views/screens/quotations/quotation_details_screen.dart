@@ -17,8 +17,51 @@ class QuotationDetailsScreen extends StatefulWidget {
 
 class _QuotationDetailsScreenState extends State<QuotationDetailsScreen> {
   bool _isConverting = false;
+  bool _isAccepting = false;
+  late Quotation _quotation;
 
-  Quotation get quotation => widget.quotation;
+  Quotation get quotation => _quotation;
+
+  @override
+  void initState() {
+    super.initState();
+    _quotation = widget.quotation;
+  }
+
+  Future<void> _refreshQuotation() async {
+    final QuotationRepository repo = context.read<QuotationRepository>();
+    final String quotationId =
+        _quotation.apiId.trim().isNotEmpty ? _quotation.apiId : _quotation.id;
+    final Quotation next = await repo.getQuotationById(quotationId: quotationId);
+    if (!mounted) return;
+    setState(() => _quotation = next);
+  }
+
+  Future<void> _markAccepted() async {
+    if (_isAccepting) return;
+    final QuotationRepository repo = context.read<QuotationRepository>();
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final String quotationId =
+        _quotation.apiId.trim().isNotEmpty ? _quotation.apiId : _quotation.id;
+
+    setState(() => _isAccepting = true);
+    try {
+      final Quotation next =
+          await repo.markQuotationAccepted(quotationId: quotationId);
+      if (!mounted) return;
+      setState(() => _quotation = next);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Quotation marked as accepted')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) {
+        setState(() => _isAccepting = false);
+      }
+    }
+  }
 
   Future<void> _convertToInvoice() async {
     if (_isConverting) return;
@@ -27,7 +70,23 @@ class _QuotationDetailsScreenState extends State<QuotationDetailsScreen> {
     final NavigatorState nav = Navigator.of(context);
 
     final String quotationId =
-        widget.quotation.apiId.trim().isNotEmpty ? widget.quotation.apiId : widget.quotation.id;
+        _quotation.apiId.trim().isNotEmpty ? _quotation.apiId : _quotation.id;
+
+    if (_quotation.outcomeStatus != QuotationOutcomeStatus.accepted) {
+      try {
+        await _refreshQuotation();
+      } catch (_) {
+        // ignore
+      }
+      if (_quotation.outcomeStatus != QuotationOutcomeStatus.accepted) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Only accepted quotations can be converted to invoices'),
+          ),
+        );
+        return;
+      }
+    }
 
     setState(() => _isConverting = true);
     try {
@@ -130,7 +189,7 @@ class _QuotationDetailsScreenState extends State<QuotationDetailsScreen> {
       appBar: AppBar(title: const Text('Quotation Details')),
       body: SafeArea(
         child: AbsorbPointer(
-          absorbing: _isConverting,
+          absorbing: _isConverting || _isAccepting,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
             children: <Widget>[
@@ -291,6 +350,32 @@ class _QuotationDetailsScreenState extends State<QuotationDetailsScreen> {
                     ),
             ),
             const SizedBox(height: 14),
+            if (quotation.outcomeStatus != QuotationOutcomeStatus.accepted) ...<Widget>[
+              ElevatedButton.icon(
+                onPressed: _isAccepting ? null : _markAccepted,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1DB954),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                icon: _isAccepting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.check_circle_outline),
+                label: Text(_isAccepting ? 'Marking...' : 'Mark as Accepted'),
+              ),
+              const SizedBox(height: 12),
+            ],
             ElevatedButton.icon(
               onPressed: _isConverting ? null : _convertToInvoice,
               style: ElevatedButton.styleFrom(

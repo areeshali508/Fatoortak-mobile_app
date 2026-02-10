@@ -1,5 +1,42 @@
 enum InvoiceStatus { draft, sent, overdue, paid, partiallyPaid, cancelled, voided, none }
 
+class ZatcaInfo {
+  final String status;
+  final String validationStatus;
+  final String uuid;
+  final DateTime? lastValidatedAt;
+  final DateTime? clearedAt;
+  final String hash;
+  final String qrCode;
+  final String pdfUrl;
+  final String previousInvoiceHash;
+  final int? hashChainNumber;
+  final String invoiceCategory;
+
+  const ZatcaInfo({
+    this.status = '',
+    this.validationStatus = '',
+    this.uuid = '',
+    this.lastValidatedAt,
+    this.clearedAt,
+    this.hash = '',
+    this.qrCode = '',
+    this.pdfUrl = '',
+    this.previousInvoiceHash = '',
+    this.hashChainNumber,
+    this.invoiceCategory = '',
+  });
+
+  bool get hasAny =>
+      status.trim().isNotEmpty ||
+      validationStatus.trim().isNotEmpty ||
+      uuid.trim().isNotEmpty ||
+      hash.trim().isNotEmpty ||
+      qrCode.trim().isNotEmpty ||
+      pdfUrl.trim().isNotEmpty ||
+      (hashChainNumber != null);
+}
+
 class InvoiceItem {
   final String productId;
   final String product;
@@ -49,6 +86,7 @@ class Invoice {
   final List<InvoiceItem> items;
   final String notes;
   final String terms;
+  final ZatcaInfo zatca;
 
   const Invoice({
     required this.id,
@@ -64,6 +102,7 @@ class Invoice {
     required this.items,
     required this.notes,
     required this.terms,
+    this.zatca = const ZatcaInfo(),
     this.dueDate,
   });
 

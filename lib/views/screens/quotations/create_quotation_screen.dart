@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 
+import '../../../controllers/auth_controller.dart';
 import '../../../controllers/create_quotation_controller.dart';
+import '../../../models/company.dart';
 import '../../../models/customer.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
@@ -144,11 +146,12 @@ class _QuickAddCustomerSheetState extends State<_QuickAddCustomerSheet> {
                 onPressed: ctrl.isCreatingCustomer
                     ? null
                     : () async {
+                        final NavigatorState nav = Navigator.of(context);
+                        final CreateQuotationController qc =
+                            context.read<CreateQuotationController>();
                         final String name = _nameController.text.trim();
                         if (name.isEmpty) return;
-                        final Customer? created = await context
-                            .read<CreateQuotationController>()
-                            .createCustomerQuick(
+                        final Customer? created = await qc.createCustomerQuick(
                               customerName: name,
                               customerType: _type,
                               email: _emailController.text.trim(),
@@ -157,7 +160,7 @@ class _QuickAddCustomerSheetState extends State<_QuickAddCustomerSheet> {
                             );
                         if (!mounted) return;
                         if (created != null) {
-                          Navigator.of(context).pop();
+                          nav.pop();
                         }
                       },
                 style: ElevatedButton.styleFrom(
@@ -190,6 +193,7 @@ class _QuickAddCustomerSheetState extends State<_QuickAddCustomerSheet> {
 
 class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
   bool _requestedInitial = false;
+  String? _lastActiveCompanyId;
 
   Future<void> _openQuickAddCustomerSheet() async {
     final CreateQuotationController ctrl =
@@ -216,7 +220,41 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
     _requestedInitial = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      await context.read<CreateQuotationController>().loadCustomers();
+      final AuthController auth = context.read<AuthController>();
+      final CreateQuotationController ctrl =
+          context.read<CreateQuotationController>();
+      final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+
+      Map<String, dynamic>? company = auth.activeCompany;
+      String? companyId = (company?['_id'] ?? company?['id'])?.toString().trim();
+      if (companyId == null || companyId.isEmpty) {
+        await auth.refreshMyCompany();
+        company = auth.activeCompany;
+        companyId = (company?['_id'] ?? company?['id'])?.toString().trim();
+      }
+
+      await ctrl.loadCompanies(page: 1, limit: 50);
+
+      final List<Company> companies = <Company>[...ctrl.companies];
+      Company? selected;
+      if (companyId != null && companyId.trim().isNotEmpty) {
+        selected = companies
+            .cast<Company?>()
+            .firstWhere((Company? c) => c?.id == companyId, orElse: () => null);
+      }
+      selected ??= companies.isNotEmpty ? companies.first : null;
+
+      if (selected == null) {
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Company not loaded')),
+        );
+        return;
+      }
+
+      ctrl.setCompany(companyId: selected.id, companyName: selected.name);
+      ctrl.selectCustomer(null);
+      await ctrl.loadCustomers(companyId: selected.id);
     });
   }
 
@@ -379,6 +417,33 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
+        final AuthController auth = context.watch<AuthController>();
+        final String? activeCompanyId = auth.activeCompanyId;
+        if (activeCompanyId != null && activeCompanyId.trim().isNotEmpty) {
+          final String normalized = activeCompanyId.trim();
+          if (_lastActiveCompanyId != normalized) {
+            _lastActiveCompanyId = normalized;
+            WidgetsBinding.instance.addPostFrameCallback((_) async {
+              if (!mounted) return;
+              final CreateQuotationController ctrl =
+                  context.read<CreateQuotationController>();
+
+              if ((ctrl.companyId ?? '').trim() != normalized) {
+                final Map<String, dynamic>? c = auth.activeCompany;
+                final String name =
+                    (c?['companyName'] ?? c?['name'])?.toString().trim() ?? '';
+                ctrl.setCompany(
+                  companyId: normalized,
+                  companyName: name.isNotEmpty ? name : ctrl.company,
+                );
+                ctrl.selectCustomer(null);
+              }
+
+              await ctrl.loadCustomers();
+            });
+          }
+        }
+
         final CreateQuotationController ctrl = context
             .watch<CreateQuotationController>();
 
@@ -696,11 +761,70 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        _LabeledDropdown<String>(
-                          label: 'Company*',
-                          value: ctrl.company,
-                          items: <String>[ctrl.company],
-                          onChanged: (String v) => ctrl.company = v,
+                        Builder(
+                          builder: (BuildContext context) {
+                            final List<Company> companies = <Company>[
+                              ...ctrl.companies,
+                            ];
+                            final String? selectedCompanyId = ctrl.companyId;
+
+                            if (companies.isEmpty &&
+                                selectedCompanyId != null &&
+                                selectedCompanyId.trim().isNotEmpty) {
+                              companies.add(
+                                Company(
+                                  id: selectedCompanyId.trim(),
+                                  name: ctrl.company,
+                                ),
+                              );
+                            }
+
+                            final List<String> ids = companies
+                                .map((Company c) => c.id.trim())
+                                .where((String s) => s.isNotEmpty)
+                                .toSet()
+                                .toList();
+
+                            final String? safeSelected =
+                                (selectedCompanyId != null &&
+                                        ids.contains(selectedCompanyId))
+                                    ? selectedCompanyId
+                                    : (ids.isNotEmpty ? ids.first : null);
+
+                            return _LabeledDropdown<String>(
+                              label: 'Company*',
+                              value: safeSelected,
+                              items: ids,
+                              itemBuilder: (String id) {
+                                try {
+                                  final Company c = companies.firstWhere(
+                                    (Company c) => c.id == id,
+                                  );
+                                  return c.name.trim().isEmpty ? id : c.name;
+                                } catch (_) {
+                                  return id;
+                                }
+                              },
+                              onChanged: (String id) {
+                                () async {
+                                  final Company? next = companies
+                                      .cast<Company?>()
+                                      .firstWhere(
+                                        (Company? c) => c?.id == id,
+                                        orElse: () => null,
+                                      );
+                                  if (next == null) return;
+                                  ctrl.setCompany(
+                                    companyId: next.id,
+                                    companyName: next.name,
+                                  );
+                                  await ctrl.loadNextQuotationNumber();
+                                  ctrl.selectCustomer(null);
+                                  await ctrl.loadCustomers(companyId: next.id);
+                                }();
+                              },
+                            );
+                          },
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -708,6 +832,7 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                             Expanded(
                               child: TextField(
                                 controller: ctrl.quotationNumberController,
+                                readOnly: true,
                                 decoration: _dec(label: 'Quotation #'),
                                 style: const TextStyle(
                                   color: Color(0xFF0B1B4B),

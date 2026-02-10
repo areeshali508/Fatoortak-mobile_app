@@ -9,6 +9,7 @@ class AuthController extends ChangeNotifier {
   String? _errorMessage;
   Map<String, dynamic>? _profile;
   Map<String, dynamic>? _myCompany;
+  Map<String, dynamic>? _activeCompany;
 
   AuthController({required AuthRepository repository})
     : _repository = repository;
@@ -18,6 +19,33 @@ class AuthController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   Map<String, dynamic>? get profile => _profile;
   Map<String, dynamic>? get myCompany => _myCompany;
+  Map<String, dynamic>? get activeCompany => _activeCompany ?? _myCompany;
+
+  void updateLocalProfile(Map<String, dynamic> profile) {
+    _profile = profile;
+    notifyListeners();
+  }
+
+  String? get activeCompanyId {
+    final Map<String, dynamic>? c = activeCompany;
+    final String? id = (c?['_id'] ?? c?['id'])?.toString().trim();
+    if (id == null || id.isEmpty) return null;
+    return id;
+  }
+
+  void setActiveCompany(Map<String, dynamic>? company) {
+    if (company == null) {
+      _activeCompany = null;
+      notifyListeners();
+      return;
+    }
+    final String? id = (company['_id'] ?? company['id'])?.toString().trim();
+    if (id == null || id.isEmpty) {
+      return;
+    }
+    _activeCompany = company;
+    notifyListeners();
+  }
 
   void updateRepository(AuthRepository repository) {
     _repository = repository;
@@ -39,6 +67,7 @@ class AuthController extends ChangeNotifier {
 
       _profile = await _repository.getProfile();
       _myCompany = await _repository.getMyCompany();
+      _activeCompany ??= _myCompany;
       _isAuthenticated = true;
       return true;
     } catch (e) {
@@ -51,6 +80,7 @@ class AuthController extends ChangeNotifier {
       }
       _profile = null;
       _myCompany = null;
+      _activeCompany = null;
       _isAuthenticated = false;
       return false;
     } finally {
@@ -115,6 +145,7 @@ class AuthController extends ChangeNotifier {
     _errorMessage = null;
     _profile = null;
     _myCompany = null;
+    _activeCompany = null;
     notifyListeners();
   }
 
@@ -146,6 +177,7 @@ class AuthController extends ChangeNotifier {
   Future<void> refreshMyCompany() async {
     try {
       _myCompany = await _repository.getMyCompany();
+      _activeCompany ??= _myCompany;
       notifyListeners();
     } catch (_) {
       // ignore

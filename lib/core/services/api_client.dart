@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -17,6 +19,8 @@ class ApiClient {
   final String baseUrl;
   final Future<String?> Function() tokenProvider;
   final http.Client _client;
+
+  static const Duration requestTimeout = Duration(seconds: 20);
 
   ApiClient({
     required this.baseUrl,
@@ -39,6 +43,8 @@ class ApiClient {
     _debugLog('POST $uri');
     _debugLog('POST FORM BODY $body');
 
+    final Stopwatch sw = Stopwatch()..start();
+
     final String encoded = body.entries
         .map(
           (MapEntry<String, String> e) =>
@@ -46,16 +52,30 @@ class ApiClient {
         )
         .join('&');
 
-    final http.Response res = await _client
-        .post(
-          uri,
-          headers: await _headers(
-            auth: auth,
-            contentType: 'application/x-www-form-urlencoded',
-          ),
-          body: encoded,
-        )
-        .timeout(const Duration(seconds: 20));
+    late final http.Response res;
+    try {
+      res = await _client
+          .post(
+            uri,
+            headers: await _headers(
+              auth: auth,
+              contentType: 'application/x-www-form-urlencoded',
+            ),
+            body: encoded,
+          )
+          .timeout(requestTimeout);
+    } on TimeoutException {
+      throw const ApiClientException('Request timed out', statusCode: 408);
+    } on SocketException catch (e) {
+      throw ApiClientException('Network error: ${e.message}');
+    } on http.ClientException catch (e) {
+      throw ApiClientException('Network error: ${e.message}');
+    } catch (e) {
+      throw ApiClientException('Network error: $e');
+    } finally {
+      sw.stop();
+      _debugLog('POST TIME ${sw.elapsedMilliseconds}ms $uri');
+    }
 
     _debugLog('POST STATUS ${res.statusCode}');
     _debugLog('POST RESPONSE ${res.body}');
@@ -66,6 +86,44 @@ class ApiClient {
         return decoded;
       }
       throw const ApiClientException('Invalid response');
+    }
+
+    throw ApiClientException(_extractMessage(res), statusCode: res.statusCode);
+  }
+
+  Future<String> getText(
+    String path, {
+    Map<String, String>? queryParameters,
+    bool auth = true,
+  }) async {
+    final Uri uri = _buildUri(path, queryParameters);
+    _debugLog('GET $uri');
+
+    final Stopwatch sw = Stopwatch()..start();
+
+    late final http.Response res;
+    try {
+      res = await _client
+          .get(uri, headers: await _headers(auth: auth))
+          .timeout(requestTimeout);
+    } on TimeoutException {
+      throw const ApiClientException('Request timed out', statusCode: 408);
+    } on SocketException catch (e) {
+      throw ApiClientException('Network error: ${e.message}');
+    } on http.ClientException catch (e) {
+      throw ApiClientException('Network error: ${e.message}');
+    } catch (e) {
+      throw ApiClientException('Network error: $e');
+    } finally {
+      sw.stop();
+      _debugLog('GET TIME ${sw.elapsedMilliseconds}ms $uri');
+    }
+
+    _debugLog('GET STATUS ${res.statusCode}');
+    _debugLog('GET RESPONSE ${res.body}');
+
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return res.body;
     }
 
     throw ApiClientException(_extractMessage(res), statusCode: res.statusCode);
@@ -128,9 +186,26 @@ class ApiClient {
   }) async {
     final Uri uri = _buildUri(path, queryParameters);
     _debugLog('GET $uri');
-    final http.Response res = await _client
-        .get(uri, headers: await _headers(auth: auth))
-        .timeout(const Duration(seconds: 20));
+
+    final Stopwatch sw = Stopwatch()..start();
+
+    late final http.Response res;
+    try {
+      res = await _client
+          .get(uri, headers: await _headers(auth: auth))
+          .timeout(requestTimeout);
+    } on TimeoutException {
+      throw const ApiClientException('Request timed out', statusCode: 408);
+    } on SocketException catch (e) {
+      throw ApiClientException('Network error: ${e.message}');
+    } on http.ClientException catch (e) {
+      throw ApiClientException('Network error: ${e.message}');
+    } catch (e) {
+      throw ApiClientException('Network error: $e');
+    } finally {
+      sw.stop();
+      _debugLog('GET TIME ${sw.elapsedMilliseconds}ms $uri');
+    }
     _debugLog('GET STATUS ${res.statusCode}');
     _debugLog('GET RESPONSE ${res.body}');
 
@@ -154,13 +229,30 @@ class ApiClient {
     final Uri uri = _buildUri(path, queryParameters);
     _debugLog('POST $uri');
     _debugLog('POST BODY ${jsonEncode(body)}');
-    final http.Response res = await _client
-        .post(
-          uri,
-          headers: await _headers(auth: auth),
-          body: jsonEncode(body),
-        )
-        .timeout(const Duration(seconds: 20));
+
+    final Stopwatch sw = Stopwatch()..start();
+
+    late final http.Response res;
+    try {
+      res = await _client
+          .post(
+            uri,
+            headers: await _headers(auth: auth),
+            body: jsonEncode(body),
+          )
+          .timeout(requestTimeout);
+    } on TimeoutException {
+      throw const ApiClientException('Request timed out', statusCode: 408);
+    } on SocketException catch (e) {
+      throw ApiClientException('Network error: ${e.message}');
+    } on http.ClientException catch (e) {
+      throw ApiClientException('Network error: ${e.message}');
+    } catch (e) {
+      throw ApiClientException('Network error: $e');
+    } finally {
+      sw.stop();
+      _debugLog('POST TIME ${sw.elapsedMilliseconds}ms $uri');
+    }
     _debugLog('POST STATUS ${res.statusCode}');
     _debugLog('POST RESPONSE ${res.body}');
 
@@ -184,13 +276,30 @@ class ApiClient {
     final Uri uri = _buildUri(path, queryParameters);
     _debugLog('PATCH $uri');
     _debugLog('PATCH BODY ${jsonEncode(body)}');
-    final http.Response res = await _client
-        .patch(
-          uri,
-          headers: await _headers(auth: auth),
-          body: jsonEncode(body),
-        )
-        .timeout(const Duration(seconds: 20));
+
+    final Stopwatch sw = Stopwatch()..start();
+
+    late final http.Response res;
+    try {
+      res = await _client
+          .patch(
+            uri,
+            headers: await _headers(auth: auth),
+            body: jsonEncode(body),
+          )
+          .timeout(requestTimeout);
+    } on TimeoutException {
+      throw const ApiClientException('Request timed out', statusCode: 408);
+    } on SocketException catch (e) {
+      throw ApiClientException('Network error: ${e.message}');
+    } on http.ClientException catch (e) {
+      throw ApiClientException('Network error: ${e.message}');
+    } catch (e) {
+      throw ApiClientException('Network error: $e');
+    } finally {
+      sw.stop();
+      _debugLog('PATCH TIME ${sw.elapsedMilliseconds}ms $uri');
+    }
     _debugLog('PATCH STATUS ${res.statusCode}');
     _debugLog('PATCH RESPONSE ${res.body}');
 

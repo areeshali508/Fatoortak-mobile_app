@@ -1,22 +1,27 @@
 import 'package:flutter/material.dart';
 
 import '../controllers/auth_controller.dart';
+import '../models/company.dart';
 import '../models/customer.dart';
 import '../models/quotation.dart';
+import '../repositories/company_repository.dart';
 import '../repositories/customer_repository.dart';
 import '../repositories/quotation_repository.dart';
 
 class CreateQuotationController extends ChangeNotifier {
   final QuotationRepository _quotationRepository;
   final CustomerRepository _customerRepository;
+  final CompanyRepository _companyRepository;
   final AuthController _auth;
 
   CreateQuotationController({
     required QuotationRepository quotationRepository,
     required CustomerRepository customerRepository,
+    required CompanyRepository companyRepository,
     required AuthController auth,
   }) : _quotationRepository = quotationRepository,
        _customerRepository = customerRepository,
+       _companyRepository = companyRepository,
        _auth = auth;
 
   int _currentStep = 0;
@@ -32,9 +37,11 @@ class CreateQuotationController extends ChangeNotifier {
   String? _companyId;
   String? _selectedCustomerId;
   List<Customer> _customers = const <Customer>[];
+  List<Company> _companies = const <Company>[];
   bool _isLoadingCustomers = false;
   bool _isCreatingCustomer = false;
   bool _isSubmitting = false;
+  bool _isLoadingCompanies = false;
   String? _errorMessage;
 
   String get company => _company;
@@ -44,9 +51,39 @@ class CreateQuotationController extends ChangeNotifier {
   String? get companyId => _companyId;
   String? get selectedCustomerId => _selectedCustomerId;
   List<Customer> get customers => _customers;
+  List<Company> get companies => _companies;
+
+  Future<void> loadCompanies({Company? onlyCompany, int page = 1, int limit = 50}) async {
+    _isLoadingCompanies = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      if (onlyCompany != null && onlyCompany.id.trim().isNotEmpty) {
+        _companies = <Company>[onlyCompany];
+      } else {
+        _companies = await _companyRepository.listCompanies(page: page, limit: limit);
+      }
+    } catch (_) {
+      _companies = const <Company>[];
+    } finally {
+      _isLoadingCompanies = false;
+      notifyListeners();
+    }
+  }
+
+  Company? companyById(String? id) {
+    final String key = (id ?? '').trim();
+    if (key.isEmpty) return null;
+    try {
+      return _companies.firstWhere((Company c) => c.id == key);
+    } catch (_) {
+      return null;
+    }
+  }
   bool get isLoadingCustomers => _isLoadingCustomers;
   bool get isCreatingCustomer => _isCreatingCustomer;
   bool get isSubmitting => _isSubmitting;
+  bool get isLoadingCompanies => _isLoadingCompanies;
   String? get errorMessage => _errorMessage;
 
   void setCompany({required String companyId, required String companyName}) {
@@ -101,11 +138,11 @@ class CreateQuotationController extends ChangeNotifier {
   }) async {
     String? companyId = _companyId;
     if (companyId == null || companyId.trim().isEmpty) {
-      Map<String, dynamic>? company = _auth.myCompany;
+      Map<String, dynamic>? company = _auth.activeCompany;
       String? id = (company?['_id'] ?? company?['id'])?.toString().trim();
       if (id == null || id.isEmpty) {
         await _auth.refreshMyCompany();
-        company = _auth.myCompany;
+        company = _auth.activeCompany;
         id = (company?['_id'] ?? company?['id'])?.toString().trim();
       }
       if (id != null && id.trim().isNotEmpty) {
@@ -155,24 +192,24 @@ class CreateQuotationController extends ChangeNotifier {
     }
   }
 
-  Future<void> loadCustomers() async {
-    String? companyId = _companyId;
-    if (companyId == null || companyId.trim().isEmpty) {
-      Map<String, dynamic>? company = _auth.myCompany;
+  Future<void> loadCustomers({String? companyId}) async {
+    String? resolvedCompanyId = (companyId ?? _companyId)?.trim();
+    if (resolvedCompanyId == null || resolvedCompanyId.isEmpty) {
+      Map<String, dynamic>? company = _auth.activeCompany;
       String? id = (company?['_id'] ?? company?['id'])?.toString().trim();
       if (id == null || id.isEmpty) {
         await _auth.refreshMyCompany();
-        company = _auth.myCompany;
+        company = _auth.activeCompany;
         id = (company?['_id'] ?? company?['id'])?.toString().trim();
       }
       if (id != null && id.trim().isNotEmpty) {
-        companyId = id.trim();
+        resolvedCompanyId = id.trim();
         final String name = (company?['companyName'] ?? company?['name'])
                 ?.toString()
                 .trim() ??
             '';
         setCompany(
-          companyId: companyId,
+          companyId: resolvedCompanyId,
           companyName: name.isNotEmpty ? name : _company,
         );
       }
@@ -180,7 +217,7 @@ class CreateQuotationController extends ChangeNotifier {
 
     await loadNextQuotationNumber();
 
-    if (companyId == null || companyId.trim().isEmpty) {
+    if (resolvedCompanyId == null || resolvedCompanyId.isEmpty) {
       _errorMessage = 'Company not loaded';
       notifyListeners();
       return;
@@ -191,7 +228,7 @@ class CreateQuotationController extends ChangeNotifier {
     notifyListeners();
     try {
       _customers = await _customerRepository.listCustomers(
-        companyId: companyId.trim(),
+        companyId: resolvedCompanyId.trim(),
         page: 1,
         limit: 50,
       );

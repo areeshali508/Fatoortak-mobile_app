@@ -71,21 +71,13 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       final AuthController auth = context.read<AuthController>();
       final CreateInvoiceController ctrl = context.read<CreateInvoiceController>();
       final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-      Map<String, dynamic>? company = auth.myCompany;
+      Map<String, dynamic>? company = auth.activeCompany;
       String? companyId = (company?['_id'] ?? company?['id'])?.toString().trim();
-      String companyName = (company?['companyName'] ?? company?['name'])
-              ?.toString()
-              .trim() ??
-          '';
 
       if (companyId == null || companyId.isEmpty) {
         await auth.refreshMyCompany();
-        company = auth.myCompany;
+        company = auth.activeCompany;
         companyId = (company?['_id'] ?? company?['id'])?.toString().trim();
-        companyName = (company?['companyName'] ?? company?['name'])
-                ?.toString()
-                .trim() ??
-            '';
       }
       if (companyId == null || companyId.isEmpty) {
         if (!mounted) return;
@@ -95,18 +87,26 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
         return;
       }
 
-      await ctrl.loadCompanies(
-        onlyCompany:
-            Company(id: companyId.trim(), name: companyName.trim()),
-        page: 1,
-        limit: 50,
-      );
-      if (companyName.isNotEmpty) {
-        ctrl.setCompany(companyId: companyId, companyName: companyName);
-      } else {
-        ctrl.setCompany(companyId: companyId, companyName: ctrl.company);
+      await ctrl.loadCompanies(page: 1, limit: 50);
+
+      Company? selected;
+      if (companyId.trim().isNotEmpty) {
+        selected = ctrl.companyById(companyId.trim());
       }
-      await ctrl.loadCustomers(companyId: companyId);
+      if (selected == null && ctrl.companies.isNotEmpty) {
+        selected = ctrl.companies.first;
+      }
+      if (selected == null) {
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(content: Text('No companies found')),
+        );
+        return;
+      }
+
+      ctrl.setCompany(companyId: selected.id, companyName: selected.name);
+      await ctrl.loadNextInvoiceNumber();
+      await ctrl.loadCustomers(companyId: selected.id);
       if (!mounted) return;
       if (ctrl.errorMessage != null && ctrl.errorMessage!.trim().isNotEmpty) {
         messenger.showSnackBar(
@@ -144,11 +144,11 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       final AuthController auth = context.read<AuthController>();
       final CreateInvoiceController ctrl = context.read<CreateInvoiceController>();
       final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-      Map<String, dynamic>? company = auth.myCompany;
+      Map<String, dynamic>? company = auth.activeCompany;
       String? companyId = (company?['_id'] ?? company?['id'])?.toString().trim();
       if (companyId == null || companyId.isEmpty) {
         await auth.refreshMyCompany();
-        company = auth.myCompany;
+        company = auth.activeCompany;
         companyId = (company?['_id'] ?? company?['id'])?.toString().trim();
       }
 
@@ -462,6 +462,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                                 companyId: next.id,
                                 companyName: next.name,
                               );
+                              await ctrl.loadNextInvoiceNumber();
                               ctrl.selectCustomer(null);
                               await ctrl.loadCustomers(companyId: next.id);
                             }();
@@ -489,21 +490,9 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: ctrl.invoiceNumberController,
-                      onChanged: (_) => ctrl.refresh(),
+                      readOnly: true,
                       decoration: _decoration(
                         label: 'Invoice Number',
-                        suffix: IconButton(
-                          onPressed: () {
-                            ctrl.invoiceNumberController.text =
-                                'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-                            ctrl.refresh();
-                          },
-                          icon: const Icon(
-                            Icons.refresh,
-                            size: 20,
-                            color: Color(0xFF9AA5B6),
-                          ),
-                        ),
                       ),
                     ),
                     const SizedBox(height: 12),

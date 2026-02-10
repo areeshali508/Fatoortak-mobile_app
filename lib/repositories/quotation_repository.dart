@@ -16,26 +16,55 @@ class QuotationRepository {
       throw const ApiClientException('Company id is required');
     }
 
-    final Map<String, dynamic> res = await _api.getJson(
-      '/api/quotations/next-number/$id',
-    );
+    final List<Future<Map<String, dynamic>> Function()> calls =
+        <Future<Map<String, dynamic>> Function()>[
+      () => _api.getJson('/api/quotations/next-number/$id'),
+      () => _api.getJson(
+            '/api/quotations/next-number',
+            queryParameters: <String, String>{'companyId': id},
+          ),
+    ];
 
-    final Object? data = res['data'] ?? res;
-    if (data is String) {
-      final String v = data.trim();
-      return v.isEmpty ? null : v;
-    }
-    if (data is Map<String, dynamic>) {
-      final String? v = (data['nextNumber'] ??
-              data['quotationNumber'] ??
-              data['quoteNumber'] ??
-              data['formattedQuoteNumber'])
-          ?.toString()
-          .trim();
-      if (v != null && v.isNotEmpty) {
-        return v;
+    for (final Future<Map<String, dynamic>> Function() fn in calls) {
+      try {
+        final Map<String, dynamic> res = await fn();
+        final Object? data = res['data'] ?? res;
+        if (data is String) {
+          final String v = data.trim();
+          return v.isEmpty ? null : v;
+        }
+        if (data is Map<String, dynamic>) {
+          final Object? candidate = data['data'] ?? data['quotation'] ?? data;
+          if (candidate is Map<String, dynamic>) {
+            final Object? nested = candidate['quotation'] ?? candidate;
+            if (nested is Map<String, dynamic>) {
+              final String? v = (nested['nextNumber'] ??
+                      nested['quotationNumber'] ??
+                      nested['quoteNumber'] ??
+                      nested['formattedQuoteNumber'])
+                  ?.toString()
+                  .trim();
+              if (v != null && v.isNotEmpty) {
+                return v;
+              }
+            }
+          }
+
+          final String? v = (data['nextNumber'] ??
+                  data['quotationNumber'] ??
+                  data['quoteNumber'] ??
+                  data['formattedQuoteNumber'])
+              ?.toString()
+              .trim();
+          if (v != null && v.isNotEmpty) {
+            return v;
+          }
+        }
+      } catch (_) {
+        // try next
       }
     }
+
     return null;
   }
 
@@ -73,6 +102,85 @@ class QuotationRepository {
         .map<Quotation>(Quotation.fromApi)
         .where((Quotation q) => q.id.trim().isNotEmpty)
         .toList();
+  }
+
+  Future<Quotation> getQuotationById({required String quotationId}) async {
+    final String id = quotationId.trim();
+    if (id.isEmpty) {
+      throw const ApiClientException('Quotation id is required');
+    }
+
+    final Map<String, dynamic> res = await _api.getJson(
+      '/api/quotations/$id',
+    );
+
+    return _parseQuotation(res);
+  }
+
+  Future<Quotation> markQuotationAccepted({required String quotationId}) async {
+    final String id = quotationId.trim();
+    if (id.isEmpty) {
+      throw const ApiClientException('Quotation id is required');
+    }
+
+    ApiClientException? last;
+
+    Future<Quotation> attempt(Future<Map<String, dynamic>> Function() call) async {
+      final Map<String, dynamic> res = await call();
+      return _parseQuotation(res);
+    }
+
+    final List<Future<Quotation> Function()> attempts = <Future<Quotation> Function()>[
+      () => attempt(
+            () => _api.patchJson(
+              '/api/quotations/$id',
+              body: const <String, dynamic>{'outcomeStatus': 'accepted'},
+            ),
+          ),
+      () => attempt(
+            () => _api.patchJson(
+              '/api/quotations/$id',
+              body: const <String, dynamic>{'status': 'accepted'},
+            ),
+          ),
+      () => attempt(
+            () => _api.patchJson(
+              '/api/quotations/$id/status',
+              body: const <String, dynamic>{'outcomeStatus': 'accepted'},
+            ),
+          ),
+      () => attempt(
+            () => _api.patchJson(
+              '/api/quotations/$id/status',
+              body: const <String, dynamic>{'status': 'accepted'},
+            ),
+          ),
+      () => attempt(
+            () => _api.postJson(
+              '/api/quotations/$id/accept',
+              body: const <String, dynamic>{},
+            ),
+          ),
+      () => attempt(
+            () => _api.postJson(
+              '/api/quotations/$id/approve',
+              body: const <String, dynamic>{},
+            ),
+          ),
+    ];
+
+    for (final Future<Quotation> Function() fn in attempts) {
+      try {
+        return await fn();
+      } on ApiClientException catch (e) {
+        last = e;
+      }
+    }
+
+    throw ApiClientException(
+      last?.message ?? 'Failed to mark quotation as accepted',
+      statusCode: last?.statusCode,
+    );
   }
 
   String _toDateOnly(DateTime d) {
@@ -161,7 +269,7 @@ class QuotationRepository {
       };
     }
 
-    bool _samePayload(Map<String, dynamic> a, Map<String, dynamic> b) {
+    bool samePayload(Map<String, dynamic> a, Map<String, dynamic> b) {
       if (a.length != b.length) return false;
       for (final MapEntry<String, dynamic> e in a.entries) {
         if (!b.containsKey(e.key)) return false;
@@ -205,16 +313,42 @@ class QuotationRepository {
       );
       return _parseQuotation(res);
     } on ApiClientException catch (e) {
-      final String msg = e.toString().toLowerCase();
+      final String rawMsg = e.toString();
+      final String msg = rawMsg.toLowerCase();
+
+      String? extractDuplicateQuoteNumber(String raw) {
+        final RegExp a = RegExp(r'quoteNumber:\s*"([^"]+)"');
+        final RegExp b = RegExp(r'quoteNumber:\s*\\"([^\\"]+)\\"');
+        final RegExpMatch? ma = a.firstMatch(raw);
+        final RegExpMatch? mb = b.firstMatch(raw);
+        final String? v = (ma?.groupCount ?? 0) >= 1
+            ? ma!.group(1)
+            : ((mb?.groupCount ?? 0) >= 1 ? mb!.group(1) : null);
+        final String out = (v ?? '').trim();
+        return out.isEmpty ? null : out;
+      }
+
+      String? incrementQuoteNumber(String v) {
+        final RegExpMatch? m = RegExp(r'^(.*?)(\d+)$').firstMatch(v.trim());
+        if (m == null) return null;
+        final String prefix = (m.group(1) ?? '');
+        final String digits = (m.group(2) ?? '');
+        final int? n = int.tryParse(digits);
+        if (n == null) return null;
+        final String nextDigits = (n + 1).toString().padLeft(digits.length, '0');
+        final String out = '$prefix$nextDigits'.trim();
+        return out.isEmpty ? null : out;
+      }
 
       final bool duplicateQuoteNumber =
           msg.contains('e11000') && msg.contains('quote') && msg.contains('number');
 
       if (duplicateQuoteNumber) {
+        final String? dup = extractDuplicateQuoteNumber(rawMsg);
         if (qn.isNotEmpty) {
           final Map<String, dynamic> altKeyBody =
               baseBody(includeProduct: true)..putIfAbsent('quotationNumber', () => qn);
-          if (!_samePayload(baseBody(includeProduct: true), altKeyBody)) {
+          if (!samePayload(baseBody(includeProduct: true), altKeyBody)) {
             try {
               final Map<String, dynamic> res = await _api.postJson(
                 '/api/quotations',
@@ -254,12 +388,35 @@ class QuotationRepository {
           // ignore and rethrow original
         }
 
+        try {
+          final String? inc = incrementQuoteNumber(dup ?? qn);
+          if (inc != null && inc.trim().isNotEmpty && inc.trim() != qn) {
+            final String use = inc.trim();
+            final Map<String, dynamic> incBody = baseBody(
+              includeProduct: true,
+              quoteNumberOverride: use,
+            )
+              ..putIfAbsent('quotationNumber', () => use);
+            final Map<String, dynamic> res = await _api.postJson(
+              '/api/quotations',
+              body: incBody,
+            );
+            return _parseQuotation(res);
+          }
+        } catch (_) {
+          // ignore and rethrow original
+        }
+
         final String? serverNextForMsg = nextNumberFromServer;
         final String suffix = serverNextForMsg != null && serverNextForMsg.trim().isNotEmpty
             ? ' (server next number: ${serverNextForMsg.trim()})'
             : '';
+        final String dupPart = dup != null && dup.trim().isNotEmpty
+            ? ' Duplicate: ${dup.trim()}.'
+            : '';
+        final String attemptedPart = qn.isNotEmpty ? ' Attempted: $qn.' : '';
         throw ApiClientException(
-          'Quotation number conflict$suffix. Please contact support/admin to reset quotation numbering for your company.',
+          'Quotation number conflict.$dupPart$attemptedPart$suffix Please contact support/admin to reset quotation numbering for your company.',
           statusCode: e.statusCode,
         );
       }
@@ -276,7 +433,7 @@ class QuotationRepository {
         // Retry A: remove product ids if we actually had any.
         if (anyItemHasProduct) {
           final Map<String, dynamic> noProductBody = baseBody(includeProduct: false);
-          if (!_samePayload(firstBody, noProductBody)) {
+          if (!samePayload(firstBody, noProductBody)) {
             final Map<String, dynamic> res = await _api.postJson(
               '/api/quotations',
               body: noProductBody,
@@ -285,19 +442,41 @@ class QuotationRepository {
           }
         }
 
-        // Retry B: backend compatibility keys while keeping required fields.
-        final Map<String, dynamic> compatBody = Map<String, dynamic>.from(
-          baseBody(includeProduct: anyItemHasProduct),
-        )
-          ..putIfAbsent('customer', () => cust)
-          ..putIfAbsent('company', () => cid);
+        // Retry B: backend compatibility key remaps.
+        // Some backends accept `customer`/`company` instead of `customerId`/`companyId`
+        // and may reject payloads that send both.
+        final List<Map<String, dynamic>> variants = <Map<String, dynamic>>[
+          // Variant 1: customer + companyId
+          <String, dynamic>{
+            ...baseBody(includeProduct: anyItemHasProduct),
+            'customer': cust,
+          }..remove('customerId'),
+          // Variant 2: customer + company
+          <String, dynamic>{
+            ...baseBody(includeProduct: anyItemHasProduct),
+            'customer': cust,
+            'company': cid,
+          }
+            ..remove('customerId')
+            ..remove('companyId'),
+          // Variant 3: customerId + company
+          <String, dynamic>{
+            ...baseBody(includeProduct: anyItemHasProduct),
+            'company': cid,
+          }..remove('companyId'),
+        ];
 
-        if (!_samePayload(firstBody, compatBody)) {
-          final Map<String, dynamic> res = await _api.postJson(
-            '/api/quotations',
-            body: compatBody,
-          );
-          return _parseQuotation(res);
+        for (final Map<String, dynamic> body in variants) {
+          if (samePayload(firstBody, body)) continue;
+          try {
+            final Map<String, dynamic> res = await _api.postJson(
+              '/api/quotations',
+              body: body,
+            );
+            return _parseQuotation(res);
+          } catch (_) {
+            // try next variant
+          }
         }
       }
 

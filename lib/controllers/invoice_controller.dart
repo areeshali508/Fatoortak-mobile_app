@@ -34,7 +34,15 @@ class InvoiceController extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      _invoices = await _repository.getInvoices(companyId: companyId);
+      _invoices = await _repository.getInvoices(
+        companyId: companyId,
+        page: 1,
+        limit: 100,
+        fetchAll: true,
+      );
+      debugPrint(
+        'INVOICES loaded count=${_invoices.length} companyId=${(companyId ?? '').trim()}',
+      );
     } catch (e) {
       _errorMessage = e.toString();
     } finally {

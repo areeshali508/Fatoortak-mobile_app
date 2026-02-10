@@ -2,17 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../controllers/auth_controller.dart';
+import '../controllers/customer_controller.dart';
 import '../controllers/create_invoice_controller.dart';
 import '../controllers/create_credit_note_controller.dart';
 import '../controllers/create_debit_note_controller.dart';
 import '../controllers/debit_notes_controller.dart';
 import '../controllers/create_quotation_controller.dart';
+import '../controllers/create_customer_controller.dart';
 import '../controllers/create_product_controller.dart';
 import '../controllers/dashboard_controller.dart';
 import '../controllers/credit_notes_controller.dart';
 import '../controllers/quotations_controller.dart';
 import '../controllers/onboarding_controller.dart';
 import '../controllers/settings_controller.dart';
+import '../controllers/system_settings_controller.dart';
+import '../controllers/companies_controller.dart';
 import '../models/product.dart';
 import '../repositories/customer_repository.dart';
 import '../repositories/invoice_repository.dart';
@@ -37,10 +41,16 @@ import '../views/screens/quotations/create_quotation_screen.dart';
 import '../views/screens/quotations/quotations_screen.dart';
 import '../views/screens/onboarding/onboarding_screen.dart';
 import '../views/screens/customers/customers_screen.dart';
+import '../views/screens/customers/add_customer_screen.dart';
 import '../views/screens/products/products_screen.dart';
 import '../views/screens/products/add_product_screen.dart';
 import '../views/screens/settings/settings_screen.dart';
 import '../views/screens/settings/zatca_setup_screen.dart';
+import '../views/screens/settings/profile_settings_screen.dart';
+import '../views/screens/settings/system_settings_screen.dart';
+import '../views/screens/settings/subscription_screen.dart';
+import '../views/screens/settings/upgrade_plan_screen.dart';
+import '../views/screens/settings/company_info_screen.dart';
 import '../views/screens/splash/splash_screen.dart';
 
 class AppRoutes {
@@ -56,6 +66,7 @@ class AppRoutes {
   static const String quotations = '/quotations';
   static const String createQuotation = '/create-quotation';
   static const String customers = '/customers';
+  static const String addCustomer = '/add-customer';
   static const String products = '/products';
   static const String addProduct = '/add-product';
   static const String login = '/login';
@@ -63,6 +74,11 @@ class AppRoutes {
   static const String signup = '/signup';
   static const String settings = '/settings';
   static const String zatcaSetup = '/zatca-setup';
+  static const String profileSettings = '/profile-settings';
+  static const String systemSettings = '/system-settings';
+  static const String subscription = '/subscription';
+  static const String upgradePlan = '/upgrade-plan';
+  static const String companyInfo = '/company-info';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -161,6 +177,7 @@ class AppRoutes {
             create: (BuildContext ctx) => CreateQuotationController(
               quotationRepository: ctx.read<QuotationRepository>(),
               customerRepository: ctx.read<CustomerRepository>(),
+              companyRepository: ctx.read<CompanyRepository>(),
               auth: ctx.read<AuthController>(),
             ),
             child: const CreateQuotationScreen(),
@@ -170,6 +187,18 @@ class AppRoutes {
       case AppRoutes.customers:
         return MaterialPageRoute<void>(
           builder: (_) => const CustomersScreen(),
+          settings: settings,
+        );
+      case AppRoutes.addCustomer:
+        return MaterialPageRoute<void>(
+          builder: (_) => ChangeNotifierProvider<CreateCustomerController>(
+            create: (BuildContext ctx) => CreateCustomerController(
+              customerRepository: ctx.read<CustomerRepository>(),
+              auth: ctx.read<AuthController>(),
+              customerController: ctx.read<CustomerController>(),
+            )..init(),
+            child: const AddCustomerScreen(),
+          ),
           settings: settings,
         );
       case AppRoutes.products:
@@ -207,6 +236,41 @@ class AppRoutes {
                 SettingsController(repository: ctx.read<SettingsRepository>())
                   ..load(),
             child: const SettingsScreen(),
+          ),
+          settings: settings,
+        );
+      case AppRoutes.profileSettings:
+        return MaterialPageRoute<void>(
+          builder: (_) => const ProfileSettingsScreen(),
+          settings: settings,
+        );
+      case AppRoutes.systemSettings:
+        return MaterialPageRoute<void>(
+          builder: (_) => ChangeNotifierProvider<SystemSettingsController>(
+            create: (BuildContext ctx) => SystemSettingsController(
+              repository: ctx.read<SettingsRepository>(),
+            )..load(),
+            child: const SystemSettingsScreen(),
+          ),
+          settings: settings,
+        );
+      case AppRoutes.subscription:
+        return MaterialPageRoute<void>(
+          builder: (_) => const SubscriptionScreen(),
+          settings: settings,
+        );
+      case AppRoutes.upgradePlan:
+        return MaterialPageRoute<void>(
+          builder: (_) => const UpgradePlanScreen(),
+          settings: settings,
+        );
+      case AppRoutes.companyInfo:
+        return MaterialPageRoute<void>(
+          builder: (_) => ChangeNotifierProvider<CompaniesController>(
+            create: (BuildContext ctx) => CompaniesController(
+              repository: ctx.read<CompanyRepository>(),
+            )..load(),
+            child: const CompanyInfoScreen(),
           ),
           settings: settings,
         );

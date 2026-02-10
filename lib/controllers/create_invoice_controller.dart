@@ -40,6 +40,7 @@ class CreateInvoiceController extends ChangeNotifier {
   String? _selectedCustomerId;
   List<Customer> _customers = const <Customer>[];
   List<Company> _companies = const <Company>[];
+  String? _lastAutoInvoiceNumber;
 
   String? get companyId => _companyId;
   String? get selectedCustomerId => _selectedCustomerId;
@@ -89,6 +90,32 @@ class CreateInvoiceController extends ChangeNotifier {
     _selectedCustomerId = c.id;
     customerController.text = c.name;
     notifyListeners();
+  }
+
+  Future<void> loadNextInvoiceNumber() async {
+    final String id = (_companyId ?? '').trim();
+    if (id.isEmpty) return;
+
+    final String current = invoiceNumberController.text.trim();
+    final bool shouldPrefill =
+        current.isEmpty ||
+        current == 'INV-2023-001' ||
+        current.startsWith('INV-') ||
+        (_lastAutoInvoiceNumber != null && current == _lastAutoInvoiceNumber);
+    if (!shouldPrefill) return;
+
+    try {
+      final String? next =
+          await _invoiceRepository.getNextInvoiceNumber(companyId: id);
+      if (next != null && next.trim().isNotEmpty) {
+        final String v = next.trim();
+        invoiceNumberController.text = v;
+        _lastAutoInvoiceNumber = v;
+        notifyListeners();
+      }
+    } catch (_) {
+      // ignore
+    }
   }
 
   Future<void> loadCustomers({required String companyId}) async {
@@ -166,12 +193,13 @@ class CreateInvoiceController extends ChangeNotifier {
         currency: _currency,
         invoiceType: invoiceType,
         paymentTerms: paymentTerms,
+        invoiceNumber: invoiceNumberController.text.trim(),
         notes: notesController.text.trim(),
         discount: 0,
       );
 
       if (!draft) {
-        final String id = created.invoiceNo;
+        final String id = created.id;
         if (id.trim().isNotEmpty) {
           created = await _invoiceRepository.updateInvoiceStatus(
             invoiceId: id,
@@ -182,7 +210,14 @@ class CreateInvoiceController extends ChangeNotifier {
 
       return created;
     } catch (e) {
-      _errorMessage = e.toString();
+      final String msg = e.toString();
+      final String lower = msg.toLowerCase();
+      if (lower.contains('customer not found') || lower.contains('not accessible')) {
+        _errorMessage =
+            'Selected customer is not active yet or not accessible. Please activate the customer (status: active) and try again.';
+      } else {
+        _errorMessage = msg;
+      }
       return null;
     } finally {
       _isSubmitting = false;
@@ -441,7 +476,7 @@ class CreateInvoiceController extends ChangeNotifier {
 
   Invoice buildInvoice({required InvoiceStatus status}) {
     return Invoice(
-      id: invoiceNumberController.text.trim(),
+      id: '',
       invoiceNo: invoiceNumberController.text.trim(),
       customer: customerController.text.trim(),
       issueDate: _issueDate ?? DateTime.now(),

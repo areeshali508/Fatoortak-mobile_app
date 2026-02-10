@@ -62,4 +62,8 @@ class ZatcaRepository {
   Future<Map<String, dynamic>> getInvoicePdf({required String invoiceId}) async {
     return _api.getJson('/api/invoices/$invoiceId/zatca/pdf');
   }
+
+  Future<String> getInvoicePdfText({required String invoiceId}) async {
+    return _api.getText('/api/invoices/$invoiceId/zatca/pdf');
+  }
 }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -22,6 +23,8 @@ class AuthRepository {
   static const String _tokenStorageKey = 'auth_jwt_token';
   static final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
   static String? _inMemoryToken;
+
+  static const Duration _timeout = Duration(seconds: 20);
 
   Future<Map<String, String>> _authHeaders() async {
     final String? token = _inMemoryToken ??
@@ -91,16 +94,25 @@ class AuthRepository {
     try {
       _debugLog('LOGIN POST $uri');
       _debugLog('LOGIN BODY ${jsonEncode(payload)}');
-      final http.Response res = await http
-          .post(
-            uri,
-            headers: <String, String>{
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-            body: jsonEncode(payload),
-          )
-          .timeout(const Duration(seconds: 20));
+      final Stopwatch sw = Stopwatch()..start();
+      late final http.Response res;
+      try {
+        res = await http
+            .post(
+              uri,
+              headers: <String, String>{
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              body: jsonEncode(payload),
+            )
+            .timeout(_timeout);
+      } on TimeoutException {
+        throw const AuthApiException('Request timed out', statusCode: 408);
+      } finally {
+        sw.stop();
+        _debugLog('LOGIN TIME ${sw.elapsedMilliseconds}ms');
+      }
 
       _debugLog('LOGIN STATUS ${res.statusCode}');
       _debugLog('LOGIN RESPONSE ${res.body}');
@@ -155,16 +167,25 @@ class AuthRepository {
     try {
       _debugLog('SIGNUP POST $uri');
       _debugLog('SIGNUP BODY ${jsonEncode(payload)}');
-      final http.Response res = await http
-          .post(
-            uri,
-            headers: <String, String>{
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-            body: jsonEncode(payload),
-          )
-          .timeout(const Duration(seconds: 20));
+      final Stopwatch sw = Stopwatch()..start();
+      late final http.Response res;
+      try {
+        res = await http
+            .post(
+              uri,
+              headers: <String, String>{
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              body: jsonEncode(payload),
+            )
+            .timeout(_timeout);
+      } on TimeoutException {
+        throw const AuthApiException('Request timed out', statusCode: 408);
+      } finally {
+        sw.stop();
+        _debugLog('SIGNUP TIME ${sw.elapsedMilliseconds}ms');
+      }
 
       _debugLog('SIGNUP STATUS ${res.statusCode}');
       _debugLog('SIGNUP RESPONSE ${res.body}');
@@ -212,12 +233,21 @@ class AuthRepository {
     final Uri uri = Uri.parse('$_baseUrl/user/profile');
     try {
       _debugLog('PROFILE GET $uri');
-      final http.Response res = await http
-          .get(
-            uri,
-            headers: await _authHeaders(),
-          )
-          .timeout(const Duration(seconds: 20));
+      final Stopwatch sw = Stopwatch()..start();
+      late final http.Response res;
+      try {
+        res = await http
+            .get(
+              uri,
+              headers: await _authHeaders(),
+            )
+            .timeout(_timeout);
+      } on TimeoutException {
+        throw const AuthApiException('Request timed out', statusCode: 408);
+      } finally {
+        sw.stop();
+        _debugLog('PROFILE TIME ${sw.elapsedMilliseconds}ms');
+      }
 
       _debugLog('PROFILE STATUS ${res.statusCode}');
       _debugLog('PROFILE RESPONSE ${res.body}');
@@ -247,12 +277,21 @@ class AuthRepository {
     final Uri uri = Uri.parse('$_baseUrl/api/companies/me');
     try {
       _debugLog('COMPANY_ME GET $uri');
-      final http.Response res = await http
-          .get(
-            uri,
-            headers: await _authHeaders(),
-          )
-          .timeout(const Duration(seconds: 20));
+      final Stopwatch sw = Stopwatch()..start();
+      late final http.Response res;
+      try {
+        res = await http
+            .get(
+              uri,
+              headers: await _authHeaders(),
+            )
+            .timeout(_timeout);
+      } on TimeoutException {
+        throw const AuthApiException('Request timed out', statusCode: 408);
+      } finally {
+        sw.stop();
+        _debugLog('COMPANY_ME TIME ${sw.elapsedMilliseconds}ms');
+      }
 
       _debugLog('COMPANY_ME STATUS ${res.statusCode}');
       _debugLog('COMPANY_ME RESPONSE ${res.body}');

@@ -122,6 +122,14 @@ class Quotation {
     return QuotationStatus.draft;
   }
 
+  static QuotationOutcomeStatus _outcomeFromApi(String raw) {
+    final String s = raw.trim().toLowerCase();
+    if (s == 'accepted') return QuotationOutcomeStatus.accepted;
+    if (s == 'declined' || s == 'rejected') return QuotationOutcomeStatus.declined;
+    if (s == 'expired') return QuotationOutcomeStatus.expired;
+    return QuotationOutcomeStatus.pending;
+  }
+
   static DateTime _parseDate(Object? raw) {
     if (raw is String && raw.trim().isNotEmpty) {
       return DateTime.tryParse(raw.trim()) ?? DateTime.now();
@@ -171,6 +179,27 @@ class Quotation {
     final String paymentTerms = (json['paymentTerms'] ?? '')?.toString() ?? '';
     final String statusRaw = (json['status'] ?? '')?.toString() ?? '';
 
+    final String outcomeRaw = (json['outcomeStatus'] ??
+            json['outcome'] ??
+            json['quotationOutcomeStatus'] ??
+            json['quotationOutcome'] ??
+            '')
+        ?.toString() ??
+        '';
+
+    QuotationOutcomeStatus outcome = _outcomeFromApi(outcomeRaw);
+    if (outcome == QuotationOutcomeStatus.pending) {
+      final QuotationOutcomeStatus inferred = _outcomeFromApi(statusRaw);
+      if (inferred != QuotationOutcomeStatus.pending) {
+        outcome = inferred;
+      }
+    }
+
+    QuotationStatus status = _statusFromApi(statusRaw);
+    if (outcome != QuotationOutcomeStatus.pending) {
+      status = QuotationStatus.sent;
+    }
+
     final List<QuotationItem> items = <QuotationItem>[];
     final Object? itemsObj = json['items'];
     if (itemsObj is List) {
@@ -190,7 +219,8 @@ class Quotation {
       currency: currency,
       amount: total,
       paymentTerms: paymentTerms.isEmpty ? 'Due on Receipt' : paymentTerms,
-      status: _statusFromApi(statusRaw),
+      status: status,
+      outcomeStatus: outcome,
       items: List<QuotationItem>.unmodifiable(items),
       notes: (json['notes'] ?? '')?.toString() ?? '',
       terms: (json['termsAndConditions'] ?? json['terms'] ?? '')?.toString() ?? '',

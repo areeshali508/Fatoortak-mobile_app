@@ -8,6 +8,7 @@ import '../../../controllers/customer_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
 import '../../../models/customer.dart';
+import 'customer_preview_screen.dart';
 import '../../layout/app_drawer.dart';
 import '../../widgets/buttons/primary_add_fab.dart';
 
@@ -20,23 +21,41 @@ class CustomersScreen extends StatefulWidget {
 
 class _CustomersScreenState extends State<CustomersScreen> {
   int _filterIndex = 0;
+  String? _lastCompanyId;
+
+  Future<void> _openAddCustomer() async {
+    final Object? res = await Navigator.of(context).pushNamed(AppRoutes.addCustomer);
+    if (!mounted) return;
+    if (res == true) {
+      await _reload();
+    }
+  }
+
+  String? _activeCompanyId() {
+    final AuthController auth = context.read<AuthController>();
+    final Map<String, dynamic>? company = auth.activeCompany;
+    final String? companyId = (company?['_id'] ?? company?['id'])?.toString().trim();
+    if (companyId == null || companyId.isEmpty) return null;
+    return companyId;
+  }
+
+  Future<void> _reload() async {
+    final String? companyId = _activeCompanyId();
+    if (companyId == null || companyId.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Company not loaded')),
+      );
+      return;
+    }
+    await context.read<CustomerController>().refresh(companyId: companyId);
+  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final AuthController auth = context.read<AuthController>();
-      final Map<String, dynamic>? company = auth.myCompany;
-      final String? companyId =
-          (company?['_id'] ?? company?['id'])?.toString().trim();
-      if (companyId == null || companyId.isEmpty) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Company not loaded')),
-        );
-        return;
-      }
-      context.read<CustomerController>().refresh(companyId: companyId);
+      _reload();
     });
   }
 
@@ -65,8 +84,24 @@ class _CustomersScreenState extends State<CustomersScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
+        final AuthController auth = context.watch<AuthController>();
         final CustomerController ctrl = context.watch<CustomerController>();
         final bool isLoading = ctrl.isLoading;
+
+        final Map<String, dynamic>? company = auth.activeCompany;
+        final String? companyId = (company?['_id'] ?? company?['id'])
+            ?.toString()
+            .trim();
+
+        if (companyId != null &&
+            companyId.isNotEmpty &&
+            companyId != _lastCompanyId) {
+          _lastCompanyId = companyId;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _reload();
+          });
+        }
 
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
@@ -84,6 +119,12 @@ class _CustomersScreenState extends State<CustomersScreen> {
             ? List<_CustomerVM>.generate(
                 6,
                 (int i) => const _CustomerVM(
+                  raw: Customer(
+                    id: '',
+                    name: 'Loading',
+                    email: '',
+                    phone: '',
+                  ),
                   name: 'Loading',
                   company: '----',
                   active: true,
@@ -134,7 +175,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                 onPressed: _comingSoon,
                 icon: const Icon(Icons.search),
               ),
-              IconButton(onPressed: _comingSoon, icon: const Icon(Icons.add)),
+              IconButton(onPressed: _openAddCustomer, icon: const Icon(Icons.add)),
             ],
           ),
           body: SafeArea(
@@ -179,31 +220,42 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   ),
                   SizedBox(height: gap),
                   Expanded(
-                    child: Skeletonizer(
-                      enabled: isLoading,
-                      child: AbsorbPointer(
-                        absorbing: isLoading,
-                        child: customers.isEmpty
-                            ? const Center(
-                                child: Text(
-                                  'No customers',
-                                  style: TextStyle(
-                                    color: Color(0xFF9AA5B6),
-                                    fontWeight: FontWeight.w800,
+                    child: RefreshIndicator(
+                      onRefresh: _reload,
+                      child: Skeletonizer(
+                        enabled: isLoading,
+                        child: AbsorbPointer(
+                          absorbing: isLoading,
+                          child: customers.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'No customers',
+                                    style: TextStyle(
+                                      color: Color(0xFF9AA5B6),
+                                      fontWeight: FontWeight.w800,
+                                    ),
                                   ),
+                                )
+                              : ListView.builder(
+                                  padding: EdgeInsets.only(bottom: gap + 110),
+                                  itemCount: customers.length,
+                                  itemBuilder: (BuildContext context, int i) {
+                                    final _CustomerVM c = customers[i];
+                                    return _CustomerCard(
+                                      customer: c,
+                                      onTap: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute<void>(
+                                            builder: (_) => CustomerPreviewScreen(
+                                              customer: c.raw,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  },
                                 ),
-                              )
-                            : ListView.builder(
-                                padding: EdgeInsets.only(bottom: gap + 110),
-                                itemCount: customers.length,
-                                itemBuilder: (BuildContext context, int i) {
-                                  final _CustomerVM c = customers[i];
-                                  return _CustomerCard(
-                                    customer: c,
-                                    onTap: _comingSoon,
-                                  );
-                                },
-                              ),
+                        ),
                       ),
                     ),
                   ),
@@ -212,7 +264,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
             ),
           ),
           floatingActionButton: SizedBox(
-            child: PrimaryAddFab(onPressed: _comingSoon),
+            child: PrimaryAddFab(
+              onPressed: _openAddCustomer,
+            ),
           ),
           bottomNavigationBar: BottomNavigationBar(
             currentIndex: 2,
@@ -402,6 +456,7 @@ class _CustomerCard extends StatelessWidget {
 }
 
 class _CustomerVM {
+  final Customer raw;
   final String name;
   final String company;
   final bool active;
@@ -409,6 +464,7 @@ class _CustomerVM {
   final double ytdAmount;
 
   const _CustomerVM({
+    required this.raw,
     required this.name,
     required this.company,
     required this.active,
@@ -434,6 +490,7 @@ class _CustomerVM {
     final double ytd = <double>[45.2, 12.4, 3.1, 8.9, 21.5][index % 5] * 1000;
 
     return _CustomerVM(
+      raw: customer,
       name: customer.name,
       company: sampleCompanies[index % sampleCompanies.length],
       active: active,

@@ -15,7 +15,161 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
+class _RecentActivityItem {
+  final String title;
+  final String time;
+  final IconData icon;
+
+  const _RecentActivityItem(this.title, this.time, this.icon);
+}
+
+class _RecentActivityTile extends StatelessWidget {
+  final _RecentActivityItem item;
+  final bool showDivider;
+
+  const _RecentActivityTile({required this.item, required this.showDivider});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        ListTile(
+          leading: Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F6FB),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(item.icon, color: const Color(0xFF0B1B4B), size: 20),
+          ),
+          title: Text(
+            item.title,
+            style: const TextStyle(
+              color: Color(0xFF0B1B4B),
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+            ),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              item.time,
+              style: const TextStyle(
+                color: Color(0xFF6B7895),
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ),
+        if (showDivider)
+          const Divider(height: 1, thickness: 1, color: Color(0xFFE9EEF5)),
+      ],
+    );
+  }
+}
+
 class _SettingsScreenState extends State<SettingsScreen> {
+  void _openProfile(BuildContext context) {
+    Navigator.of(context).pushNamed(AppRoutes.profileSettings);
+  }
+
+  void _openSubscription(BuildContext context) {
+    Navigator.of(context).pushNamed(AppRoutes.subscription);
+  }
+
+  void _openCompanyInfo(BuildContext context) {
+    Navigator.of(context).pushNamed(AppRoutes.companyInfo);
+  }
+
+  final List<_RecentActivityItem> _recentActivity = const <_RecentActivityItem>[
+    _RecentActivityItem(
+      'Logged in from new device',
+      '30 minutes ago',
+      Icons.login,
+    ),
+    _RecentActivityItem(
+      'Created invoice INV-2024-001234',
+      '1 hour ago',
+      Icons.receipt_long_outlined,
+    ),
+    _RecentActivityItem(
+      'Updated user permissions for John Doe',
+      '2 hours ago',
+      Icons.admin_panel_settings_outlined,
+    ),
+    _RecentActivityItem(
+      'Added new customer: ABC Trading Co.',
+      '4 hours ago',
+      Icons.person_add_alt_1_outlined,
+    ),
+    _RecentActivityItem(
+      'Generated monthly sales report',
+      '6 hours ago',
+      Icons.bar_chart_outlined,
+    ),
+    _RecentActivityItem(
+      'Updated payment method settings',
+      '8 hours ago',
+      Icons.payment_outlined,
+    ),
+    _RecentActivityItem(
+      'Created new role: Accountant',
+      '12 hours ago',
+      Icons.badge_outlined,
+    ),
+    _RecentActivityItem(
+      'Approved invoice INV-2024-001233',
+      '1 day ago',
+      Icons.verified_outlined,
+    ),
+    _RecentActivityItem(
+      'Exported customer list',
+      '1 day ago',
+      Icons.download_outlined,
+    ),
+    _RecentActivityItem(
+      'Updated company profile information',
+      '2 days ago',
+      Icons.apartment_outlined,
+    ),
+    _RecentActivityItem(
+      'Deleted product: Old Service Package',
+      '2 days ago',
+      Icons.delete_outline,
+    ),
+    _RecentActivityItem(
+      'Created backup of customer data',
+      '3 days ago',
+      Icons.backup_outlined,
+    ),
+    _RecentActivityItem(
+      'Updated tax settings',
+      '3 days ago',
+      Icons.receipt_outlined,
+    ),
+    _RecentActivityItem(
+      'Logged in from mobile app',
+      '4 days ago',
+      Icons.phone_android_outlined,
+    ),
+    _RecentActivityItem(
+      'Generated quarterly report',
+      '5 days ago',
+      Icons.insert_chart_outlined,
+    ),
+  ];
+
+  int _recentVisibleCount = 5;
+
+  void _loadMoreRecent() {
+    setState(() {
+      _recentVisibleCount = (_recentVisibleCount + 5).clamp(0, _recentActivity.length);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -29,6 +183,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 : null)
             ?.trim() ??
             '';
+        final String companyName =
+            (company?['companyName'] ?? company?['name'])?.toString().trim() ?? '';
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 6),
           16,
@@ -76,7 +232,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingsTile(
                       icon: Icons.person_outline,
                       title: 'Profile Settings',
-                      onTap: () {},
+                      onTap: () => _openProfile(context),
+                    ),
+                    _SettingsTile(
+                      icon: Icons.workspace_premium_outlined,
+                      title: 'Subscription',
+                      onTap: () => _openSubscription(context),
+                    ),
+                    _SettingsTile(
+                      icon: Icons.settings_outlined,
+                      title: 'System Settings',
+                      onTap: () => Navigator.of(context).pushNamed(
+                        AppRoutes.systemSettings,
+                      ),
                     ),
                     _SettingsTile(
                       icon: Icons.lock_outline,
@@ -96,9 +264,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   radius: cardRadius,
                   children: <Widget>[
                     _SettingsTile(
+                      icon: Icons.apartment_outlined,
+                      title: 'Company',
+                      trailingText: companyName.isEmpty ? 'Not set' : companyName,
+                      showChevron: false,
+                      onTap: () {},
+                    ),
+                    _SettingsTile(
                       icon: Icons.storefront_outlined,
                       title: 'Company Info',
-                      onTap: () {},
+                      onTap: () => _openCompanyInfo(context),
                     ),
                     _SettingsTile(
                       icon: Icons.verified_outlined,
@@ -156,6 +331,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
                 SizedBox(height: sectionGap),
+                const _SectionHeader('Recent Activity'),
+                _SectionCard(
+                  radius: cardRadius,
+                  children: <Widget>[
+                    for (int i = 0; i < _recentVisibleCount; i++)
+                      _RecentActivityTile(
+                        item: _recentActivity[i],
+                        showDivider: i != _recentVisibleCount - 1,
+                      ),
+                  ],
+                ),
+                if (_recentVisibleCount < _recentActivity.length) ...<Widget>[
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: _loadMoreRecent,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF0B1B4B),
+                      side: const BorderSide(color: Color(0xFFE9EEF5)),
+                      backgroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      textStyle: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    child: const Text('Load More Activity'),
+                  ),
+                ],
+                SizedBox(height: sectionGap),
                 const _SectionHeader('SUPPORT'),
                 _SectionCard(
                   radius: cardRadius,
@@ -208,6 +412,23 @@ class _ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Map<String, dynamic>? profile = context.watch<AuthController>().profile;
+    final String firstName = (profile?['firstName'] ?? profile?['first_name'])
+            ?.toString()
+            .trim() ??
+        '';
+    final String lastName = (profile?['lastName'] ?? profile?['last_name'])
+            ?.toString()
+            .trim() ??
+        '';
+    final String email = (profile?['email'] ?? profile?['username'])
+            ?.toString()
+            .trim() ??
+        '';
+    final String displayName = (
+      <String>[firstName, lastName].where((String s) => s.trim().isNotEmpty).join(' ')
+    ).trim();
+
     final double logoSize = AppResponsive.clamp(
       AppResponsive.scaledByHeight(constraints, 64),
       54,
@@ -255,7 +476,7 @@ class _ProfileCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'فاتورتك',
+                    displayName.isEmpty ? 'Profile' : displayName,
                     style: TextStyle(
                       fontSize: AppResponsive.clamp(
                         AppResponsive.sp(constraints, 18),
@@ -274,7 +495,7 @@ class _ProfileCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'contact@fatoortak.sa',
+                    email.isEmpty ? 'Not set' : email,
                     style: TextStyle(
                       fontSize: AppResponsive.clamp(
                         AppResponsive.sp(constraints, 12),
@@ -292,7 +513,9 @@ class _ProfileCard extends StatelessWidget {
                     ),
                   ),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () => Navigator.of(context).pushNamed(
+                      AppRoutes.profileSettings,
+                    ),
                     child: const Text(
                       'Edit Profile',
                       style: TextStyle(
@@ -405,20 +628,27 @@ class _SettingsTile extends StatelessWidget {
           ? (showChevron
                 ? const Icon(Icons.chevron_right, color: Color(0xFF9AA5B6))
                 : null)
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  trailingText!,
-                  style: const TextStyle(
-                    color: Color(0xFF6B7895),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
+          : ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 160),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Flexible(
+                    child: Text(
+                      trailingText!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF6B7895),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                const Icon(Icons.chevron_right, color: Color(0xFF9AA5B6)),
-              ],
+                  const SizedBox(width: 6),
+                  const Icon(Icons.chevron_right, color: Color(0xFF9AA5B6)),
+                ],
+              ),
             ),
     );
   }

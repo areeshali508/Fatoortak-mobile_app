@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+
+import 'dart:convert';
+import 'dart:typed_data';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
@@ -28,12 +32,64 @@ class InvoiceDetailsScreen extends StatelessWidget {
       return;
     }
 
+    final Map<String, dynamic> res = ctrl.lastResult ?? const <String, dynamic>{};
+    final bool? isValid = res['isValid'] is bool ? res['isValid'] as bool : null;
+
+    List<String> toStringList(Object? raw) {
+      if (raw is List) {
+        return raw.map((Object? e) => e?.toString() ?? '').where((String e) => e.trim().isNotEmpty).toList();
+      }
+      if (raw == null) return <String>[];
+      final String s = raw.toString().trim();
+      return s.isEmpty ? <String>[] : <String>[s];
+    }
+
+    final List<String> errors = toStringList(res['errors']);
+    final List<String> warnings = toStringList(res['warnings']);
+
     showDialog<void>(
       context: context,
       builder: (BuildContext ctx) => AlertDialog(
         title: const Text('ZATCA Validation'),
         content: SingleChildScrollView(
-          child: Text((ctrl.lastResult ?? const <String, dynamic>{}).toString()),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                isValid == null ? 'Result: -' : (isValid ? 'Result: Valid' : 'Result: Invalid'),
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Errors (${errors.length})',
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              if (errors.isEmpty)
+                const Text('None')
+              else
+                ...errors.map(
+                  (String e) => Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text('- $e'),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              Text(
+                'Warnings (${warnings.length})',
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              if (warnings.isEmpty)
+                const Text('None')
+              else
+                ...warnings.map(
+                  (String e) => Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text('- $e'),
+                  ),
+                ),
+            ],
+          ),
         ),
         actions: <Widget>[
           TextButton(
@@ -43,6 +99,31 @@ class InvoiceDetailsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _sharePdf(BuildContext context) async {
+    final ZatcaController ctrl = context.read<ZatcaController>();
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+
+    final Uint8List? bytes = await ctrl.getInvoicePdfBytes(
+      invoiceId: invoice.id,
+      fallbackBase64: invoice.zatca.pdfUrl,
+    );
+
+    if (!context.mounted) return;
+
+    final String? err = ctrl.errorMessage;
+    if (bytes == null) {
+      if (err != null && err.trim().isNotEmpty) {
+        messenger.showSnackBar(SnackBar(content: Text(err)));
+      }
+      return;
+    }
+
+    final String name = invoice.invoiceNo.trim().isEmpty
+        ? 'invoice.pdf'
+        : '${invoice.invoiceNo.trim()}.pdf';
+    await Printing.sharePdf(bytes: bytes, filename: name);
   }
 
   String _fmtDate(DateTime d) {
@@ -78,6 +159,22 @@ class InvoiceDetailsScreen extends StatelessWidget {
 
   String _amountLabel() {
     return '${invoice.currency} ${_formatNumber(invoice.total)}';
+  }
+
+  String _fmtDateTime(DateTime? dt) {
+    if (dt == null) return '-';
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${dt.year}-${two(dt.month)}-${two(dt.day)} ${two(dt.hour)}:${two(dt.minute)}';
+  }
+
+  Uint8List? _tryDecodeBase64(String raw) {
+    final String s = raw.trim();
+    if (s.isEmpty) return null;
+    try {
+      return base64Decode(s);
+    } catch (_) {
+      return null;
+    }
   }
 
   (_ChipStyle?, String) _statusStyle(InvoiceStatus s) {
@@ -378,6 +475,52 @@ class InvoiceDetailsScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
+                        if (invoice.zatca.hasAny) ...<Widget>[
+                          _SummaryRow(
+                            label: 'Status',
+                            value: invoice.zatca.status.trim().isEmpty
+                                ? '-'
+                                : invoice.zatca.status.trim(),
+                          ),
+                          _SummaryRow(
+                            label: 'Validation',
+                            value: invoice.zatca.validationStatus.trim().isEmpty
+                                ? '-'
+                                : invoice.zatca.validationStatus.trim(),
+                          ),
+                          _SummaryRow(
+                            label: 'UUID',
+                            value: invoice.zatca.uuid.trim().isEmpty
+                                ? '-'
+                                : invoice.zatca.uuid.trim(),
+                          ),
+                          _SummaryRow(
+                            label: 'Last Validated',
+                            value: _fmtDateTime(invoice.zatca.lastValidatedAt),
+                          ),
+                          _SummaryRow(
+                            label: 'Cleared At',
+                            value: _fmtDateTime(invoice.zatca.clearedAt),
+                          ),
+                          _SummaryRow(
+                            label: 'Category',
+                            value: invoice.zatca.invoiceCategory.trim().isEmpty
+                                ? '-'
+                                : invoice.zatca.invoiceCategory.trim(),
+                          ),
+                          _SummaryRow(
+                            label: 'Hash Chain #',
+                            value: invoice.zatca.hashChainNumber == null
+                                ? '-'
+                                : invoice.zatca.hashChainNumber.toString(),
+                          ),
+                          _SummaryRow(
+                            label: 'Previous Hash',
+                            value: invoice.zatca.previousInvoiceHash.trim().isEmpty
+                                ? '-'
+                                : invoice.zatca.previousInvoiceHash.trim(),
+                          ),
+                        ],
                         Text(
                           invoice.id.isEmpty
                               ? 'Invoice ID not available'
@@ -387,6 +530,64 @@ class InvoiceDetailsScreen extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
+                        if ((invoice.zatca.hash).trim().isNotEmpty) ...<Widget>[
+                          const SizedBox(height: 10),
+                          SelectableText(
+                            'Hash: ${invoice.zatca.hash.trim()}',
+                            style: const TextStyle(
+                              color: Color(0xFF6B7895),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        OutlinedButton(
+                          onPressed: invoice.id.trim().isEmpty
+                              ? null
+                              : () => _sharePdf(context),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF0B1B4B),
+                            side: const BorderSide(color: Color(0xFFE9EEF5)),
+                            backgroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            textStyle: const TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                          child: const Text('Download / Share PDF'),
+                        ),
+                        if ((invoice.zatca.qrCode).trim().isNotEmpty) ...<Widget>[
+                          const SizedBox(height: 12),
+                          Builder(
+                            builder: (BuildContext context) {
+                              final Uint8List? bytes =
+                                  _tryDecodeBase64(invoice.zatca.qrCode);
+                              if (bytes == null) {
+                                return SelectableText(
+                                  'QR (base64): ${invoice.zatca.qrCode.trim()}',
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7895),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
+                                );
+                              }
+                              return Center(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.memory(
+                                    bytes,
+                                    width: 180,
+                                    height: 180,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                         const SizedBox(height: 10),
                         ElevatedButton(
                           onPressed: invoice.id.isEmpty

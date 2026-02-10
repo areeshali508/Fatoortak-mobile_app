@@ -40,11 +40,11 @@ class QuotationsController extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      Map<String, dynamic>? company = _auth.myCompany;
+      Map<String, dynamic>? company = _auth.activeCompany;
       String? companyId = (company?['_id'] ?? company?['id'])?.toString().trim();
       if (companyId == null || companyId.isEmpty) {
         await _auth.refreshMyCompany();
-        company = _auth.myCompany;
+        company = _auth.activeCompany;
         companyId = (company?['_id'] ?? company?['id'])?.toString().trim();
       }
 
