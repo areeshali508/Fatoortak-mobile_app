@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../controllers/auth_controller.dart';
 import '../models/debit_note.dart';
 import '../repositories/debit_note_repository.dart';
 
 class DebitNotesController extends ChangeNotifier {
   final DebitNoteRepository _repository;
+  final AuthController _auth;
 
   bool _isLoading = false;
   String _searchQuery = '';
@@ -13,8 +15,11 @@ class DebitNotesController extends ChangeNotifier {
   DebitNotePaymentStatus? _paymentStatusFilter;
   List<DebitNote> _notes = const <DebitNote>[];
 
-  DebitNotesController({required DebitNoteRepository repository})
-    : _repository = repository;
+  DebitNotesController({
+    required DebitNoteRepository repository,
+    required AuthController auth,
+  }) : _repository = repository,
+       _auth = auth;
 
   bool get isLoading => _isLoading;
 
@@ -38,7 +43,23 @@ class DebitNotesController extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      _notes = await _repository.listDebitNotes();
+      Map<String, dynamic>? company = _auth.activeCompany;
+      String? companyId = (company?['_id'] ?? company?['id'])?.toString().trim();
+      if (companyId == null || companyId.isEmpty) {
+        await _auth.refreshMyCompany();
+        company = _auth.activeCompany;
+        companyId = (company?['_id'] ?? company?['id'])?.toString().trim();
+      }
+
+      if (companyId == null || companyId.isEmpty) {
+        _notes = const <DebitNote>[];
+        return;
+      }
+
+      _notes = await _repository.listAllDebitNotes(
+        limit: 100,
+        companyId: companyId,
+      );
     } finally {
       _isLoading = false;
       notifyListeners();

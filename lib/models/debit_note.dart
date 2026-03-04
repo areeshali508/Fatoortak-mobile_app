@@ -35,6 +35,7 @@ class DebitNoteItem {
 }
 
 class DebitNote {
+  final String backendId;
   final String id;
   final String customer;
   final String customerType;
@@ -51,6 +52,7 @@ class DebitNote {
   final List<DebitNoteItem> items;
 
   const DebitNote({
+    this.backendId = '',
     required this.id,
     required this.customer,
     required this.customerType,

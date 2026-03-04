@@ -20,6 +20,40 @@ class InvoiceController extends ChangeNotifier {
     _repository = repository;
   }
 
+  Future<Invoice?> updateInvoiceStatus({
+    required String invoiceId,
+    required InvoiceStatus status,
+  }) async {
+    final String id = invoiceId.trim();
+    if (id.isEmpty) {
+      _errorMessage = 'Invoice id is required';
+      notifyListeners();
+      return null;
+    }
+
+    final String apiStatus = status.name;
+
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final Invoice updated = await _repository.updateInvoiceStatus(
+        invoiceId: id,
+        status: apiStatus,
+      );
+      final int idx = _invoices.indexWhere((Invoice inv) => inv.id == updated.id);
+      if (idx >= 0) {
+        _invoices[idx] = updated;
+      }
+      notifyListeners();
+      return updated;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return null;
+    }
+  }
+
   InvoiceStatus? _statusFilter;
   DateTimeRange? _dateRange;
   String _searchQuery = '';
@@ -34,12 +68,25 @@ class InvoiceController extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      _invoices = await _repository.getInvoices(
+      final List<Invoice> first = await _repository.getInvoices(
+        companyId: companyId,
+        page: 1,
+        limit: 100,
+        fetchAll: false,
+      );
+
+      _invoices = first;
+      notifyListeners();
+
+      final List<Invoice> all = await _repository.getInvoices(
         companyId: companyId,
         page: 1,
         limit: 100,
         fetchAll: true,
       );
+
+      _invoices = all;
+
       debugPrint(
         'INVOICES loaded count=${_invoices.length} companyId=${(companyId ?? '').trim()}',
       );
@@ -48,6 +95,34 @@ class InvoiceController extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  Future<Invoice?> refreshInvoiceById({required String invoiceId}) async {
+    final String id = invoiceId.trim();
+    if (id.isEmpty) {
+      _errorMessage = 'Invoice id is required';
+      notifyListeners();
+      return null;
+    }
+
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final Invoice updated = await _repository.getInvoiceById(invoiceId: id);
+      final int idx = _invoices.indexWhere((Invoice inv) => inv.id == updated.id);
+      if (idx >= 0) {
+        _invoices[idx] = updated;
+      } else {
+        _invoices.insert(0, updated);
+      }
+      notifyListeners();
+      return updated;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return null;
     }
   }
 

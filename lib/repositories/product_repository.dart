@@ -112,6 +112,40 @@ class ProductRepository {
     _api = api;
   }
 
+  Future<List<Product>> searchActiveProducts({
+    required String search,
+    int limit = 10,
+  }) async {
+    final String q = search.trim();
+    if (q.isEmpty) return <Product>[];
+
+    final Map<String, dynamic> res = await _api.getJson(
+      '/api/products',
+      queryParameters: <String, String>{
+        'search': q,
+        'limit': limit.toString(),
+        'status': 'active',
+        'sortBy': 'name',
+        'sortOrder': 'asc',
+      },
+    );
+
+    final Object? data = res['data'];
+    Object? raw;
+    if (data is Map<String, dynamic> && data['products'] is List) {
+      raw = data['products'];
+    } else {
+      raw = data;
+    }
+
+    final List<dynamic> list = raw is List ? raw : <dynamic>[];
+    return list
+        .whereType<Map<String, dynamic>>()
+        .map(Product.fromJson)
+        .where((Product p) => p.id.trim().isNotEmpty)
+        .toList();
+  }
+
   Future<List<Product>> listProducts({
     String? companyId,
     String? categoryId,

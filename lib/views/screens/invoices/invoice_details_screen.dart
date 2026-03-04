@@ -3,24 +3,181 @@ import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
+import '../../../controllers/invoice_controller.dart';
 import '../../../controllers/zatca_controller.dart';
 import '../../../models/invoice.dart';
 
-class InvoiceDetailsScreen extends StatelessWidget {
+class InvoiceDetailsScreen extends StatefulWidget {
   final Invoice invoice;
 
   const InvoiceDetailsScreen({super.key, required this.invoice});
 
+  @override
+  State<InvoiceDetailsScreen> createState() => _InvoiceDetailsScreenState();
+}
+
+class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
+  late Invoice _invoice;
+  bool _isZatcaPolling = false;
+  bool _isSendingInvoice = false;
+  Timer? _zatcaPollTimer;
+  DateTime? _zatcaPollStartedAt;
+
+  @override
+  void initState() {
+    super.initState();
+    _invoice = widget.invoice;
+  }
+
+  @override
+  void dispose() {
+    _zatcaPollTimer?.cancel();
+    _zatcaPollTimer = null;
+    super.dispose();
+  }
+
+  Future<void> _sendInvoice(BuildContext context) async {
+    if (_isSendingInvoice) return;
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final InvoiceController invoiceCtrl = context.read<InvoiceController>();
+
+    if (_invoice.id.trim().isEmpty) {
+      messenger.showSnackBar(const SnackBar(content: Text('Invoice ID is required')));
+      return;
+    }
+
+    setState(() {
+      _isSendingInvoice = true;
+    });
+
+    try {
+      final Invoice? updated = await invoiceCtrl.updateInvoiceStatus(
+        invoiceId: _invoice.id,
+        status: InvoiceStatus.sent,
+      );
+      if (!mounted) return;
+      if (updated != null) {
+        setState(() {
+          _invoice = updated;
+        });
+        messenger.showSnackBar(const SnackBar(content: Text('Invoice sent')));
+        return;
+      }
+
+      final String msg = (invoiceCtrl.errorMessage ?? 'Failed to send invoice').trim();
+      if (msg.isNotEmpty) {
+        messenger.showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSendingInvoice = false;
+        });
+      }
+    }
+  }
+
+  bool _isZatcaReady(Invoice inv) {
+    final String st = inv.zatca.status.trim().toLowerCase();
+    if (st.contains('cleared') || st.contains('reported') || st.contains('accepted')) {
+      return true;
+    }
+
+    if (inv.zatca.clearedAt != null) {
+      return true;
+    }
+
+    if (inv.zatca.qrCode.trim().isNotEmpty) {
+      return true;
+    }
+
+    if (inv.zatca.pdfUrl.trim().isNotEmpty) {
+      return true;
+    }
+
+    return false;
+  }
+
+  Future<void> _startZatcaBackgroundPolling({
+    required InvoiceController invoiceCtrl,
+    required String invoiceId,
+    required ScaffoldMessengerState messenger,
+    Duration tick = const Duration(seconds: 4),
+    Duration timeout = const Duration(minutes: 10),
+  }) async {
+    _zatcaPollTimer?.cancel();
+    _zatcaPollTimer = null;
+    _zatcaPollStartedAt = DateTime.now();
+
+    if (mounted) {
+      setState(() {
+        _isZatcaPolling = true;
+      });
+    }
+
+    Future<void> tickOnce() async {
+      final DateTime? startedAt = _zatcaPollStartedAt;
+      if (startedAt == null) return;
+
+      final Duration elapsed = DateTime.now().difference(startedAt);
+      if (elapsed >= timeout) {
+        _zatcaPollTimer?.cancel();
+        _zatcaPollTimer = null;
+        if (mounted) {
+          setState(() {
+            _isZatcaPolling = false;
+          });
+        }
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'ZATCA is still processing this invoice. Please wait and refresh again.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      final Invoice? latest = await invoiceCtrl.refreshInvoiceById(
+        invoiceId: invoiceId,
+      );
+      if (!mounted) return;
+
+      if (latest != null) {
+        setState(() {
+          _invoice = latest;
+        });
+
+        if (_isZatcaReady(latest)) {
+          _zatcaPollTimer?.cancel();
+          _zatcaPollTimer = null;
+          setState(() {
+            _isZatcaPolling = false;
+          });
+        }
+      }
+    }
+
+    await tickOnce();
+    if (!mounted) return;
+
+    _zatcaPollTimer = Timer.periodic(tick, (_) {
+      unawaited(tickOnce());
+    });
+  }
+
   Future<void> _validateZatca(BuildContext context) async {
     final ZatcaController ctrl = context.read<ZatcaController>();
+    final InvoiceController invoiceCtrl = context.read<InvoiceController>();
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
 
-    await ctrl.validateInvoice(invoiceId: invoice.id);
+    await ctrl.validateInvoice(invoiceId: _invoice.id);
 
     if (!context.mounted) {
       return;
@@ -34,6 +191,40 @@ class InvoiceDetailsScreen extends StatelessWidget {
 
     final Map<String, dynamic> res = ctrl.lastResult ?? const <String, dynamic>{};
     final bool? isValid = res['isValid'] is bool ? res['isValid'] as bool : null;
+    final bool? success =
+        res['success'] is bool ? res['success'] as bool : null;
+
+    final String msg = (res['message'] ?? res['msg'] ?? '').toString().trim();
+    if (msg.isNotEmpty) {
+      messenger.showSnackBar(SnackBar(content: Text(msg)));
+    }
+
+    if (isValid == true || success == true) {
+      try {
+        await ctrl.submitOrClearInvoice(invoiceId: _invoice.id);
+        if (!context.mounted) return;
+
+        final String? submitErr = ctrl.errorMessage;
+        if (submitErr != null && submitErr.trim().isNotEmpty) {
+          messenger.showSnackBar(SnackBar(content: Text(submitErr)));
+        } else {
+          final Map<String, dynamic> submitRes =
+              ctrl.lastResult ?? const <String, dynamic>{};
+          final String submitMsg =
+              (submitRes['message'] ?? submitRes['msg'] ?? '').toString().trim();
+          if (submitMsg.isNotEmpty) {
+            messenger.showSnackBar(SnackBar(content: Text(submitMsg)));
+          }
+        }
+
+        await _startZatcaBackgroundPolling(
+          invoiceCtrl: invoiceCtrl,
+          invoiceId: _invoice.id,
+          messenger: messenger,
+        );
+      } finally {
+      }
+    }
 
     List<String> toStringList(Object? raw) {
       if (raw is List) {
@@ -46,6 +237,10 @@ class InvoiceDetailsScreen extends StatelessWidget {
 
     final List<String> errors = toStringList(res['errors']);
     final List<String> warnings = toStringList(res['warnings']);
+
+    if (!context.mounted) {
+      return;
+    }
 
     showDialog<void>(
       context: context,
@@ -106,8 +301,8 @@ class InvoiceDetailsScreen extends StatelessWidget {
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
 
     final Uint8List? bytes = await ctrl.getInvoicePdfBytes(
-      invoiceId: invoice.id,
-      fallbackBase64: invoice.zatca.pdfUrl,
+      invoiceId: _invoice.id,
+      fallbackBase64: _invoice.zatca.pdfUrl,
     );
 
     if (!context.mounted) return;
@@ -120,9 +315,9 @@ class InvoiceDetailsScreen extends StatelessWidget {
       return;
     }
 
-    final String name = invoice.invoiceNo.trim().isEmpty
-        ? 'invoice.pdf'
-        : '${invoice.invoiceNo.trim()}.pdf';
+    final String name = _invoice.invoiceNo.trim().isEmpty
+      ? 'invoice.pdf'
+      : '${_invoice.invoiceNo.trim()}.pdf';
     await Printing.sharePdf(bytes: bytes, filename: name);
   }
 
@@ -158,7 +353,7 @@ class InvoiceDetailsScreen extends StatelessWidget {
   }
 
   String _amountLabel() {
-    return '${invoice.currency} ${_formatNumber(invoice.total)}';
+    return '${_invoice.currency} ${_formatNumber(_invoice.total)}';
   }
 
   String _fmtDateTime(DateTime? dt) {
@@ -224,7 +419,7 @@ class InvoiceDetailsScreen extends StatelessWidget {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final ZatcaController zatcaCtrl = context.watch<ZatcaController>();
-        final bool isLoading = zatcaCtrl.isLoading;
+        final bool isLoading = zatcaCtrl.isLoading || _isSendingInvoice;
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
           16,
@@ -238,7 +433,7 @@ class InvoiceDetailsScreen extends StatelessWidget {
         );
 
         final (_ChipStyle? stStyle, String stText) = _statusStyle(
-          invoice.status,
+          _invoice.status,
         );
 
         return Scaffold(
@@ -268,7 +463,7 @@ class InvoiceDetailsScreen extends StatelessWidget {
                           children: <Widget>[
                             Expanded(
                               child: Text(
-                                'Invoice #${invoice.invoiceNo}',
+                                'Invoice #${_invoice.invoiceNo}',
                                 style: const TextStyle(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.w900,
@@ -288,7 +483,7 @@ class InvoiceDetailsScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          invoice.customer,
+                          _invoice.customer,
                           style: const TextStyle(
                             color: Color(0xFF0B1B4B),
                             fontWeight: FontWeight.w800,
@@ -300,7 +495,7 @@ class InvoiceDetailsScreen extends StatelessWidget {
                           children: <Widget>[
                             Expanded(
                               child: Text(
-                                _fmtDate(invoice.issueDate),
+                                _fmtDate(_invoice.issueDate),
                                 style: const TextStyle(
                                   color: Color(0xFF9AA5B6),
                                   fontWeight: FontWeight.w700,
@@ -322,40 +517,40 @@ class InvoiceDetailsScreen extends StatelessWidget {
                       children: <Widget>[
                         _SummaryRow(
                           label: 'Invoice #',
-                          value: invoice.invoiceNo,
+                          value: _invoice.invoiceNo,
                         ),
-                        _SummaryRow(label: 'Customer', value: invoice.customer),
+                        _SummaryRow(label: 'Customer', value: _invoice.customer),
                         _SummaryRow(
                           label: 'Issue Date',
-                          value: _fmtDate(invoice.issueDate),
+                          value: _fmtDate(_invoice.issueDate),
                         ),
                         _SummaryRow(
                           label: 'Due Date',
-                          value: invoice.dueDate == null
+                          value: _invoice.dueDate == null
                               ? '-'
-                              : _fmtDate(invoice.dueDate!),
+                              : _fmtDate(_invoice.dueDate!),
                         ),
-                        _SummaryRow(label: 'Company', value: invoice.company),
+                        _SummaryRow(label: 'Company', value: _invoice.company),
                         _SummaryRow(
                           label: 'Customer Type',
-                          value: invoice.customerType,
+                          value: _invoice.customerType,
                         ),
                         _SummaryRow(
                           label: 'Invoice Type',
-                          value: invoice.invoiceType,
+                          value: _invoice.invoiceType,
                         ),
                         _SummaryRow(
                           label: 'Payment Terms',
-                          value: invoice.paymentTerms,
+                          value: _invoice.paymentTerms,
                         ),
-                        _SummaryRow(label: 'Currency', value: invoice.currency),
+                        _SummaryRow(label: 'Currency', value: _invoice.currency),
                         _SummaryRow(
                           label: 'Subtotal',
-                          value: _formatNumber(invoice.subtotal),
+                          value: _formatNumber(_invoice.subtotal),
                         ),
                         _SummaryRow(
                           label: 'VAT',
-                          value: _formatNumber(invoice.vatAmount),
+                          value: _formatNumber(_invoice.vatAmount),
                         ),
                         _SummaryRow(label: 'Total', value: _amountLabel()),
                       ],
@@ -364,7 +559,7 @@ class InvoiceDetailsScreen extends StatelessWidget {
                   SizedBox(height: gap),
                   _SectionCard(
                     title: 'Items',
-                    child: invoice.items.isEmpty
+                    child: _invoice.items.isEmpty
                         ? const Padding(
                             padding: EdgeInsets.symmetric(vertical: 10),
                             child: Text(
@@ -376,7 +571,7 @@ class InvoiceDetailsScreen extends StatelessWidget {
                             ),
                           )
                         : Column(
-                            children: invoice.items.map((InvoiceItem it) {
+                            children: _invoice.items.map((InvoiceItem it) {
                               final double lineTotal = it.total;
                               final bool asInt =
                                   (lineTotal - lineTotal.truncateToDouble())
@@ -416,7 +611,7 @@ class InvoiceDetailsScreen extends StatelessWidget {
                                           ),
                                           const SizedBox(height: 6),
                                           Text(
-                                            'Qty ${it.qty}  •  ${invoice.currency} ${it.price.toStringAsFixed(2)}',
+                                            'Qty ${it.qty}  •  ${_invoice.currency} ${it.price.toStringAsFixed(2)}',
                                             style: const TextStyle(
                                               color: Color(0xFF6B7895),
                                               fontWeight: FontWeight.w700,
@@ -428,7 +623,7 @@ class InvoiceDetailsScreen extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 10),
                                     Text(
-                                      '${invoice.currency} $formatted',
+                                      '${_invoice.currency} $formatted',
                                       style: const TextStyle(
                                         color: Color(0xFF0B1B4B),
                                         fontWeight: FontWeight.w900,
@@ -441,12 +636,12 @@ class InvoiceDetailsScreen extends StatelessWidget {
                             }).toList(),
                           ),
                   ),
-                  if (invoice.notes.trim().isNotEmpty) ...<Widget>[
+                  if (_invoice.notes.trim().isNotEmpty) ...<Widget>[
                     SizedBox(height: gap),
                     _SectionCard(
                       title: 'Notes',
                       child: Text(
-                        invoice.notes,
+                        _invoice.notes,
                         style: const TextStyle(
                           color: Color(0xFF0B1B4B),
                           fontWeight: FontWeight.w700,
@@ -455,12 +650,12 @@ class InvoiceDetailsScreen extends StatelessWidget {
                       ),
                     ),
                   ],
-                  if (invoice.terms.trim().isNotEmpty) ...<Widget>[
+                  if (_invoice.terms.trim().isNotEmpty) ...<Widget>[
                     SizedBox(height: gap),
                     _SectionCard(
                       title: 'Terms',
                       child: Text(
-                        invoice.terms,
+                        _invoice.terms,
                         style: const TextStyle(
                           color: Color(0xFF0B1B4B),
                           fontWeight: FontWeight.w700,
@@ -475,65 +670,88 @@ class InvoiceDetailsScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        if (invoice.zatca.hasAny) ...<Widget>[
+                        if (_isZatcaPolling) ...<Widget>[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: <Widget>[
+                              const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                              const SizedBox(width: 10),
+                              const Expanded(
+                                child: Text(
+                                  'Generating ZATCA QR/PDF…',
+                                  style: TextStyle(
+                                    color: Color(0xFF6B7895),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                        if (_invoice.zatca.hasAny) ...<Widget>[
                           _SummaryRow(
                             label: 'Status',
-                            value: invoice.zatca.status.trim().isEmpty
+                            value: _invoice.zatca.status.trim().isEmpty
                                 ? '-'
-                                : invoice.zatca.status.trim(),
+                                : _invoice.zatca.status.trim(),
                           ),
                           _SummaryRow(
                             label: 'Validation',
-                            value: invoice.zatca.validationStatus.trim().isEmpty
+                            value: _invoice.zatca.validationStatus.trim().isEmpty
                                 ? '-'
-                                : invoice.zatca.validationStatus.trim(),
+                                : _invoice.zatca.validationStatus.trim(),
                           ),
                           _SummaryRow(
                             label: 'UUID',
-                            value: invoice.zatca.uuid.trim().isEmpty
+                            value: _invoice.zatca.uuid.trim().isEmpty
                                 ? '-'
-                                : invoice.zatca.uuid.trim(),
+                                : _invoice.zatca.uuid.trim(),
                           ),
                           _SummaryRow(
                             label: 'Last Validated',
-                            value: _fmtDateTime(invoice.zatca.lastValidatedAt),
+                            value: _fmtDateTime(_invoice.zatca.lastValidatedAt),
                           ),
                           _SummaryRow(
                             label: 'Cleared At',
-                            value: _fmtDateTime(invoice.zatca.clearedAt),
+                            value: _fmtDateTime(_invoice.zatca.clearedAt),
                           ),
                           _SummaryRow(
                             label: 'Category',
-                            value: invoice.zatca.invoiceCategory.trim().isEmpty
+                            value: _invoice.zatca.invoiceCategory.trim().isEmpty
                                 ? '-'
-                                : invoice.zatca.invoiceCategory.trim(),
+                                : _invoice.zatca.invoiceCategory.trim(),
                           ),
                           _SummaryRow(
                             label: 'Hash Chain #',
-                            value: invoice.zatca.hashChainNumber == null
+                            value: _invoice.zatca.hashChainNumber == null
                                 ? '-'
-                                : invoice.zatca.hashChainNumber.toString(),
+                                : _invoice.zatca.hashChainNumber.toString(),
                           ),
                           _SummaryRow(
                             label: 'Previous Hash',
-                            value: invoice.zatca.previousInvoiceHash.trim().isEmpty
+                            value: _invoice.zatca.previousInvoiceHash.trim().isEmpty
                                 ? '-'
-                                : invoice.zatca.previousInvoiceHash.trim(),
+                                : _invoice.zatca.previousInvoiceHash.trim(),
                           ),
                         ],
                         Text(
-                          invoice.id.isEmpty
+                          _invoice.id.isEmpty
                               ? 'Invoice ID not available'
-                              : 'Invoice ID: ${invoice.id}',
+                              : 'Invoice ID: ${_invoice.id}',
                           style: const TextStyle(
                             color: Color(0xFF6B7895),
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        if ((invoice.zatca.hash).trim().isNotEmpty) ...<Widget>[
+                        if ((_invoice.zatca.hash).trim().isNotEmpty) ...<Widget>[
                           const SizedBox(height: 10),
                           SelectableText(
-                            'Hash: ${invoice.zatca.hash.trim()}',
+                            'Hash: ${_invoice.zatca.hash.trim()}',
                             style: const TextStyle(
                               color: Color(0xFF6B7895),
                               fontWeight: FontWeight.w700,
@@ -543,7 +761,7 @@ class InvoiceDetailsScreen extends StatelessWidget {
                         ],
                         const SizedBox(height: 10),
                         OutlinedButton(
-                          onPressed: invoice.id.trim().isEmpty
+                          onPressed: _invoice.id.trim().isEmpty
                               ? null
                               : () => _sharePdf(context),
                           style: OutlinedButton.styleFrom(
@@ -558,15 +776,30 @@ class InvoiceDetailsScreen extends StatelessWidget {
                           ),
                           child: const Text('Download / Share PDF'),
                         ),
-                        if ((invoice.zatca.qrCode).trim().isNotEmpty) ...<Widget>[
+                        if (_invoice.status == InvoiceStatus.draft &&
+                            !_invoice.zatca.hasAny &&
+                            _invoice.zatca.lastValidatedAt == null &&
+                            _invoice.zatca.validationStatus.trim().isEmpty) ...<Widget>[
+                          const SizedBox(height: 10),
+                          ElevatedButton(
+                            onPressed: (_invoice.id.trim().isEmpty || _isZatcaPolling)
+                                ? null
+                                : () => _sendInvoice(context),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                            ),
+                            child: const Text('Send Invoice'),
+                          ),
+                        ],
+                        if ((_invoice.zatca.qrCode).trim().isNotEmpty) ...<Widget>[
                           const SizedBox(height: 12),
                           Builder(
                             builder: (BuildContext context) {
                               final Uint8List? bytes =
-                                  _tryDecodeBase64(invoice.zatca.qrCode);
+                                  _tryDecodeBase64(_invoice.zatca.qrCode);
                               if (bytes == null) {
                                 return SelectableText(
-                                  'QR (base64): ${invoice.zatca.qrCode.trim()}',
+                                  'QR (base64): ${_invoice.zatca.qrCode.trim()}',
                                   style: const TextStyle(
                                     color: Color(0xFF6B7895),
                                     fontWeight: FontWeight.w700,
@@ -590,7 +823,7 @@ class InvoiceDetailsScreen extends StatelessWidget {
                         ],
                         const SizedBox(height: 10),
                         ElevatedButton(
-                          onPressed: invoice.id.isEmpty
+                          onPressed: (_invoice.id.isEmpty || _isZatcaPolling)
                               ? null
                               : () => _validateZatca(context),
                           style: ElevatedButton.styleFrom(

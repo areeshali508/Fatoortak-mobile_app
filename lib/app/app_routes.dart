@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:provider/single_child_widget.dart';
 
 import '../controllers/auth_controller.dart';
 import '../controllers/customer_controller.dart';
@@ -17,6 +18,9 @@ import '../controllers/onboarding_controller.dart';
 import '../controllers/settings_controller.dart';
 import '../controllers/system_settings_controller.dart';
 import '../controllers/companies_controller.dart';
+import '../controllers/add_new_user_controller.dart';
+import '../controllers/users_controller.dart';
+import '../controllers/roles_permissions_controller.dart';
 import '../models/product.dart';
 import '../repositories/customer_repository.dart';
 import '../repositories/invoice_repository.dart';
@@ -24,8 +28,11 @@ import '../repositories/onboarding_repository.dart';
 import '../repositories/dashboard_repository.dart';
 import '../repositories/credit_note_repository.dart';
 import '../repositories/debit_note_repository.dart';
+import '../repositories/permission_repository.dart';
 import '../repositories/quotation_repository.dart';
+import '../repositories/role_repository.dart';
 import '../repositories/settings_repository.dart';
+import '../repositories/user_repository.dart';
 import '../repositories/company_repository.dart';
 import '../views/screens/dashboard/dashboard_screen.dart';
 import '../views/screens/auth/login_screen.dart';
@@ -52,6 +59,14 @@ import '../views/screens/settings/subscription_screen.dart';
 import '../views/screens/settings/upgrade_plan_screen.dart';
 import '../views/screens/settings/company_info_screen.dart';
 import '../views/screens/splash/splash_screen.dart';
+import '../views/screens/reports/sales_reports_screen.dart';
+import '../views/screens/reports/customer_reports_screen.dart';
+import '../views/screens/reports/product_reports_screen.dart';
+import '../views/screens/reports/reports_dashboard_screen.dart';
+import '../views/screens/users_roles/users_roles_screen.dart';
+import '../views/screens/users_roles/add_new_user_screen.dart';
+import '../views/screens/users_roles/new_role_screen.dart';
+import '../views/screens/users_roles/team_members_screen.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -69,6 +84,10 @@ class AppRoutes {
   static const String addCustomer = '/add-customer';
   static const String products = '/products';
   static const String addProduct = '/add-product';
+  static const String usersRoles = '/users-roles';
+  static const String teamMembers = '/team-members';
+  static const String addNewUser = '/add-new-user';
+  static const String newRole = '/new-role';
   static const String login = '/login';
   static const String forgotPassword = '/forgot-password';
   static const String signup = '/signup';
@@ -79,6 +98,10 @@ class AppRoutes {
   static const String subscription = '/subscription';
   static const String upgradePlan = '/upgrade-plan';
   static const String companyInfo = '/company-info';
+  static const String salesReports = '/sales-reports';
+  static const String customerReports = '/customer-reports';
+  static const String productReports = '/product-reports';
+  static const String reportsDashboard = '/reports-dashboard';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -129,6 +152,7 @@ class AppRoutes {
           builder: (_) => ChangeNotifierProvider<CreditNotesController>(
             create: (BuildContext ctx) => CreditNotesController(
               repository: ctx.read<CreditNoteRepository>(),
+              companyRepository: ctx.read<CompanyRepository>(),
             ),
             child: const CreditNotesScreen(),
           ),
@@ -137,7 +161,10 @@ class AppRoutes {
       case AppRoutes.createCreditNote:
         return MaterialPageRoute<void>(
           builder: (_) => ChangeNotifierProvider<CreateCreditNoteController>(
-            create: (_) => CreateCreditNoteController(),
+            create: (BuildContext ctx) => CreateCreditNoteController(
+              companyRepository: ctx.read<CompanyRepository>(),
+              creditNoteRepository: ctx.read<CreditNoteRepository>(),
+            ),
             child: const CreateCreditNoteScreen(),
           ),
           settings: settings,
@@ -147,6 +174,7 @@ class AppRoutes {
           builder: (_) => ChangeNotifierProvider<DebitNotesController>(
             create: (BuildContext ctx) => DebitNotesController(
               repository: ctx.read<DebitNoteRepository>(),
+              auth: ctx.read<AuthController>(),
             ),
             child: const DebitNotesScreen(),
           ),
@@ -155,7 +183,9 @@ class AppRoutes {
       case AppRoutes.createDebitNote:
         return MaterialPageRoute<void>(
           builder: (_) => ChangeNotifierProvider<CreateDebitNoteController>(
-            create: (_) => CreateDebitNoteController(),
+            create: (BuildContext ctx) => CreateDebitNoteController(
+              companyRepository: ctx.read<CompanyRepository>(),
+            ),
             child: const CreateDebitNoteWizardScreen(),
           ),
           settings: settings,
@@ -212,6 +242,49 @@ class AppRoutes {
             create: (_) => CreateProductController(),
             child: const AddProductScreen(),
           ),
+          settings: settings,
+        );
+      case AppRoutes.usersRoles:
+        return MaterialPageRoute<void>(
+          builder: (_) => MultiProvider(
+            providers: <SingleChildWidget>[
+              ChangeNotifierProvider<RolesPermissionsController>(
+                create: (BuildContext ctx) => RolesPermissionsController(
+                  roleRepository: ctx.read<RoleRepository>(),
+                  permissionRepository: ctx.read<PermissionRepository>(),
+                )..loadInitial(),
+              ),
+            ],
+            child: const UsersRolesScreen(),
+          ),
+          settings: settings,
+        );
+      case AppRoutes.teamMembers:
+        return MaterialPageRoute<void>(
+          builder: (_) => ChangeNotifierProvider<UsersController>(
+            create: (BuildContext ctx) => UsersController(
+              repository: ctx.read<UserRepository>(),
+            )..load(),
+            child: const TeamMembersScreen(),
+          ),
+          settings: settings,
+        );
+      case AppRoutes.addNewUser:
+        return MaterialPageRoute<void>(
+          builder: (_) => ChangeNotifierProvider<AddNewUserController>(
+            create: (BuildContext ctx) => AddNewUserController(
+              roleRepository: ctx.read<RoleRepository>(),
+              permissionRepository: ctx.read<PermissionRepository>(),
+              companyRepository: ctx.read<CompanyRepository>(),
+              userRepository: ctx.read<UserRepository>(),
+            )..loadInitial(),
+            child: const AddNewUserScreen(),
+          ),
+          settings: settings,
+        );
+      case AppRoutes.newRole:
+        return MaterialPageRoute<void>(
+          builder: (_) => const NewRoleScreen(),
           settings: settings,
         );
       case login:
@@ -277,6 +350,26 @@ class AppRoutes {
       case AppRoutes.zatcaSetup:
         return MaterialPageRoute<void>(
           builder: (_) => const ZatcaSetupScreen(),
+          settings: settings,
+        );
+      case AppRoutes.salesReports:
+        return MaterialPageRoute<void>(
+          builder: (_) => const SalesReportsScreen(),
+          settings: settings,
+        );
+      case AppRoutes.customerReports:
+        return MaterialPageRoute<void>(
+          builder: (_) => const CustomerReportsScreen(),
+          settings: settings,
+        );
+      case AppRoutes.productReports:
+        return MaterialPageRoute<void>(
+          builder: (_) => const ProductReportsScreen(),
+          settings: settings,
+        );
+      case AppRoutes.reportsDashboard:
+        return MaterialPageRoute<void>(
+          builder: (_) => const ReportsDashboardScreen(),
           settings: settings,
         );
       default:

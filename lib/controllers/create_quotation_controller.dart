@@ -227,11 +227,17 @@ class CreateQuotationController extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      _customers = await _customerRepository.listCustomers(
-        companyId: resolvedCompanyId.trim(),
+      final List<Customer> all = await _customerRepository.listCustomersUnfiltered(
         page: 1,
         limit: 50,
       );
+
+      final String companyFilter = resolvedCompanyId.trim();
+      _customers = all.where((Customer c) {
+        final String cid = c.companyId.trim();
+        if (cid.isEmpty) return true;
+        return cid == companyFilter;
+      }).toList();
 
       final String sel = (_selectedCustomerId ?? '').trim();
       if (sel.isNotEmpty) {

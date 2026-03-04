@@ -55,6 +55,34 @@ class ZatcaRepository {
     );
   }
 
+  Future<Map<String, dynamic>> sendInvoice({required String invoiceId}) async {
+    return _api.postJson(
+      '/api/invoices/$invoiceId/send',
+      body: const <String, dynamic>{},
+    );
+  }
+
+  Future<Map<String, dynamic>> reportInvoice({required String invoiceId}) async {
+    return _api.postJson(
+      '/api/invoices/$invoiceId/zatca/report',
+      body: const <String, dynamic>{},
+    );
+  }
+
+  Future<Map<String, dynamic>> submitInvoice({required String invoiceId}) async {
+    return _api.postJson(
+      '/api/invoices/$invoiceId/zatca/submit',
+      body: const <String, dynamic>{},
+    );
+  }
+
+  Future<Map<String, dynamic>> clearInvoice({required String invoiceId}) async {
+    return _api.postJson(
+      '/api/invoices/$invoiceId/zatca/clear',
+      body: const <String, dynamic>{},
+    );
+  }
+
   Future<Map<String, dynamic>> getInvoiceQrCode({required String invoiceId}) async {
     return _api.getJson('/api/invoices/$invoiceId/zatca/qrcode');
   }

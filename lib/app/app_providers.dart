@@ -7,6 +7,7 @@ import '../controllers/auth_controller.dart';
 import '../controllers/customer_controller.dart';
 import '../controllers/invoice_controller.dart';
 import '../controllers/product_controller.dart';
+import '../controllers/reports_controller.dart';
 import '../controllers/zatca_controller.dart';
 import '../core/services/api_client.dart';
 import '../repositories/auth_repository.dart';
@@ -19,21 +20,40 @@ import '../repositories/quotation_repository.dart';
 import '../repositories/customer_repository.dart';
 import '../repositories/dashboard_repository.dart';
 import '../repositories/onboarding_repository.dart';
+import '../repositories/permission_repository.dart';
 import '../repositories/product_repository.dart';
+import '../repositories/role_repository.dart';
 import '../repositories/settings_repository.dart';
+import '../repositories/user_repository.dart';
 
 class AppProviders {
   static final List<SingleChildWidget> providers = <SingleChildWidget>[
     Provider<OnboardingRepository>(create: (_) => const OnboardingRepository()),
     Provider<DashboardRepository>(create: (_) => const DashboardRepository()),
-    Provider<CreditNoteRepository>(create: (_) => CreditNoteRepository()),
-    Provider<DebitNoteRepository>(create: (_) => DebitNoteRepository()),
     Provider<AuthRepository>(create: (_) => const AuthRepository()),
     Provider<ApiClient>(
       create: (BuildContext ctx) => ApiClient(
-        baseUrl: 'https://e-invoicing-solution-backend.vercel.app',
+        baseUrl: 'https://e-invoicing-solution-backenduat.vercel.app',
         tokenProvider: () => ctx.read<AuthRepository>().getToken(),
       ),
+    ),
+    ProxyProvider<ApiClient, DebitNoteRepository>(
+      update: (BuildContext ctx, ApiClient api, DebitNoteRepository? prev) {
+        if (prev == null) {
+          return DebitNoteRepository(api: api);
+        }
+        prev.updateApi(api);
+        return prev;
+      },
+    ),
+    ProxyProvider<ApiClient, CreditNoteRepository>(
+      update: (BuildContext ctx, ApiClient api, CreditNoteRepository? prev) {
+        if (prev == null) {
+          return CreditNoteRepository(api: api);
+        }
+        prev.updateApi(api);
+        return prev;
+      },
     ),
     ProxyProvider<ApiClient, QuotationRepository>(
       update: (BuildContext ctx, ApiClient api, QuotationRepository? prev) {
@@ -70,6 +90,33 @@ class AppProviders {
         return prev;
       },
     ),
+    ProxyProvider<ApiClient, RoleRepository>(
+      update: (BuildContext ctx, ApiClient api, RoleRepository? prev) {
+        if (prev == null) {
+          return RoleRepository(api: api);
+        }
+        prev.updateApi(api);
+        return prev;
+      },
+    ),
+    ProxyProvider<ApiClient, PermissionRepository>(
+      update: (BuildContext ctx, ApiClient api, PermissionRepository? prev) {
+        if (prev == null) {
+          return PermissionRepository(api: api);
+        }
+        prev.updateApi(api);
+        return prev;
+      },
+    ),
+    ProxyProvider<ApiClient, UserRepository>(
+      update: (BuildContext ctx, ApiClient api, UserRepository? prev) {
+        if (prev == null) {
+          return UserRepository(api: api);
+        }
+        prev.updateApi(api);
+        return prev;
+      },
+    ),
     ProxyProvider<ApiClient, ProductRepository>(
       update: (BuildContext ctx, ApiClient api, ProductRepository? prev) {
         if (prev == null) {
@@ -83,6 +130,15 @@ class AppProviders {
       update: (BuildContext ctx, ApiClient api, CustomerRepository? prev) {
         if (prev == null) {
           return CustomerRepository(api: api);
+        }
+        prev.updateApi(api);
+        return prev;
+      },
+    ),
+    ProxyProvider<ApiClient, ReportsRepository>(
+      update: (BuildContext ctx, ApiClient api, ReportsRepository? prev) {
+        if (prev == null) {
+          return ReportsRepository(api: api);
         }
         prev.updateApi(api);
         return prev;
@@ -128,6 +184,19 @@ class AppProviders {
           ) {
             prev?.updateRepository(repo);
             return prev ?? CustomerController(repository: repo);
+          },
+    ),
+    ChangeNotifierProxyProvider<ReportsRepository, ReportsController>(
+      create: (BuildContext ctx) =>
+          ReportsController(repository: ctx.read<ReportsRepository>()),
+      update:
+          (
+            BuildContext ctx,
+            ReportsRepository repo,
+            ReportsController? prev,
+          ) {
+            prev?.updateRepository(repo);
+            return prev ?? ReportsController(repository: repo);
           },
     ),
     ChangeNotifierProxyProvider2<ZatcaRepository, AuthController, ZatcaController>(

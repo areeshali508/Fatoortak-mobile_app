@@ -13,6 +13,7 @@ import '../../../core/constants/app_responsive.dart';
 import '../../../models/product.dart';
 import '../../layout/app_drawer.dart';
 import '../../widgets/buttons/primary_add_fab.dart';
+import 'product_preview_screen.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -158,6 +159,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             ? List<_ProductVM>.generate(
                 6,
                 (int i) => _ProductVM(
+                  index: i,
                   name: 'Loading',
                   sku: '----',
                   category: '----',
@@ -409,7 +411,21 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           ...items.map((_ProductVM p) {
                             return _ProductCard(
                               product: p,
-                              onTap: _showComingSoon,
+                              onTap: () {
+                                final int index = p.index;
+                                if (index < 0 || index >= ctrl.products.length) {
+                                  _showComingSoon();
+                                  return;
+                                }
+                                final Product raw = ctrl.products[index];
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => ProductPreviewScreen(
+                                      product: raw,
+                                    ),
+                                  ),
+                                );
+                              },
                             );
                           }),
                       ],
@@ -919,6 +935,7 @@ class _ProductCard extends StatelessWidget {
 enum _StockStatus { inStock, low, empty }
 
 class _ProductVM {
+  final int index;
   final String name;
   final String sku;
   final String category;
@@ -928,6 +945,7 @@ class _ProductVM {
   final String currency;
 
   const _ProductVM({
+    required this.index,
     required this.name,
     required this.sku,
     required this.category,
@@ -948,6 +966,7 @@ class _ProductVM {
         ? 'General'
         : product.category.trim();
     return _ProductVM(
+      index: index,
       name: product.name,
       sku: sku,
       category: category,

@@ -13,6 +13,8 @@ class AppDrawer extends StatefulWidget {
 
 class _AppDrawerState extends State<AppDrawer> {
   bool _salesExpanded = false;
+  bool _usersRolesExpanded = false;
+  bool _reportsExpanded = false;
 
   void _comingSoon(BuildContext context) {
     Navigator.of(context).pop();
@@ -34,6 +36,23 @@ class _AppDrawerState extends State<AppDrawer> {
     if (salesSelected && !_salesExpanded) {
       setState(() => _salesExpanded = true);
     }
+
+    final bool usersRolesSelected =
+        currentRoute == AppRoutes.usersRoles ||
+        currentRoute == AppRoutes.teamMembers ||
+        currentRoute == AppRoutes.addNewUser;
+    if (usersRolesSelected && !_usersRolesExpanded) {
+      setState(() => _usersRolesExpanded = true);
+    }
+
+    final bool reportsSelected =
+        currentRoute == AppRoutes.salesReports ||
+        currentRoute == AppRoutes.customerReports ||
+        currentRoute == AppRoutes.productReports ||
+        currentRoute == AppRoutes.reportsDashboard;
+    if (reportsSelected && !_reportsExpanded) {
+      setState(() => _reportsExpanded = true);
+    }
   }
 
   @override
@@ -51,6 +70,20 @@ class _AppDrawerState extends State<AppDrawer> {
         creditNotesSelected ||
         debitNotesSelected ||
         quotationsSelected;
+
+    final bool addUsersSelected =
+        currentRoute == AppRoutes.teamMembers ||
+        currentRoute == AppRoutes.addNewUser;
+    final bool usersRolesSelected = currentRoute == AppRoutes.usersRoles;
+    final bool usersAndRolesSelected = addUsersSelected || usersRolesSelected;
+
+    final bool salesReportsSelected = currentRoute == AppRoutes.salesReports;
+    final bool customerReportsSelected =
+        currentRoute == AppRoutes.customerReports;
+    final bool productReportsSelected = currentRoute == AppRoutes.productReports;
+    final bool reportsDashboardSelected = currentRoute == AppRoutes.reportsDashboard;
+    final bool reportsSelected =
+        salesReportsSelected || customerReportsSelected || productReportsSelected || reportsDashboardSelected;
 
     return Drawer(
       backgroundColor: Colors.transparent,
@@ -358,9 +391,49 @@ class _AppDrawerState extends State<AppDrawer> {
                       child: _DrawerItem(
                         icon: Icons.badge_outlined,
                         label: 'Users & Roles',
-                        onTap: () => _comingSoon(context),
+                        selected: usersAndRolesSelected,
+                        trailing: _usersRolesExpanded
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                        onTap: () {
+                          setState(
+                            () => _usersRolesExpanded = !_usersRolesExpanded,
+                          );
+                        },
                       ),
                     ),
+                    if (_usersRolesExpanded)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
+                        child: _DrawerItem(
+                          icon: Icons.person_add_alt_1_outlined,
+                          label: 'Add Users',
+                          selected: addUsersSelected,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (currentRoute == AppRoutes.teamMembers) {
+                              return;
+                            }
+                            Navigator.of(context).pushNamed(AppRoutes.teamMembers);
+                          },
+                        ),
+                      ),
+                    if (_usersRolesExpanded)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
+                        child: _DrawerItem(
+                          icon: Icons.security_outlined,
+                          label: 'Roles & Permissions',
+                          selected: usersRolesSelected,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (currentRoute == AppRoutes.usersRoles) {
+                              return;
+                            }
+                            Navigator.of(context).pushNamed(AppRoutes.usersRoles);
+                          },
+                        ),
+                      ),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: hPad),
                       child: _DrawerItem(
@@ -398,9 +471,87 @@ class _AppDrawerState extends State<AppDrawer> {
                       child: _DrawerItem(
                         icon: Icons.bar_chart_outlined,
                         label: 'Reports',
-                        onTap: () => _comingSoon(context),
+                        selected: reportsSelected,
+                        trailing: _reportsExpanded
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                        onTap: () {
+                          setState(() => _reportsExpanded = !_reportsExpanded);
+                        },
                       ),
                     ),
+                    if (_reportsExpanded)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
+                        child: _DrawerItem(
+                          icon: Icons.dashboard_outlined,
+                          label: 'Reports Dashboard',
+                          selected: reportsDashboardSelected,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (currentRoute == AppRoutes.reportsDashboard) {
+                              return;
+                            }
+                            Navigator.of(context).pushNamed(
+                              AppRoutes.reportsDashboard,
+                            );
+                          },
+                        ),
+                      ),
+                    if (_reportsExpanded)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
+                        child: _DrawerItem(
+                          icon: Icons.show_chart,
+                          label: 'Sales Report',
+                          selected: salesReportsSelected,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (currentRoute == AppRoutes.salesReports) {
+                              return;
+                            }
+                            Navigator.of(context).pushNamed(
+                              AppRoutes.salesReports,
+                            );
+                          },
+                        ),
+                      ),
+                    if (_reportsExpanded)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
+                        child: _DrawerItem(
+                          icon: Icons.groups_outlined,
+                          label: 'Customer Report',
+                          selected: customerReportsSelected,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (currentRoute == AppRoutes.customerReports) {
+                              return;
+                            }
+                            Navigator.of(context).pushNamed(
+                              AppRoutes.customerReports,
+                            );
+                          },
+                        ),
+                      ),
+                    if (_reportsExpanded)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
+                        child: _DrawerItem(
+                          icon: Icons.inventory_2_outlined,
+                          label: 'Product Report',
+                          selected: productReportsSelected,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (currentRoute == AppRoutes.productReports) {
+                              return;
+                            }
+                            Navigator.of(context).pushNamed(
+                              AppRoutes.productReports,
+                            );
+                          },
+                        ),
+                      ),
                     Padding(
                       padding: EdgeInsets.fromLTRB(
                         hPad,

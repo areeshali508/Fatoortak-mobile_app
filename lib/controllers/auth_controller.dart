@@ -65,8 +65,12 @@ class AuthController extends ChangeNotifier {
       );
       if (!ok) return false;
 
-      _profile = await _repository.getProfile();
-      _myCompany = await _repository.getMyCompany();
+      final List<dynamic> res = await Future.wait<dynamic>([
+        _repository.getProfile(),
+        _repository.getMyCompany(),
+      ]);
+      _profile = res[0] as Map<String, dynamic>;
+      _myCompany = res[1] as Map<String, dynamic>;
       _activeCompany ??= _myCompany;
       _isAuthenticated = true;
       return true;

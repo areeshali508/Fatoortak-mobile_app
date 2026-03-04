@@ -36,6 +36,8 @@ class CreditNoteItem {
 
 class CreditNote {
   final String id;
+  final String? number;
+  final String? companyId;
   final String customer;
   final String customerType;
   final DateTime issueDate;
@@ -43,8 +45,13 @@ class CreditNote {
   final double amount;
   final CreditNoteStatus status;
   final CreditNotePaymentStatus paymentStatus;
+  final String? originalInvoiceId;
   final String? originalInvoiceNo;
   final String? originalInvoiceCustomerType;
+  final String? zatcaStatus;
+  final String? zatcaValidationStatus;
+  final DateTime? zatcaLastValidatedAt;
+  final DateTime? zatcaClearedAt;
   final String? zatcaUuid;
   final String? zatcaHash;
   final String? zatcaErrorMessage;
@@ -52,6 +59,8 @@ class CreditNote {
 
   const CreditNote({
     required this.id,
+    this.number,
+    this.companyId,
     required this.customer,
     required this.customerType,
     required this.issueDate,
@@ -59,8 +68,13 @@ class CreditNote {
     required this.amount,
     required this.status,
     this.paymentStatus = CreditNotePaymentStatus.pending,
+    this.originalInvoiceId,
     this.originalInvoiceNo,
     this.originalInvoiceCustomerType,
+    this.zatcaStatus,
+    this.zatcaValidationStatus,
+    this.zatcaLastValidatedAt,
+    this.zatcaClearedAt,
     this.zatcaUuid,
     this.zatcaHash,
     this.zatcaErrorMessage,

@@ -120,6 +120,29 @@ class InvoiceRepository {
         .toList();
   }
 
+  Future<Invoice> getInvoiceById({required String invoiceId}) async {
+    final String id = invoiceId.trim();
+    if (id.isEmpty) {
+      throw const ApiClientException('Invoice id is required');
+    }
+
+    final Map<String, dynamic> res = await _api.getJson('/api/invoices/$id');
+
+    Object? raw = res['invoice'] ?? res['data'] ?? res;
+    if (raw is Map<String, dynamic>) {
+      final Object? nested = raw['invoice'] ?? raw['data'];
+      if (nested is Map<String, dynamic>) {
+        raw = nested;
+      }
+    }
+
+    if (raw is Map<String, dynamic>) {
+      return _mapInvoice(raw);
+    }
+
+    throw const ApiClientException('Invalid invoice response');
+  }
+
   Future<Invoice> createInvoice({
     required String companyId,
     required String customerId,
@@ -211,8 +234,16 @@ class InvoiceRepository {
     final String invoiceNo =
         (json['invoiceNumber'] ?? json['invoiceNo'])?.toString() ?? '';
 
+    final Object? companyObj = json['companyId'] ?? json['company'];
+    final String? companyId = companyObj is Map<String, dynamic>
+        ? (companyObj['_id'] ?? companyObj['id'])?.toString()
+        : companyObj?.toString();
+
     String customer = '';
     final Object? customerObj = json['customerId'] ?? json['customer'];
+    final String? customerId = customerObj is Map<String, dynamic>
+        ? (customerObj['_id'] ?? customerObj['id'])?.toString()
+        : null;
     if (customerObj is Map<String, dynamic>) {
       customer = (customerObj['customerName'] ??
               customerObj['customerNameAr'] ??
@@ -242,7 +273,6 @@ class InvoiceRepository {
     final InvoiceStatus status = _mapStatus(json['status']?.toString());
 
     String companyName = '';
-    final Object? companyObj = json['companyId'] ?? json['company'];
     if (companyObj is Map<String, dynamic>) {
       companyName = (companyObj['companyName'] ?? companyObj['name'] ?? companyObj['_id'])
               ?.toString() ??
@@ -312,6 +342,12 @@ class InvoiceRepository {
 
     return Invoice(
       id: id,
+      companyId: (companyId != null && companyId.trim().isEmpty)
+          ? null
+          : companyId,
+      customerId: (customerId != null && customerId.trim().isEmpty)
+          ? null
+          : customerId,
       invoiceNo: invoiceNo,
       customer: customer,
       issueDate: issueDate,

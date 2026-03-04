@@ -18,7 +18,11 @@ class CreateInvoiceController extends ChangeNotifier {
     required CompanyRepository companyRepository,
   }) : _invoiceRepository = invoiceRepository,
        _customerRepository = customerRepository,
-       _companyRepository = companyRepository;
+       _companyRepository = companyRepository {
+    final DateTime now = DateTime.now();
+    _issueDate = DateTime(now.year, now.month, now.day);
+    _dueDate = _issueDate;
+  }
 
   int _currentStep = 0;
   int _maxStepReached = 0;

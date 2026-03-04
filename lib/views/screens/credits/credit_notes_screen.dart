@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../app/app_routes.dart';
+import '../../../controllers/auth_controller.dart';
 import '../../../controllers/credit_notes_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
+import '../../../models/company.dart';
 import '../../../models/credit_note.dart';
 import '../../layout/app_drawer.dart';
 import '../../widgets/buttons/primary_add_fab.dart';
@@ -52,6 +55,81 @@ class _SheetActionTile extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DashboardStatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color iconColor;
+
+  const _DashboardStatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.iconColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE9EEF5)),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x0A0B1B4B),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F6FB),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF9AA5B6),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF0B1B4B),
+              fontWeight: FontWeight.w900,
+              fontSize: 18,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -281,12 +359,127 @@ class _Pill extends StatelessWidget {
 class _CreditNotesScreenState extends State<CreditNotesScreen> {
   final TextEditingController _searchController = TextEditingController();
 
+  bool _requestedInitial = false;
+
+  String _companyLabelById(String? id) {
+    final String key = (id ?? '').trim();
+    if (key.isEmpty) return '';
+    try {
+      final CreditNotesController ctrl = context.read<CreditNotesController>();
+      final Company? c = ctrl.companyById(key);
+      final String label = (c?.name ?? key).trim();
+      return label.isEmpty ? key : label;
+    } catch (_) {
+      return key;
+    }
+  }
+
+  Future<void> _openCompanyPicker() async {
+    final CreditNotesController ctrl = context.read<CreditNotesController>();
+    if (ctrl.isLoadingCompanies || ctrl.companies.isEmpty) return;
+
+    final String? selected = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (BuildContext ctx) {
+        return SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
+            children: <Widget>[
+              const Text(
+                'Select Company',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF0B1B4B),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 10),
+              ...ctrl.companies.map((Company c) {
+                final bool isSelected = c.id == ctrl.companyId;
+                final String label = c.name.trim().isEmpty ? c.id : c.name.trim();
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Material(
+                    color: const Color(0xFFF7FAFF),
+                    borderRadius: BorderRadius.circular(14),
+                    child: InkWell(
+                      onTap: () => Navigator.of(ctx).pop(c.id),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: Text(
+                                label,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Color(0xFF0B1B4B),
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              isSelected
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_off,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : const Color(0xFF9AA5B6),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+
+    final String next = (selected ?? '').trim();
+    if (next.isEmpty || next == (ctrl.companyId ?? '').trim()) return;
+    ctrl.setCompanyId(next);
+    await ctrl.refresh();
+  }
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      context.read<CreditNotesController>().refresh();
+      final CreditNotesController ctrl = context.read<CreditNotesController>();
+      final AuthController auth = context.read<AuthController>();
+
+      if (!_requestedInitial) {
+        _requestedInitial = true;
+        await ctrl.loadCompanies(page: 1, limit: 50);
+        final String? activeId = auth.activeCompanyId;
+        final List companies = ctrl.companies;
+        if (companies.isNotEmpty) {
+          final selected = (activeId == null || activeId.trim().isEmpty)
+              ? companies.first
+              : ctrl.companyById(activeId) ?? companies.first;
+          ctrl.setCompanyId(selected.id);
+        }
+      }
+
+      await ctrl.refresh();
     });
   }
 
@@ -308,33 +501,29 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
       ),
       builder: (BuildContext ctx) {
         return SafeArea(
-          child: Padding(
+          child: ListView(
             padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                const Text(
-                  'Date Range',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF0B1B4B),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
-                  ),
+            children: <Widget>[
+              const Text(
+                'Date Range',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF0B1B4B),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
                 ),
-                const SizedBox(height: 10),
+              ),
+              const SizedBox(height: 10),
+              _SheetActionTile(
+                label: 'Select Start to End',
+                onTap: () => Navigator.of(ctx).pop(_DateAction.pick),
+              ),
+              if (notesCtrl.dateRange != null)
                 _SheetActionTile(
-                  label: 'Select Start to End',
-                  onTap: () => Navigator.of(ctx).pop(_DateAction.pick),
+                  label: 'Clear Date Range',
+                  onTap: () => Navigator.of(ctx).pop(_DateAction.clear),
                 ),
-                if (notesCtrl.dateRange != null)
-                  _SheetActionTile(
-                    label: 'Clear Date Range',
-                    onTap: () => Navigator.of(ctx).pop(_DateAction.clear),
-                  ),
-              ],
-            ),
+            ],
           ),
         );
       },
@@ -378,85 +567,80 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
       ),
       builder: (BuildContext ctx) {
         return SafeArea(
-          child: Padding(
+          child: ListView(
             padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                const Text(
-                  'Credit Note Status',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF0B1B4B),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
-                  ),
+            children: <Widget>[
+              const Text(
+                'Credit Note Status',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF0B1B4B),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
                 ),
-                const SizedBox(height: 10),
-                _StatusOption(
-                  label: 'All Status',
-                  selected: notesCtrl.statusFilter == null,
-                  onTap: () => Navigator.of(ctx).pop(null),
-                ),
-                _StatusOption(
-                  label: 'Draft',
-                  selected: notesCtrl.statusFilter == CreditNoteStatus.draft,
-                  onTap: () {
-                    Navigator.of(ctx).pop(
-                      notesCtrl.statusFilter == CreditNoteStatus.draft
-                          ? null
-                          : CreditNoteStatus.draft,
-                    );
-                  },
-                ),
-                _StatusOption(
-                  label: 'Submitted',
-                  selected:
-                      notesCtrl.statusFilter == CreditNoteStatus.submitted,
-                  onTap: () {
-                    Navigator.of(ctx).pop(
-                      notesCtrl.statusFilter == CreditNoteStatus.submitted
-                          ? null
-                          : CreditNoteStatus.submitted,
-                    );
-                  },
-                ),
-                _StatusOption(
-                  label: 'Cleared',
-                  selected: notesCtrl.statusFilter == CreditNoteStatus.cleared,
-                  onTap: () {
-                    Navigator.of(ctx).pop(
-                      notesCtrl.statusFilter == CreditNoteStatus.cleared
-                          ? null
-                          : CreditNoteStatus.cleared,
-                    );
-                  },
-                ),
-                _StatusOption(
-                  label: 'Reported',
-                  selected: notesCtrl.statusFilter == CreditNoteStatus.reported,
-                  onTap: () {
-                    Navigator.of(ctx).pop(
-                      notesCtrl.statusFilter == CreditNoteStatus.reported
-                          ? null
-                          : CreditNoteStatus.reported,
-                    );
-                  },
-                ),
-                _StatusOption(
-                  label: 'Rejected',
-                  selected: notesCtrl.statusFilter == CreditNoteStatus.rejected,
-                  onTap: () {
-                    Navigator.of(ctx).pop(
-                      notesCtrl.statusFilter == CreditNoteStatus.rejected
-                          ? null
-                          : CreditNoteStatus.rejected,
-                    );
-                  },
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 10),
+              _StatusOption(
+                label: 'All Status',
+                selected: notesCtrl.statusFilter == null,
+                onTap: () => Navigator.of(ctx).pop(null),
+              ),
+              _StatusOption(
+                label: 'Draft',
+                selected: notesCtrl.statusFilter == CreditNoteStatus.draft,
+                onTap: () {
+                  Navigator.of(ctx).pop(
+                    notesCtrl.statusFilter == CreditNoteStatus.draft
+                        ? null
+                        : CreditNoteStatus.draft,
+                  );
+                },
+              ),
+              _StatusOption(
+                label: 'Submitted',
+                selected: notesCtrl.statusFilter == CreditNoteStatus.submitted,
+                onTap: () {
+                  Navigator.of(ctx).pop(
+                    notesCtrl.statusFilter == CreditNoteStatus.submitted
+                        ? null
+                        : CreditNoteStatus.submitted,
+                  );
+                },
+              ),
+              _StatusOption(
+                label: 'Cleared',
+                selected: notesCtrl.statusFilter == CreditNoteStatus.cleared,
+                onTap: () {
+                  Navigator.of(ctx).pop(
+                    notesCtrl.statusFilter == CreditNoteStatus.cleared
+                        ? null
+                        : CreditNoteStatus.cleared,
+                  );
+                },
+              ),
+              _StatusOption(
+                label: 'Reported',
+                selected: notesCtrl.statusFilter == CreditNoteStatus.reported,
+                onTap: () {
+                  Navigator.of(ctx).pop(
+                    notesCtrl.statusFilter == CreditNoteStatus.reported
+                        ? null
+                        : CreditNoteStatus.reported,
+                  );
+                },
+              ),
+              _StatusOption(
+                label: 'Rejected',
+                selected: notesCtrl.statusFilter == CreditNoteStatus.rejected,
+                onTap: () {
+                  Navigator.of(ctx).pop(
+                    notesCtrl.statusFilter == CreditNoteStatus.rejected
+                        ? null
+                        : CreditNoteStatus.rejected,
+                  );
+                },
+              ),
+            ],
           ),
         );
       },
@@ -482,71 +666,64 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
           ),
           builder: (BuildContext ctx) {
             return SafeArea(
-              child: Padding(
+              child: ListView(
                 padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    const Text(
-                      'Payment Status',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFF0B1B4B),
-                        fontWeight: FontWeight.w900,
-                        fontSize: 16,
-                      ),
+                children: <Widget>[
+                  const Text(
+                    'Payment Status',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFF0B1B4B),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
                     ),
-                    const SizedBox(height: 10),
-                    _StatusOption(
-                      label: 'All Payment Status',
-                      selected: notesCtrl.paymentStatusFilter == null,
-                      onTap: () => Navigator.of(ctx).pop(null),
-                    ),
-                    _StatusOption(
-                      label: 'Pending',
-                      selected:
-                          notesCtrl.paymentStatusFilter ==
-                          CreditNotePaymentStatus.pending,
-                      onTap: () {
-                        Navigator.of(ctx).pop(
-                          notesCtrl.paymentStatusFilter ==
-                                  CreditNotePaymentStatus.pending
-                              ? null
-                              : CreditNotePaymentStatus.pending,
-                        );
-                      },
-                    ),
-                    _StatusOption(
-                      label: 'Refunded',
-                      selected:
-                          notesCtrl.paymentStatusFilter ==
-                          CreditNotePaymentStatus.refunded,
-                      onTap: () {
-                        Navigator.of(ctx).pop(
-                          notesCtrl.paymentStatusFilter ==
-                                  CreditNotePaymentStatus.refunded
-                              ? null
-                              : CreditNotePaymentStatus.refunded,
-                        );
-                      },
-                    ),
-                    _StatusOption(
-                      label: 'Applied',
-                      selected:
-                          notesCtrl.paymentStatusFilter ==
-                          CreditNotePaymentStatus.applied,
-                      onTap: () {
-                        Navigator.of(ctx).pop(
-                          notesCtrl.paymentStatusFilter ==
-                                  CreditNotePaymentStatus.applied
-                              ? null
-                              : CreditNotePaymentStatus.applied,
-                        );
-                      },
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 10),
+                  _StatusOption(
+                    label: 'All Payment Status',
+                    selected: notesCtrl.paymentStatusFilter == null,
+                    onTap: () => Navigator.of(ctx).pop(null),
+                  ),
+                  _StatusOption(
+                    label: 'Pending',
+                    selected: notesCtrl.paymentStatusFilter ==
+                        CreditNotePaymentStatus.pending,
+                    onTap: () {
+                      Navigator.of(ctx).pop(
+                        notesCtrl.paymentStatusFilter ==
+                                CreditNotePaymentStatus.pending
+                            ? null
+                            : CreditNotePaymentStatus.pending,
+                      );
+                    },
+                  ),
+                  _StatusOption(
+                    label: 'Refunded',
+                    selected: notesCtrl.paymentStatusFilter ==
+                        CreditNotePaymentStatus.refunded,
+                    onTap: () {
+                      Navigator.of(ctx).pop(
+                        notesCtrl.paymentStatusFilter ==
+                                CreditNotePaymentStatus.refunded
+                            ? null
+                            : CreditNotePaymentStatus.refunded,
+                      );
+                    },
+                  ),
+                  _StatusOption(
+                    label: 'Applied',
+                    selected: notesCtrl.paymentStatusFilter ==
+                        CreditNotePaymentStatus.applied,
+                    onTap: () {
+                      Navigator.of(ctx).pop(
+                        notesCtrl.paymentStatusFilter ==
+                                CreditNotePaymentStatus.applied
+                            ? null
+                            : CreditNotePaymentStatus.applied,
+                      );
+                    },
+                  ),
+                ],
               ),
             );
           },
@@ -582,15 +759,6 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
         ),
       ),
     );
-  }
-
-  void _clearFilters() {
-    final CreditNotesController ctrl = context.read<CreditNotesController>();
-    _searchController.clear();
-    ctrl.setSearchQuery('');
-    ctrl.setDateRange(null);
-    ctrl.setStatusFilter(null);
-    ctrl.setPaymentStatusFilter(null);
   }
 
   void _onBottomTap(int index) {
@@ -637,11 +805,98 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
           18,
         );
 
+        final List<CreditNote> visibleNotes = ctrl.visibleNotes;
+        final bool isLoading = ctrl.isLoading;
+        final bool isLoadingStats = ctrl.isLoadingStats;
+        final bool showSkeleton = isLoading && visibleNotes.isEmpty;
+        final bool showRefreshingBar = isLoading && visibleNotes.isNotEmpty;
+
         return Scaffold(
           backgroundColor: const Color(0xFFF7FAFF),
           drawer: const AppDrawer(),
           appBar: AppBar(
             title: const Text('Credit Notes'),
+            bottom: ctrl.companies.isEmpty
+                ? null
+                : PreferredSize(
+                    preferredSize: const Size.fromHeight(66),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: InkWell(
+                        onTap: _openCompanyPicker,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE9EEF5)),
+                            boxShadow: const <BoxShadow>[
+                              BoxShadow(
+                                color: Color(0x0A0B1B4B),
+                                blurRadius: 10,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF2F6FF),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.apartment_rounded,
+                                  color: AppColors.primary,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    const Text(
+                                      'Company',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Color(0xFF9AA5B6),
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _companyLabelById(ctrl.companyId),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Color(0xFF0B1B4B),
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                color: Color(0xFF9AA5B6),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
             leading: Builder(
               builder: (BuildContext context) {
                 return IconButton(
@@ -682,69 +937,147 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
           body: SafeArea(
             child: RefreshIndicator(
               onRefresh: ctrl.refresh,
-              child: ListView(
-                padding: EdgeInsets.fromLTRB(
-                  hPad,
-                  gap,
-                  hPad,
-                  AppResponsive.clamp(
-                    AppResponsive.scaledByHeight(constraints, 110),
-                    100,
-                    140,
-                  ),
-                ),
-                children: <Widget>[
-                  _StatsGrid(
-                    constraints: constraints,
-                    totalNotes: ctrl.totalNotesCount.toString(),
-                    draft: ctrl.draftCount.toString(),
-                    clearedOrReported: ctrl.clearedOrReportedCount.toString(),
-                    credits: ctrl.creditsLabel,
-                  ),
-                  SizedBox(height: gap),
-                  _SearchField(
-                    constraints: constraints,
-                    controller: _searchController,
-                    onChanged: ctrl.setSearchQuery,
-                  ),
-                  SizedBox(height: gap),
-                  _FilterRow(
-                    constraints: constraints,
-                    statusLabel: ctrl.statusFilterLabel,
-                    statusSelected: ctrl.statusFilter != null,
-                    onStatus: _openStatusFilter,
-                    dateLabel: ctrl.dateRangeLabel,
-                    dateSelected: ctrl.dateRange != null,
-                    onDate: _openDateFilter,
-                    moreLabel: ctrl.paymentStatusFilterLabel,
-                    moreSelected: ctrl.paymentStatusFilter != null,
-                    onMoreFilters: _openPaymentStatusFilter,
-                  ),
-                  SizedBox(height: gap),
-                  if (ctrl.isLoading && ctrl.notes.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 28),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
-                        ),
+              child: Skeletonizer(
+                enabled: showSkeleton,
+                child: AbsorbPointer(
+                  absorbing: showSkeleton,
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(
+                      hPad,
+                      gap,
+                      hPad,
+                      AppResponsive.clamp(
+                        AppResponsive.scaledByHeight(constraints, 110),
+                        100,
+                        140,
                       ),
-                    )
-                  else if (ctrl.visibleNotes.isEmpty &&
-                      (ctrl.searchQuery.isNotEmpty ||
-                          ctrl.dateRange != null ||
-                          ctrl.statusFilter != null ||
-                          ctrl.paymentStatusFilter != null))
-                    _NoResultsState(onClear: _clearFilters)
-                  else if (ctrl.visibleNotes.isEmpty)
-                    _EmptyState(
-                      constraints: constraints,
-                      onGetStarted: _openCreateCreditNote,
-                    )
-                  else
-                    ...ctrl.visibleNotes.map((CreditNote n) {
+                    ),
+                    itemCount: () {
+                      final int headerCount = 5 + (showRefreshingBar ? 1 : 0);
+                      if (showSkeleton) return headerCount + 6;
+                      if (visibleNotes.isEmpty) return headerCount + 1;
+                      return headerCount + visibleNotes.length;
+                    }(),
+                    itemBuilder: (BuildContext context, int index) {
+                      final List<Widget> header = <Widget>[
+                        _SearchField(
+                          constraints: constraints,
+                          controller: _searchController,
+                          onChanged: ctrl.setSearchQuery,
+                        ),
+                        SizedBox(height: gap),
+                        _FilterRow(
+                          constraints: constraints,
+                          statusLabel: ctrl.statusFilterLabel,
+                          statusSelected: ctrl.statusFilter != null,
+                          onStatus: _openStatusFilter,
+                          dateLabel: ctrl.dateRangeLabel,
+                          dateSelected: ctrl.dateRange != null,
+                          onDate: _openDateFilter,
+                          moreLabel: ctrl.paymentStatusFilterLabel,
+                          moreSelected: ctrl.paymentStatusFilter != null,
+                          onMoreFilters: _openPaymentStatusFilter,
+                        ),
+                        SizedBox(height: gap),
+                        if (showRefreshingBar)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 10),
+                            child: ClipRRect(
+                              borderRadius:
+                                  BorderRadius.all(Radius.circular(999)),
+                              child: LinearProgressIndicator(minHeight: 3),
+                            ),
+                          ),
+                        Skeletonizer(
+                          enabled: isLoadingStats,
+                          child: AbsorbPointer(
+                            absorbing: isLoadingStats,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: <Widget>[
+                                Row(
+                                  children: <Widget>[
+                                    Expanded(
+                                      child: _DashboardStatCard(
+                                        title: 'Total Credit Notes',
+                                        value: ctrl.statsTotalNotes.toString(),
+                                        icon: Icons.receipt_long_outlined,
+                                        iconColor: AppColors.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: _DashboardStatCard(
+                                        title: 'Draft',
+                                        value: ctrl.statsDraftCount.toString(),
+                                        icon: Icons.edit_note,
+                                        iconColor: const Color(0xFFF39C12),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: <Widget>[
+                                    Expanded(
+                                      child: _DashboardStatCard(
+                                        title: 'Applied',
+                                        value: ctrl.statsAppliedCount.toString(),
+                                        icon: Icons.check_circle_outline,
+                                        iconColor: const Color(0xFF1DB954),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: _DashboardStatCard(
+                                        title: 'Total Credits',
+                                        value: ctrl.statsCreditsLabel,
+                                        icon:
+                                            Icons.account_balance_wallet_outlined,
+                                        iconColor: const Color(0xFF6C63FF),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: gap),
+                      ];
+
+                      if (index < header.length) return header[index];
+                      final int i = index - header.length;
+
+                      if (showSkeleton) {
+                        return _CreditNoteCard(
+                          id: '----',
+                          customer: 'Loading',
+                          date: '----',
+                          amount: '----',
+                          status: CreditNoteStatus.draft,
+                          onTap: () {},
+                        );
+                      }
+
+                      if (visibleNotes.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 28),
+                          child: Text(
+                            'No credit notes found',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Color(0xFF6B7895),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        );
+                      }
+
+                      final CreditNote n = visibleNotes[i];
                       return _CreditNoteCard(
-                        id: n.id,
+                        id: (n.number ?? n.id),
                         customer: n.customer,
                         date: ctrl.dateLabel(n.issueDate),
                         amount: ctrl.amountLabel(n),
@@ -757,8 +1090,9 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
                           );
                         },
                       );
-                    }),
-                ],
+                    },
+                  ),
+                ),
               ),
             ),
           ),
@@ -789,73 +1123,6 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
           ),
         );
       },
-    );
-  }
-}
-
-class _StatsGrid extends StatelessWidget {
-  final BoxConstraints constraints;
-  final String totalNotes;
-  final String draft;
-  final String clearedOrReported;
-  final String credits;
-
-  const _StatsGrid({
-    required this.constraints,
-    required this.totalNotes,
-    required this.draft,
-    required this.clearedOrReported,
-    required this.credits,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: _StatCard(
-                title: 'Total Notes',
-                value: totalNotes,
-                icon: Icons.description_outlined,
-                iconColor: const Color(0xFF9AA5B6),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _StatCard(
-                title: 'Draft',
-                value: draft,
-                icon: Icons.access_time,
-                iconColor: const Color(0xFF9AA5B6),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: _StatCard(
-                title: 'Cleared/Reported',
-                value: clearedOrReported,
-                icon: Icons.check_circle,
-                iconColor: const Color(0xFF1DB954),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _StatCard(
-                title: 'Credits',
-                value: credits,
-                icon: Icons.trending_up,
-                iconColor: AppColors.primary,
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 }
@@ -1006,194 +1273,6 @@ class _StatusStyle {
   final Color fg;
 
   const _StatusStyle({required this.bg, required this.fg});
-}
-
-class _StatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color iconColor;
-
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.iconColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE9EEF5)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: Color(0xFF6B7895),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              Icon(icon, color: iconColor, size: 18),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: TextStyle(
-              color: const Color(0xFF0B1B4B),
-              fontWeight: FontWeight.w900,
-              fontSize: value.startsWith('SAR') ? 18 : 22,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  final BoxConstraints constraints;
-  final VoidCallback onGetStarted;
-
-  const _EmptyState({required this.constraints, required this.onGetStarted});
-
-  @override
-  Widget build(BuildContext context) {
-    final double circle = AppResponsive.clamp(
-      AppResponsive.scaledByHeight(constraints, 120),
-      92,
-      140,
-    );
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 22),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFF),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Column(
-        children: <Widget>[
-          Container(
-            width: circle,
-            height: circle,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEDEBFF),
-              shape: BoxShape.circle,
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.receipt_long,
-                color: Color(0xFF8A7CFF),
-                size: 44,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'No Credit Notes Yet',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Color(0xFF0B1B4B),
-              fontWeight: FontWeight.w900,
-              fontSize: 18,
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Create your first credit note for refunds or\nadjustments to start managing your balance.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Color(0xFF6B7895),
-              fontWeight: FontWeight.w700,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: onGetStarted,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEDEBFF),
-              foregroundColor: AppColors.primary,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(999),
-              ),
-              textStyle: const TextStyle(fontWeight: FontWeight.w900),
-            ),
-            child: const Text('Get Started'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NoResultsState extends StatelessWidget {
-  final VoidCallback onClear;
-
-  const _NoResultsState({required this.onClear});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFF),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE9EEF5)),
-      ),
-      child: Column(
-        children: <Widget>[
-          const Text(
-            'No results found',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Color(0xFF0B1B4B),
-              fontWeight: FontWeight.w900,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Try changing your search or filters.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Color(0xFF6B7895),
-              fontWeight: FontWeight.w700,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 14),
-          OutlinedButton(
-            onPressed: onClear,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              side: const BorderSide(color: Color(0xFFE9EEF5)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(999),
-              ),
-              textStyle: const TextStyle(fontWeight: FontWeight.w900),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-            ),
-            child: const Text('Clear Filters'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 enum _DateAction { pick, clear }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -5,8 +7,12 @@ import '../../../controllers/create_debit_note_controller.dart';
 import '../../../controllers/invoice_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
+import '../../../models/company.dart';
 import '../../../models/debit_note.dart';
 import '../../../models/invoice.dart';
+import '../../../models/product.dart';
+import '../../../repositories/debit_note_repository.dart';
+import '../../../repositories/product_repository.dart';
 
 class CreateDebitNoteWizardScreen extends StatefulWidget {
   const CreateDebitNoteWizardScreen({super.key});
@@ -91,6 +97,77 @@ class _SheetOptionTile extends StatelessWidget {
 
 class _CreateDebitNoteWizardScreenState
     extends State<CreateDebitNoteWizardScreen> {
+  bool _isSubmitting = false;
+  DebitNote? _createdDraft;
+  String? _lastAutoDebitNoteNumber;
+
+  Future<void> _loadNextNumberIfPossible() async {
+    final CreateDebitNoteController ctrl =
+        context.read<CreateDebitNoteController>();
+    final String cid = (ctrl.companyId ?? '').trim();
+    if (cid.isEmpty) return;
+
+    try {
+      final DebitNoteRepository repo = context.read<DebitNoteRepository>();
+      final String? next = await repo.getNextDebitNoteNumber(companyId: cid);
+      if (!mounted) return;
+      if (next == null || next.trim().isEmpty) return;
+
+      final String cur = ctrl.debitNoteNumberController.text.trim();
+      final bool shouldSet =
+          cur.isEmpty || cur == 'DN-2024-001' || cur == _lastAutoDebitNoteNumber;
+      if (shouldSet) {
+        ctrl.debitNoteNumberController.text = next.trim();
+        _lastAutoDebitNoteNumber = next.trim();
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<CreateDebitNoteController>().loadCompanies().then((_) {
+        if (!mounted) return;
+        _loadNextNumberIfPossible();
+      });
+    });
+  }
+
+  Future<void> _createOnBackend({required String status}) async {
+    if (_isSubmitting) return;
+    final CreateDebitNoteController ctrl =
+        context.read<CreateDebitNoteController>();
+
+    final String? msg = ctrl.validateSubmit();
+    if (msg != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      final DebitNoteRepository repo = context.read<DebitNoteRepository>();
+      final Map<String, dynamic> payload =
+          ctrl.buildCreatePayload(status: status);
+      final DebitNote note = await repo.createDebitNote(payload: payload);
+      if (!mounted) return;
+      Navigator.of(context).pop(note);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
   void _nextStep() {
     final CreateDebitNoteController ctrl = context
         .read<CreateDebitNoteController>();
@@ -104,12 +181,73 @@ class _CreateDebitNoteWizardScreenState
 
   Future<void> _selectInvoice() async {
     final InvoiceController invCtrl = context.read<InvoiceController>();
-    final List<Invoice> invoices = invCtrl.invoices
-        .where((Invoice i) => i.status == InvoiceStatus.paid)
-        .toList();
+    final CreateDebitNoteController dnCtrl =
+        context.read<CreateDebitNoteController>();
+    final String cid = (dnCtrl.companyId ?? '').trim();
+
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+
+    if (cid.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Please select a company first')),
+      );
+      return;
+    }
+
+    bool isEligible(Invoice inv) {
+      final String st = inv.zatca.status.trim().toLowerCase();
+      if (st.contains('cleared') ||
+          st.contains('reported') ||
+          st.contains('accepted')) {
+        return true;
+      }
+      if (inv.zatca.clearedAt != null) {
+        return true;
+      }
+      if (inv.zatca.qrCode.trim().isNotEmpty) {
+        return true;
+      }
+      if (inv.zatca.pdfUrl.trim().isNotEmpty) {
+        return true;
+      }
+      return inv.status == InvoiceStatus.paid;
+    }
+
+    List<Invoice> filtered() {
+      return invCtrl.invoices.where((Invoice i) {
+        if (!isEligible(i)) return false;
+        return (i.companyId ?? '').trim() == cid;
+      }).toList();
+    }
+
+    List<Invoice> invoices = filtered();
+
+    if (invoices.isEmpty && !invCtrl.isLoading) {
+      bool dialogShown = false;
+      try {
+        dialogShown = true;
+        showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) {
+            return const Center(child: CircularProgressIndicator());
+          },
+        );
+        await invCtrl.loadInvoices(companyId: cid);
+      } catch (_) {
+        // ignore
+      } finally {
+        if (dialogShown && mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+      }
+
+      if (!mounted) return;
+      invoices = filtered();
+    }
 
     if (invoices.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('No cleared invoices available')),
       );
       return;
@@ -157,6 +295,8 @@ class _CreateDebitNoteWizardScreenState
     }
 
     context.read<CreateDebitNoteController>().loadFromInvoice(picked);
+    _createdDraft = null;
+    await _loadNextNumberIfPossible();
   }
 
   void _prevStep() {
@@ -239,34 +379,99 @@ class _CreateDebitNoteWizardScreenState
   }
 
   void _saveDraft() {
-    final CreateDebitNoteController ctrl = context
-        .read<CreateDebitNoteController>();
+    _createOnBackend(status: 'draft');
+  }
+
+  Future<DebitNote> _ensureDraftCreated() async {
+    if (_createdDraft != null) {
+      return _createdDraft!;
+    }
+    final CreateDebitNoteController ctrl =
+        context.read<CreateDebitNoteController>();
+    final DebitNoteRepository repo = context.read<DebitNoteRepository>();
+    final Map<String, dynamic> payload = ctrl.buildCreatePayload(status: 'draft');
+    final DebitNote created = await repo.createDebitNote(payload: payload);
+    _createdDraft = created;
+    return created;
+  }
+
+  Future<void> _validateZatca() async {
+    if (_isSubmitting) return;
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final CreateDebitNoteController ctrl =
+        context.read<CreateDebitNoteController>();
+    final DebitNoteRepository repo = context.read<DebitNoteRepository>();
+
     final String? msg = ctrl.validateSubmit();
     if (msg != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      messenger.showSnackBar(SnackBar(content: Text(msg)));
       return;
     }
-    Navigator.of(context).pop(ctrl.buildDebitNote());
-  }
 
-  void _validateZatcaDummy() {
-    final CreateDebitNoteController ctrl = context
-        .read<CreateDebitNoteController>();
-    final String? msg = ctrl.validateZatcaDummy();
-    if (msg != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-      return;
+    setState(() => _isSubmitting = true);
+    try {
+      final DebitNote draft = await _ensureDraftCreated();
+      final String id = (draft.backendId.trim().isNotEmpty
+              ? draft.backendId
+              : draft.id)
+          .trim();
+
+      final Map<String, dynamic> res = await repo.validateZatca(id: id);
+      final Object? dataObj = res['data'];
+      final Map<String, dynamic> data = dataObj is Map<String, dynamic>
+          ? dataObj
+          : <String, dynamic>{};
+
+      final bool isValid = (data['isValid'] == true);
+      final List<String> errors = (data['errors'] is List)
+          ? (data['errors'] as List)
+              .map((Object? e) => e?.toString() ?? '')
+              .where((String e) => e.trim().isNotEmpty)
+              .toList()
+          : <String>[];
+      final List<String> warnings = (data['warnings'] is List)
+          ? (data['warnings'] as List)
+              .map((Object? e) => e?.toString() ?? '')
+              .where((String e) => e.trim().isNotEmpty)
+              .toList()
+          : <String>[];
+
+      ctrl.setZatcaValidated(isValid && errors.isEmpty);
+      if (!mounted) return;
+
+      if (errors.isNotEmpty) {
+        messenger.showSnackBar(SnackBar(content: Text(errors.first)));
+        return;
+      }
+
+      if (warnings.isNotEmpty) {
+        messenger.showSnackBar(SnackBar(content: Text(warnings.first)));
+        return;
+      }
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            ctrl.zatcaValidated
+                ? 'ZATCA validation successful. You can now submit.'
+                : 'ZATCA validation returned not valid',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+      ctrl.setZatcaValidated(false);
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Validation successful. You can now submit.'),
-      ),
-    );
   }
 
-  void _submitToZatcaDummy() {
-    final CreateDebitNoteController ctrl = context
-        .read<CreateDebitNoteController>();
+  void _submitToZatca() {
+    final CreateDebitNoteController ctrl =
+        context.read<CreateDebitNoteController>();
     if (!ctrl.zatcaValidated) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -275,17 +480,7 @@ class _CreateDebitNoteWizardScreenState
       );
       return;
     }
-    final String? msg = ctrl.validateSubmit();
-    if (msg != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-      return;
-    }
-
-    final int now = DateTime.now().millisecondsSinceEpoch;
-    final String uuid = 'uuid-$now';
-    final String hash = 'hash-$now';
-
-    Navigator.of(context).pop(ctrl.buildSubmitted(uuid: uuid, hash: hash));
+    _createOnBackend(status: 'submitted');
   }
 
   InputDecoration _dec({required String label, String? hint, Widget? prefix}) {
@@ -610,14 +805,24 @@ class _CreateDebitNoteWizardScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        _LabeledDropdown<String>(
+                        _LabeledDropdown<Company>(
                           label: 'Company*',
-                          value: ctrl.company,
-                          items: const <String>[
-                            'Tech Solutions Ltd.',
-                            'Fatoortak Business',
-                          ],
-                          onChanged: (String v) => ctrl.company = v,
+                          value: ctrl.companyById(ctrl.companyId),
+                          items: ctrl.companies,
+                          onChanged: (Company c) {
+                            ctrl.setCompany(
+                              companyId: c.id,
+                              companyName: c.name,
+                            );
+                            _createdDraft = null;
+                            _loadNextNumberIfPossible();
+                          },
+                          itemLabel: (Company c) => c.name,
+                          hintText: ctrl.isLoadingCompanies
+                              ? 'Loading...'
+                              : (ctrl.companies.isEmpty
+                                    ? 'No companies'
+                                    : null),
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -713,9 +918,11 @@ class _CreateDebitNoteWizardScreenState
                           value: ctrl.reasonType,
                           items: const <String>[
                             'Select Reason',
-                            'Underbilling',
-                            'Additional Charges',
-                            'Invoice Correction',
+                            'Additional Charge',
+                            'Price Adjustment',
+                            'Correction',
+                            'Service Fee',
+                            'Other',
                           ],
                           onChanged: (String v) => ctrl.reasonType = v,
                         ),
@@ -846,7 +1053,7 @@ class _CreateDebitNoteWizardScreenState
                       children: <Widget>[
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: _saveDraft,
+                            onPressed: _isSubmitting ? null : _saveDraft,
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF0B1B4B),
                               side: const BorderSide(color: Color(0xFFE9EEF5)),
@@ -864,9 +1071,11 @@ class _CreateDebitNoteWizardScreenState
                         const SizedBox(width: 10),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: ctrl.zatcaValidated
-                                ? _submitToZatcaDummy
-                                : _validateZatcaDummy,
+                            onPressed: _isSubmitting
+                                ? null
+                                : (ctrl.zatcaValidated
+                                      ? _submitToZatca
+                                      : _validateZatca),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
@@ -880,7 +1089,9 @@ class _CreateDebitNoteWizardScreenState
                             ),
                             child: Text(
                               ctrl.zatcaValidated
-                                  ? 'Submit to ZATCA'
+                                  ? (_isSubmitting
+                                        ? 'Submitting...'
+                                        : 'Submit to ZATCA')
                                   : 'Validate',
                             ),
                           ),
@@ -909,7 +1120,7 @@ class _CreateDebitNoteWizardScreenState
                         const SizedBox(width: 10),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: _nextStep,
+                            onPressed: _isSubmitting ? null : _nextStep,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
@@ -1074,27 +1285,35 @@ class _SectionCard extends StatelessWidget {
 
 class _LabeledDropdown<T> extends StatelessWidget {
   final String label;
-  final T value;
+  final T? value;
   final List<T> items;
   final ValueChanged<T> onChanged;
+  final String Function(T)? itemLabel;
+  final String? hintText;
 
   const _LabeledDropdown({
     required this.label,
     required this.value,
     required this.items,
     required this.onChanged,
+    this.itemLabel,
+    this.hintText,
   });
 
   @override
   Widget build(BuildContext context) {
+    final bool hasValue = value != null && items.contains(value);
     return DropdownButtonFormField<T>(
-      key: ValueKey<T>(value),
-      initialValue: value,
+      key: ValueKey<String>('${label}_${value?.toString() ?? ''}_${items.length}'),
+      initialValue: hasValue ? value : null,
       items: items
           .map(
             (T e) => DropdownMenuItem<T>(
               value: e,
-              child: Text(e.toString(), overflow: TextOverflow.ellipsis),
+              child: Text(
+                (itemLabel != null ? itemLabel!(e) : e.toString()),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           )
           .toList(),
@@ -1104,6 +1323,7 @@ class _LabeledDropdown<T> extends StatelessWidget {
       },
       decoration: InputDecoration(
         labelText: label,
+        hintText: hintText,
         filled: true,
         fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(
@@ -1300,6 +1520,58 @@ class _AddItemSheetState extends State<_AddItemSheet> {
 
   String _vatCategory = 'S - 15%';
 
+  Timer? _debounce;
+  bool _isSearchingProducts = false;
+  List<Product> _productSuggestions = const <Product>[];
+
+  Future<void> _searchProducts(String q) async {
+    final String query = q.trim();
+    if (query.length < 2) {
+      if (!mounted) return;
+      setState(() {
+        _isSearchingProducts = false;
+        _productSuggestions = const <Product>[];
+      });
+      return;
+    }
+
+    setState(() {
+      _isSearchingProducts = true;
+    });
+
+    try {
+      final ProductRepository repo = context.read<ProductRepository>();
+      final List<Product> res = await repo.searchActiveProducts(
+        search: query,
+        limit: 10,
+      );
+      if (!mounted) return;
+      setState(() {
+        _productSuggestions = res;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _productSuggestions = const <Product>[];
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSearchingProducts = false;
+        });
+      }
+    }
+  }
+
+  void _onDescChanged() {
+    _debounce?.cancel();
+    final String q = _descController.text;
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      _searchProducts(q);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1319,10 +1591,21 @@ class _AddItemSheetState extends State<_AddItemSheet> {
     if (!vatOptions.contains(_vatCategory)) {
       _vatCategory = 'S - 15%';
     }
+
+    _descController.addListener(_onDescChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _descController.removeListener(_onDescChanged);
+    _descController.addListener(_onDescChanged);
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _descController.removeListener(_onDescChanged);
     _descController.dispose();
     _qtyController.dispose();
     _priceController.dispose();
@@ -1386,6 +1669,73 @@ class _AddItemSheetState extends State<_AddItemSheet> {
             controller: _descController,
             decoration: dec(label: 'Description', hint: 'Product or service'),
           ),
+          if (_isSearchingProducts) ...<Widget>[
+            const SizedBox(height: 8),
+            const LinearProgressIndicator(color: AppColors.primary),
+          ],
+          if (_productSuggestions.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 220),
+              child: Material(
+                color: const Color(0xFFF7FAFF),
+                borderRadius: BorderRadius.circular(14),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _productSuggestions.length,
+                  separatorBuilder: (BuildContext context, int index) =>
+                      const Divider(height: 1),
+                  itemBuilder: (BuildContext context, int index) {
+                    final Product p = _productSuggestions[index];
+                    return ListTile(
+                      dense: true,
+                      title: Text(
+                        p.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF0B1B4B),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13,
+                        ),
+                      ),
+                      subtitle: Text(
+                        p.sku.trim().isEmpty ? p.category : p.sku,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF6B7895),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                      trailing: Text(
+                        '${p.price.toStringAsFixed(2)} ${widget.currency}',
+                        style: const TextStyle(
+                          color: Color(0xFF0B1B4B),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12,
+                        ),
+                      ),
+                      onTap: () {
+                        _descController.text = p.name;
+                        _priceController.text = p.price.toString();
+                        _taxController.text = p.taxRate.toString();
+                        setState(() {
+                          _productSuggestions = const <Product>[];
+                          if (p.taxRate <= 0) {
+                            _vatCategory = 'Z - 0%';
+                          } else {
+                            _vatCategory = 'S - 15%';
+                          }
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             children: <Widget>[

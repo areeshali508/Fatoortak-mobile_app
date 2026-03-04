@@ -1,18 +1,528 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../../controllers/create_credit_note_controller.dart';
 import '../../../controllers/invoice_controller.dart';
+import '../../../controllers/auth_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
 import '../../../models/credit_note.dart';
 import '../../../models/invoice.dart';
+import '../../../repositories/credit_note_repository.dart';
 
 class CreateCreditNoteScreen extends StatefulWidget {
   const CreateCreditNoteScreen({super.key});
 
   @override
   State<CreateCreditNoteScreen> createState() => _CreateCreditNoteScreenState();
+}
+
+class _CreditNotePreviewSheet extends StatefulWidget {
+  final String company;
+  final String creditNoteNumber;
+  final String issueDate;
+  final String customer;
+  final String customerType;
+  final String originalInvoiceNo;
+  final String reasonType;
+  final String reasonDescription;
+  final String currency;
+  final List<CreditNoteItem> items;
+  final String terms;
+  final double subtotal;
+  final double vat;
+  final double total;
+
+  const _CreditNotePreviewSheet({
+    required this.company,
+    required this.creditNoteNumber,
+    required this.issueDate,
+    required this.customer,
+    required this.customerType,
+    required this.originalInvoiceNo,
+    required this.reasonType,
+    required this.reasonDescription,
+    required this.currency,
+    required this.items,
+    required this.terms,
+    required this.subtotal,
+    required this.vat,
+    required this.total,
+  });
+
+  @override
+  State<_CreditNotePreviewSheet> createState() => _CreditNotePreviewSheetState();
+}
+
+class _CreditNotePreviewSheetState extends State<_CreditNotePreviewSheet> {
+  bool _isPdfBusy = false;
+
+  Future<void> _yieldToUi() async {
+    await Future<void>.delayed(Duration.zero);
+    await WidgetsBinding.instance.endOfFrame;
+  }
+
+  String _formatNumber(double v) {
+    final bool asInt = (v - v.truncateToDouble()).abs() < 0.000001;
+    return asInt ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
+  }
+
+  Future<Uint8List> _buildPdfBytes() async {
+    final pw.Document doc = pw.Document();
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context ctx) {
+          return <pw.Widget>[
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: <pw.Widget>[
+                pw.Text(
+                  'Credit Note Preview',
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.Text(
+                  widget.creditNoteNumber.trim().isEmpty
+                      ? ''
+                      : widget.creditNoteNumber.trim(),
+                  style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 10),
+            pw.Text('Company: ${widget.company}'),
+            pw.Text('Customer: ${widget.customer}'),
+            pw.SizedBox(height: 6),
+            pw.Text('Issue Date: ${widget.issueDate}'),
+            pw.SizedBox(height: 6),
+            pw.Text('Customer Type: ${widget.customerType}'),
+            pw.Text('Original Invoice: ${widget.originalInvoiceNo}'),
+            pw.SizedBox(height: 6),
+            pw.Text('Reason: ${widget.reasonType}'),
+            if (widget.reasonDescription.trim().isNotEmpty)
+              pw.Text('Reason Description: ${widget.reasonDescription.trim()}'),
+            pw.SizedBox(height: 14),
+            pw.Text(
+              'Items',
+              style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 6),
+            if (widget.items.isEmpty)
+              pw.Text('No items')
+            else
+              pw.Table(
+                border: pw.TableBorder.all(width: 0.5, color: PdfColors.grey400),
+                columnWidths: <int, pw.TableColumnWidth>{
+                  0: const pw.FlexColumnWidth(4),
+                  1: const pw.FlexColumnWidth(1),
+                  2: const pw.FlexColumnWidth(2),
+                  3: const pw.FlexColumnWidth(2),
+                },
+                children: <pw.TableRow>[
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                    children: <pw.Widget>[
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(6),
+                        child: pw.Text(
+                          'Description',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(6),
+                        child: pw.Text(
+                          'Qty',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(6),
+                        child: pw.Text(
+                          'Unit Price',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(6),
+                        child: pw.Text(
+                          'Total',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  ...widget.items.map((CreditNoteItem it) {
+                    final String lineTotal = _formatNumber(it.total);
+                    return pw.TableRow(
+                      children: <pw.Widget>[
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text(
+                            it.description.trim().isEmpty
+                                ? '-'
+                                : it.description.trim(),
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text(it.qty.toString()),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text(
+                            '${_formatNumber(it.price)} ${widget.currency}',
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('$lineTotal ${widget.currency}'),
+                        ),
+                      ],
+                    );
+                  }),
+                ],
+              ),
+            pw.SizedBox(height: 14),
+            pw.Align(
+              alignment: pw.Alignment.centerRight,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: <pw.Widget>[
+                  pw.Text(
+                    'Subtotal: ${_formatNumber(widget.subtotal)} ${widget.currency}',
+                  ),
+                  pw.Text(
+                    'VAT: ${_formatNumber(widget.vat)} ${widget.currency}',
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    'Total Credit: ${_formatNumber(widget.total)} ${widget.currency}',
+                    style: pw.TextStyle(
+                      fontSize: 14,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (widget.terms.trim().isNotEmpty) ...<pw.Widget>[
+              pw.SizedBox(height: 16),
+              pw.Text(
+                'Terms & Conditions',
+                style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+              ),
+              pw.Text(widget.terms.trim()),
+            ],
+          ];
+        },
+      ),
+    );
+
+    return doc.save();
+  }
+
+  Future<void> _downloadPdf(BuildContext context) async {
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    try {
+      if (_isPdfBusy) return;
+      setState(() => _isPdfBusy = true);
+      await _yieldToUi();
+      final Uint8List bytes = await _buildPdfBytes();
+      final String name = widget.creditNoteNumber.trim().isEmpty
+          ? 'credit-note-preview.pdf'
+          : '${widget.creditNoteNumber.trim()}.pdf';
+      await Printing.sharePdf(bytes: bytes, filename: name);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) setState(() => _isPdfBusy = false);
+    }
+  }
+
+  Future<void> _printPdf(BuildContext context) async {
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    try {
+      if (_isPdfBusy) return;
+      setState(() => _isPdfBusy = true);
+      await _yieldToUi();
+      final Uint8List bytes = await _buildPdfBytes();
+      await Printing.layoutPdf(
+        onLayout: (_) async => bytes,
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) setState(() => _isPdfBusy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final double bottomPad = MediaQuery.of(context).viewInsets.bottom;
+
+    return Skeletonizer(
+      enabled: _isPdfBusy,
+      child: AbsorbPointer(
+        absorbing: _isPdfBusy,
+        child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(18, 6, 18, 18 + bottomPad),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      const Expanded(
+                        child: Text(
+                          'Credit Note Preview',
+                          style: TextStyle(
+                            color: Color(0xFF0B1B4B),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _downloadPdf(context),
+                          icon: const Icon(Icons.download_rounded),
+                          label: const Text('Download PDF'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF0B1B4B),
+                            side: const BorderSide(color: Color(0xFFE9EEF5)),
+                            backgroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            textStyle:
+                                const TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _printPdf(context),
+                          icon: const Icon(Icons.print_rounded),
+                          label: const Text('Print'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            textStyle:
+                                const TextStyle(fontWeight: FontWeight.w900),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _SectionCard(
+                    title: 'Summary',
+                    child: Column(
+                      children: <Widget>[
+                        _SummaryRow(
+                          label: 'Company',
+                          value: widget.company.trim().isEmpty
+                              ? '-'
+                              : widget.company.trim(),
+                        ),
+                        _SummaryRow(
+                          label: 'Credit Note #',
+                          value: widget.creditNoteNumber.trim().isEmpty
+                              ? '-'
+                              : widget.creditNoteNumber.trim(),
+                        ),
+                        _SummaryRow(
+                          label: 'Issue Date',
+                          value: widget.issueDate.trim().isEmpty
+                              ? '-'
+                              : widget.issueDate.trim(),
+                        ),
+                        _SummaryRow(
+                          label: 'Customer',
+                          value: widget.customer.trim().isEmpty
+                              ? '-'
+                              : widget.customer.trim(),
+                        ),
+                        _SummaryRow(
+                          label: 'Customer Type',
+                          value: widget.customerType.trim().isEmpty
+                              ? '-'
+                              : widget.customerType.trim(),
+                        ),
+                        _SummaryRow(
+                          label: 'Original Invoice',
+                          value: widget.originalInvoiceNo.trim().isEmpty
+                              ? '-'
+                              : widget.originalInvoiceNo.trim(),
+                        ),
+                        _SummaryRow(
+                          label: 'Reason',
+                          value: widget.reasonType.trim().isEmpty
+                              ? '-'
+                              : widget.reasonType.trim(),
+                        ),
+                        if (widget.reasonDescription.trim().isNotEmpty)
+                          _SummaryRow(
+                            label: 'Reason Description',
+                            value: widget.reasonDescription.trim(),
+                          ),
+                      ],
+                    ),
+                  ),
+              const SizedBox(height: 12),
+              _SectionCard(
+                title: 'Items',
+                child: widget.items.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 10),
+                        child: Text(
+                          'No items',
+                          style: TextStyle(
+                            color: Color(0xFF6B7895),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      )
+                    : Column(
+                        children: widget.items.map((CreditNoteItem it) {
+                          final double lineTotal = it.total;
+                          final bool asInt =
+                              (lineTotal - lineTotal.truncateToDouble()).abs() <
+                                  0.000001;
+                          final String formatted = asInt
+                              ? lineTotal.toStringAsFixed(0)
+                              : lineTotal.toStringAsFixed(2);
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF7FAFF),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: const Color(0xFFE9EEF5),
+                              ),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      Text(
+                                        it.description,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Color(0xFF0B1B4B),
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'Qty ${it.qty}  •  ${widget.currency} ${it.price.toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                          color: Color(0xFF6B7895),
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  '${widget.currency} $formatted',
+                                  style: const TextStyle(
+                                    color: Color(0xFF0B1B4B),
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+              ),
+              const SizedBox(height: 12),
+              _SectionCard(
+                title: 'Totals',
+                child: Column(
+                  children: <Widget>[
+                    _SummaryRow(
+                      label: 'Subtotal',
+                      value:
+                          '${widget.currency} ${widget.subtotal.toStringAsFixed(2)}',
+                    ),
+                    _SummaryRow(
+                      label: 'VAT',
+                      value:
+                          '${widget.currency} ${widget.vat.toStringAsFixed(2)}',
+                    ),
+                    _SummaryRow(
+                      label: 'Total Credit',
+                      value:
+                          '${widget.currency} ${widget.total.toStringAsFixed(2)}',
+                    ),
+                  ],
+                ),
+              ),
+              if (widget.terms.trim().isNotEmpty) ...<Widget>[
+                const SizedBox(height: 12),
+                _SectionCard(
+                  title: 'Terms & Conditions',
+                  child: Text(
+                    widget.terms.trim(),
+                    style: const TextStyle(
+                      color: Color(0xFF0B1B4B),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _SheetOptionTile extends StatelessWidget {
@@ -89,6 +599,70 @@ class _SheetOptionTile extends StatelessWidget {
 }
 
 class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
+  bool _isSaving = false;
+  bool _requestedInitial = false;
+
+  CreditNote? _createdDraft;
+
+  Future<void> _openPreviewSheet() async {
+    final CreateCreditNoteController ctrl = context
+        .read<CreateCreditNoteController>();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (BuildContext ctx) {
+        return _CreditNotePreviewSheet(
+          company: ctrl.company,
+          creditNoteNumber: ctrl.creditNoteNumberController.text.trim(),
+          issueDate: _fmtDate(ctrl.issueDate),
+          customer: ctrl.customerController.text.trim(),
+          customerType: ctrl.customerType,
+          originalInvoiceNo: ctrl.originalInvoiceController.text.trim(),
+          reasonType: ctrl.reasonType,
+          reasonDescription: ctrl.reasonDescriptionController.text.trim(),
+          currency: ctrl.currency,
+          items: List<CreditNoteItem>.unmodifiable(ctrl.items),
+          terms: ctrl.termsController.text.trim(),
+          subtotal: ctrl.subtotal,
+          vat: ctrl.vatAmount,
+          total: ctrl.total,
+        );
+      },
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_requestedInitial) return;
+    _requestedInitial = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final CreateCreditNoteController ctrl =
+          context.read<CreateCreditNoteController>();
+      final AuthController auth = context.read<AuthController>();
+      final InvoiceController invCtrl = context.read<InvoiceController>();
+
+      await ctrl.loadCompanies(page: 1, limit: 50);
+      final String? activeId = auth.activeCompanyId;
+      final List companies = ctrl.companies;
+      if (companies.isEmpty) return;
+
+      final selected = (activeId == null || activeId.trim().isEmpty)
+          ? companies.first
+          : ctrl.companyById(activeId) ?? companies.first;
+
+      ctrl.setCompany(companyId: selected.id, companyName: selected.name);
+      await ctrl.loadNextNumber();
+      await invCtrl.loadInvoices(companyId: selected.id);
+    });
+  }
+
   void _nextStep() {
     final CreateCreditNoteController ctrl = context
         .read<CreateCreditNoteController>();
@@ -101,10 +675,16 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
   }
 
   Future<void> _selectInvoice() async {
+    final CreateCreditNoteController creditCtrl =
+        context.read<CreateCreditNoteController>();
     final InvoiceController invCtrl = context.read<InvoiceController>();
-    final List<Invoice> invoices = invCtrl.invoices
-        .where((Invoice i) => i.status == InvoiceStatus.paid)
-        .toList();
+    final String selectedCompanyId = (creditCtrl.companyId ?? '').trim();
+    final List<Invoice> invoices = invCtrl.invoices.where((Invoice i) {
+      if (selectedCompanyId.isEmpty) return true;
+      final String invCompanyId = (i.companyId ?? '').trim();
+      if (invCompanyId.isEmpty) return true;
+      return invCompanyId == selectedCompanyId;
+    }).toList();
 
     if (invoices.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -236,54 +816,140 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
     ctrl.updateItemAt(index, item);
   }
 
-  void _saveDraft() {
-    final CreateCreditNoteController ctrl = context
-        .read<CreateCreditNoteController>();
-    final String? msg = ctrl.validateSubmit();
-    if (msg != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-      return;
+  Future<void> _saveDraft() async {
+    if (_isSaving) return;
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final CreateCreditNoteController ctrl =
+        context.read<CreateCreditNoteController>();
+    try {
+      final Map<String, dynamic> payload =
+          ctrl.buildCreatePayload(status: 'draft');
+      setState(() => _isSaving = true);
+      final CreditNoteRepository repo = context.read<CreditNoteRepository>();
+      final CreditNote created = await repo.createCreditNote(payload: payload);
+      if (!mounted) return;
+      Navigator.of(context).pop(created);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
-    Navigator.of(context).pop(ctrl.buildCreditNote());
   }
 
-  void _validateZatcaDummy() {
-    final CreateCreditNoteController ctrl = context
-        .read<CreateCreditNoteController>();
-    final String? msg = ctrl.validateZatcaDummy();
-    if (msg != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-      return;
+  Future<CreditNote> _ensureDraftCreated() async {
+    if (_createdDraft != null) {
+      return _createdDraft!;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Validation successful. You can now submit.'),
-      ),
-    );
+    final CreateCreditNoteController ctrl =
+        context.read<CreateCreditNoteController>();
+    final CreditNoteRepository repo = context.read<CreditNoteRepository>();
+    final Map<String, dynamic> payload = ctrl.buildCreatePayload(status: 'draft');
+    final CreditNote created = await repo.createCreditNote(payload: payload);
+    _createdDraft = created;
+    return created;
   }
 
-  void _submitToZatcaDummy() {
-    final CreateCreditNoteController ctrl = context
-        .read<CreateCreditNoteController>();
-    if (!ctrl.zatcaValidated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please validate before submitting to ZATCA'),
+  Future<void> _validateZatca() async {
+    if (_isSaving) return;
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final CreateCreditNoteController ctrl =
+        context.read<CreateCreditNoteController>();
+    final CreditNoteRepository repo = context.read<CreditNoteRepository>();
+
+    setState(() => _isSaving = true);
+    try {
+      final CreditNote draft = await _ensureDraftCreated();
+      final Map<String, dynamic> res =
+          await repo.validateZatca(id: draft.id.trim());
+
+      final Object? dataObj = res['data'];
+      final Map<String, dynamic> data = dataObj is Map<String, dynamic>
+          ? dataObj
+          : <String, dynamic>{};
+
+      final bool isValid = (data['isValid'] == true);
+      final List<String> errors = (data['errors'] is List)
+          ? (data['errors'] as List)
+              .map((Object? e) => e?.toString() ?? '')
+              .where((String e) => e.trim().isNotEmpty)
+              .toList()
+          : <String>[];
+      final List<String> warnings = (data['warnings'] is List)
+          ? (data['warnings'] as List)
+              .map((Object? e) => e?.toString() ?? '')
+              .where((String e) => e.trim().isNotEmpty)
+              .toList()
+          : <String>[];
+
+      ctrl.setZatcaValidated(isValid && errors.isEmpty);
+
+      if (!mounted) return;
+      if (errors.isNotEmpty) {
+        messenger.showSnackBar(SnackBar(content: Text(errors.first)));
+        return;
+      }
+
+      if (warnings.isNotEmpty) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('ZATCA validation passed with warnings: ${warnings.first}'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            ctrl.zatcaValidated
+                ? 'ZATCA validation successful. You can now submit.'
+                : 'ZATCA validation returned not valid',
+          ),
         ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+      ctrl.setZatcaValidated(false);
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Future<void> _submitToZatca() async {
+    if (_isSaving) return;
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final CreateCreditNoteController ctrl =
+        context.read<CreateCreditNoteController>();
+    final CreditNoteRepository repo = context.read<CreditNoteRepository>();
+    if (!ctrl.zatcaValidated) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Please validate before submitting to ZATCA')),
       );
       return;
     }
-    final String? msg = ctrl.validateSubmit();
-    if (msg != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-      return;
+
+    setState(() => _isSaving = true);
+    try {
+      final CreditNote draft = await _ensureDraftCreated();
+      await repo.sendToZatca(id: draft.id.trim());
+      final CreditNote latest = await repo.getCreditNoteById(id: draft.id.trim());
+      if (!mounted) return;
+      Navigator.of(context).pop(latest);
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
-
-    final int now = DateTime.now().millisecondsSinceEpoch;
-    final String uuid = 'uuid-$now';
-    final String hash = 'hash-$now';
-
-    Navigator.of(context).pop(ctrl.buildSubmitted(uuid: uuid, hash: hash));
   }
 
   InputDecoration _dec({required String label, String? hint, Widget? prefix}) {
@@ -608,14 +1274,42 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        _LabeledDropdown<String>(
-                          label: 'Company*',
-                          value: ctrl.company,
-                          items: const <String>[
-                            'Tech Solutions Ltd.',
-                            'Fatoortak Business',
-                          ],
-                          onChanged: (String v) => ctrl.company = v,
+                        DropdownButtonFormField<String>(
+                          key: ValueKey<String>(ctrl.companyId ?? ''),
+                          initialValue: (ctrl.companyId ?? '').trim().isEmpty
+                              ? null
+                              : ctrl.companyId,
+                          items: ctrl.companies
+                              .map(
+                                (c) => DropdownMenuItem<String>(
+                                  value: c.id,
+                                  child: Text(
+                                    c.name,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: ctrl.isLoadingCompanies
+                              ? null
+                              : (String? id) {
+                                  if (id == null) return;
+                                  final c = ctrl.companyById(id);
+                                  if (c == null) return;
+                                  ctrl.setCompany(
+                                    companyId: c.id,
+                                    companyName: c.name,
+                                  );
+                                  setState(() => _createdDraft = null);
+                                  ctrl.loadNextNumber();
+                                  final InvoiceController invCtrl =
+                                      context.read<InvoiceController>();
+                                  invCtrl.loadInvoices(companyId: c.id);
+                                },
+                          decoration: _dec(label: 'Company*'),
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                          borderRadius: BorderRadius.circular(12),
+                          dropdownColor: Colors.white,
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -711,9 +1405,11 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                           value: ctrl.reasonType,
                           items: const <String>[
                             'Select Reason',
-                            'Refund',
-                            'Invoice Correction',
+                            'Product Return',
                             'Discount Adjustment',
+                            'Invoice Correction',
+                            'Cancellation',
+                            'Other',
                           ],
                           onChanged: (String v) => ctrl.reasonType = v,
                         ),
@@ -842,6 +1538,23 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
               child: ctrl.currentStep == 2
                   ? Row(
                       children: <Widget>[
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE9EEF5)),
+                            color: Colors.white,
+                          ),
+                          child: IconButton(
+                            onPressed: _openPreviewSheet,
+                            icon: const Icon(
+                              Icons.remove_red_eye_outlined,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: OutlinedButton(
                             onPressed: _saveDraft,
@@ -863,8 +1576,8 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
                         Expanded(
                           child: ElevatedButton(
                             onPressed: ctrl.zatcaValidated
-                                ? _submitToZatcaDummy
-                                : _validateZatcaDummy,
+                                ? _submitToZatca
+                                : _validateZatca,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,

@@ -73,11 +73,16 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
       Map<String, dynamic>? company = auth.activeCompany;
       String? companyId = (company?['_id'] ?? company?['id'])?.toString().trim();
+      final String? companyName =
+          (company?['companyName'] ?? company?['name'])?.toString().trim();
 
       if (companyId == null || companyId.isEmpty) {
         await auth.refreshMyCompany();
         company = auth.activeCompany;
         companyId = (company?['_id'] ?? company?['id'])?.toString().trim();
+        if (company != null) {
+          // keep name in sync after refresh
+        }
       }
       if (companyId == null || companyId.isEmpty) {
         if (!mounted) return;
@@ -87,26 +92,14 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
         return;
       }
 
-      await ctrl.loadCompanies(page: 1, limit: 50);
-
-      Company? selected;
-      if (companyId.trim().isNotEmpty) {
-        selected = ctrl.companyById(companyId.trim());
-      }
-      if (selected == null && ctrl.companies.isNotEmpty) {
-        selected = ctrl.companies.first;
-      }
-      if (selected == null) {
-        if (!mounted) return;
-        messenger.showSnackBar(
-          const SnackBar(content: Text('No companies found')),
-        );
-        return;
-      }
-
-      ctrl.setCompany(companyId: selected.id, companyName: selected.name);
+      final String safeName = (companyName == null || companyName.isEmpty)
+          ? 'Company'
+          : companyName;
+      final Company only = Company(id: companyId, name: safeName);
+      await ctrl.loadCompanies(onlyCompany: only);
+      ctrl.setCompany(companyId: only.id, companyName: only.name);
       await ctrl.loadNextInvoiceNumber();
-      await ctrl.loadCustomers(companyId: selected.id);
+      await ctrl.loadCustomers(companyId: only.id);
       if (!mounted) return;
       if (ctrl.errorMessage != null && ctrl.errorMessage!.trim().isNotEmpty) {
         messenger.showSnackBar(
@@ -411,61 +404,22 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                   children: <Widget>[
                     Builder(
                       builder: (BuildContext context) {
-                        final List<Company> companies = <Company>[
-                          ...ctrl.companies,
-                        ];
                         final String? selectedCompanyId = ctrl.companyId;
-
-                        if (companies.isEmpty &&
-                            selectedCompanyId != null &&
-                            selectedCompanyId.trim().isNotEmpty) {
-                          companies.add(
-                            Company(id: selectedCompanyId.trim(), name: ctrl.company),
-                          );
-                        }
-
-                        final List<String> ids = companies
-                            .map((Company c) => c.id.trim())
-                            .where((String s) => s.isNotEmpty)
-                            .toSet()
-                            .toList();
-
+                        final String id = (selectedCompanyId ?? '').trim();
+                        final List<String> ids =
+                            id.isEmpty ? const <String>[] : <String>[id];
                         final String? safeSelected =
-                            (selectedCompanyId != null && ids.contains(selectedCompanyId))
-                                ? selectedCompanyId
-                                : (ids.isNotEmpty ? ids.first : null);
+                            id.isEmpty ? null : id;
 
                         return _LabeledDropdown<String>(
                           label: 'Select Company',
                           value: safeSelected,
                           items: ids,
                           itemBuilder: (String id) {
-                            try {
-                              final Company c = companies.firstWhere(
-                                (Company c) => c.id == id,
-                              );
-                              return c.name.trim().isEmpty ? id : c.name;
-                            } catch (_) {
-                              return id;
-                            }
+                            return ctrl.company.trim().isEmpty ? id : ctrl.company;
                           },
                           onChanged: (String id) {
-                            () async {
-                              final Company? next = companies
-                                  .cast<Company?>()
-                                  .firstWhere(
-                                    (Company? c) => c?.id == id,
-                                    orElse: () => null,
-                                  );
-                              if (next == null) return;
-                              ctrl.setCompany(
-                                companyId: next.id,
-                                companyName: next.name,
-                              );
-                              await ctrl.loadNextInvoiceNumber();
-                              ctrl.selectCustomer(null);
-                              await ctrl.loadCustomers(companyId: next.id);
-                            }();
+                            // Single-company mode: no-op.
                           },
                         );
                       },

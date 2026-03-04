@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 
+import 'dart:async';
+
+import '../models/company.dart';
 import '../models/credit_note.dart';
+import '../repositories/company_repository.dart';
 import '../repositories/credit_note_repository.dart';
 
 class CreditNotesController extends ChangeNotifier {
   final CreditNoteRepository _repository;
+  final CompanyRepository _companyRepository;
 
   bool _isLoading = false;
   String _searchQuery = '';
@@ -13,10 +18,43 @@ class CreditNotesController extends ChangeNotifier {
   CreditNotePaymentStatus? _paymentStatusFilter;
   List<CreditNote> _notes = const <CreditNote>[];
 
-  CreditNotesController({required CreditNoteRepository repository})
-    : _repository = repository;
+  bool _isLoadingCompanies = false;
+  List<Company> _companies = const <Company>[];
+  String? _companyId;
+
+  bool _isLoadingStats = false;
+  int _statsTotalNotes = 0;
+  int _statsDraftCount = 0;
+  int _statsAppliedCount = 0;
+  double _statsCreditsTotal = 0;
+
+  CreditNotesController({
+    required CreditNoteRepository repository,
+    required CompanyRepository companyRepository,
+  }) : _repository = repository,
+       _companyRepository = companyRepository;
 
   bool get isLoading => _isLoading;
+
+  bool get isLoadingCompanies => _isLoadingCompanies;
+  List<Company> get companies => _companies;
+  String? get companyId => _companyId;
+
+  bool get isLoadingStats => _isLoadingStats;
+  int get statsTotalNotes => _statsTotalNotes;
+  int get statsDraftCount => _statsDraftCount;
+  int get statsAppliedCount => _statsAppliedCount;
+  double get statsCreditsTotal => _statsCreditsTotal;
+
+  String get statsCreditsLabel {
+    const String currency = 'SAR';
+    final double total = _statsCreditsTotal;
+    final bool asInt = (total - total.truncateToDouble()).abs() < 0.000001;
+    final String formatted = asInt
+        ? total.toStringAsFixed(0)
+        : total.toStringAsFixed(2);
+    return '$currency $formatted';
+  }
 
   String get searchQuery => _searchQuery;
 
@@ -28,19 +66,117 @@ class CreditNotesController extends ChangeNotifier {
 
   List<CreditNote> get notes => _notes;
 
+  Future<void> loadCompanies({int page = 1, int limit = 50}) async {
+    _isLoadingCompanies = true;
+    notifyListeners();
+    try {
+      _companies = await _companyRepository.listCompanies(page: page, limit: limit);
+    } catch (_) {
+      _companies = const <Company>[];
+    } finally {
+      _isLoadingCompanies = false;
+      notifyListeners();
+    }
+  }
+
+  Company? companyById(String? id) {
+    final String key = (id ?? '').trim();
+    if (key.isEmpty) return null;
+    try {
+      return _companies.firstWhere((Company c) => c.id == key);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void setCompanyId(String? id) {
+    final String next = (id ?? '').trim();
+    final String? normalized = next.isEmpty ? null : next;
+    if (normalized == _companyId) return;
+    _companyId = normalized;
+    _statsTotalNotes = 0;
+    _statsDraftCount = 0;
+    _statsAppliedCount = 0;
+    _statsCreditsTotal = 0;
+    notifyListeners();
+  }
+
   Future<void> addCreditNote(CreditNote note) async {
     _notes = <CreditNote>[note, ..._notes];
     notifyListeners();
     await _repository.addCreditNote(note);
   }
 
-  Future<void> refresh() async {
+  Future<void> refresh({int page = 1, int limit = 10}) async {
     _isLoading = true;
     notifyListeners();
     try {
-      _notes = await _repository.listCreditNotes();
+      _notes = await _repository.listCreditNotes(
+        page: page,
+        limit: limit,
+        companyId: _companyId,
+      );
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+
+    unawaited(_refreshStats());
+  }
+
+  Future<void> _refreshStats() async {
+    if (_isLoadingStats) return;
+    _isLoadingStats = true;
+    notifyListeners();
+
+    try {
+      final String? cid = _companyId;
+      const int pageLimit = 100;
+
+      final ({
+        List<CreditNote> notes,
+        int total,
+        int pages,
+        int current,
+        int limit,
+      }) first = await _repository.listCreditNotesWithPagination(
+        page: 1,
+        limit: pageLimit,
+        companyId: cid,
+      );
+
+      final List<CreditNote> all = <CreditNote>[...first.notes];
+      final int pages = first.pages > 0 ? first.pages : 1;
+
+      for (int p = 2; p <= pages; p++) {
+        final res = await _repository.listCreditNotesWithPagination(
+          page: p,
+          limit: pageLimit,
+          companyId: cid,
+        );
+        all.addAll(res.notes);
+      }
+
+      final int totalNotes = first.total > 0 ? first.total : all.length;
+      final int draftCount =
+          all.where((CreditNote n) => n.status == CreditNoteStatus.draft).length;
+      final int appliedCount = all
+          .where((CreditNote n) => n.paymentStatus == CreditNotePaymentStatus.applied)
+          .length;
+      final double creditsTotal =
+          all.fold<double>(0, (double p, CreditNote e) => p + e.amount);
+
+      _statsTotalNotes = totalNotes;
+      _statsDraftCount = draftCount;
+      _statsAppliedCount = appliedCount;
+      _statsCreditsTotal = creditsTotal;
+    } catch (_) {
+      _statsTotalNotes = 0;
+      _statsDraftCount = 0;
+      _statsAppliedCount = 0;
+      _statsCreditsTotal = 0;
+    } finally {
+      _isLoadingStats = false;
       notifyListeners();
     }
   }
@@ -81,6 +217,15 @@ class CreditNotesController extends ChangeNotifier {
   List<CreditNote> get visibleNotes {
     final String q = _searchQuery.toLowerCase();
     Iterable<CreditNote> result = _notes;
+
+    final String selectedCompanyId = (_companyId ?? '').trim();
+    if (selectedCompanyId.isNotEmpty) {
+      result = result.where((CreditNote n) {
+        final String noteCompanyId = (n.companyId ?? '').trim();
+        if (noteCompanyId.isEmpty) return false;
+        return noteCompanyId == selectedCompanyId;
+      });
+    }
 
     if (_statusFilter != null) {
       result = result.where((CreditNote n) => n.status == _statusFilter);

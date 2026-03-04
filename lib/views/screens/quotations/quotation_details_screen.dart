@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../../../app/app_routes.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../controllers/invoice_controller.dart';
 import '../../../models/quotation.dart';
 import '../../../repositories/quotation_repository.dart';
+import '../invoices/invoice_details_screen.dart';
 
 class QuotationDetailsScreen extends StatefulWidget {
   final Quotation quotation;
@@ -66,6 +68,7 @@ class _QuotationDetailsScreenState extends State<QuotationDetailsScreen> {
   Future<void> _convertToInvoice() async {
     if (_isConverting) return;
     final QuotationRepository repo = context.read<QuotationRepository>();
+    final InvoiceController invoiceCtrl = context.read<InvoiceController>();
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     final NavigatorState nav = Navigator.of(context);
 
@@ -101,7 +104,22 @@ class _QuotationDetailsScreenState extends State<QuotationDetailsScreen> {
           ),
         ),
       );
-      nav.pushNamedAndRemoveUntil(AppRoutes.invoices, (Route<dynamic> r) => false);
+
+      final String id = (invoiceId ?? '').trim();
+      if (id.isNotEmpty) {
+        final inv = await invoiceCtrl.refreshInvoiceById(invoiceId: id);
+        if (!mounted) return;
+        if (inv != null) {
+          nav.push(
+            MaterialPageRoute<void>(
+              builder: (_) => InvoiceDetailsScreen(invoice: inv),
+            ),
+          );
+          return;
+        }
+      }
+
+      nav.pushNamed(AppRoutes.invoices);
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(content: Text(e.toString())));

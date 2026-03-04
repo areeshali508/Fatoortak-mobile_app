@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../controllers/auth_controller.dart';
+import '../core/services/api_client.dart';
 import '../repositories/zatca_repository.dart';
 
 class ZatcaController extends ChangeNotifier {
@@ -43,6 +44,154 @@ class ZatcaController extends ChangeNotifier {
     notifyListeners();
     try {
       _status = await _repository.getStatus(companyId: companyId.trim());
+    } catch (e) {
+      _errorMessage = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> reportInvoice({required String invoiceId}) async {
+    if (invoiceId.trim().isEmpty) {
+      _errorMessage = 'Invoice ID is required';
+      notifyListeners();
+      return;
+    }
+
+    _isLoading = true;
+    _errorMessage = null;
+    _lastResult = null;
+    notifyListeners();
+
+    try {
+      _lastResult = _unwrap(
+        await _repository.reportInvoice(invoiceId: invoiceId.trim()),
+      );
+    } catch (e) {
+      _errorMessage = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> submitInvoice({required String invoiceId}) async {
+    if (invoiceId.trim().isEmpty) {
+      _errorMessage = 'Invoice ID is required';
+      notifyListeners();
+      return;
+    }
+
+    _isLoading = true;
+    _errorMessage = null;
+    _lastResult = null;
+    notifyListeners();
+
+    try {
+      _lastResult = _unwrap(
+        await _repository.submitInvoice(invoiceId: invoiceId.trim()),
+      );
+    } catch (e) {
+      _errorMessage = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> clearInvoice({required String invoiceId}) async {
+    if (invoiceId.trim().isEmpty) {
+      _errorMessage = 'Invoice ID is required';
+      notifyListeners();
+      return;
+    }
+
+    _isLoading = true;
+    _errorMessage = null;
+    _lastResult = null;
+    notifyListeners();
+
+    try {
+      _lastResult = _unwrap(
+        await _repository.clearInvoice(invoiceId: invoiceId.trim()),
+      );
+    } catch (e) {
+      _errorMessage = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> submitOrClearInvoice({required String invoiceId}) async {
+    if (invoiceId.trim().isEmpty) {
+      _errorMessage = 'Invoice ID is required';
+      notifyListeners();
+      return;
+    }
+
+    _isLoading = true;
+    _errorMessage = null;
+    _lastResult = null;
+    notifyListeners();
+
+    try {
+      try {
+        _lastResult = _unwrap(
+          await _repository.sendInvoice(invoiceId: invoiceId.trim()),
+        );
+      } on ApiClientException catch (eSend) {
+        final String msg = eSend.message.toLowerCase();
+        final bool isDuplicate = (eSend.statusCode == 400) &&
+            (msg.contains('e11000') || msg.contains('duplicate key'));
+        if (isDuplicate) {
+          _lastResult = <String, dynamic>{
+            'success': true,
+            'message': 'Already processed',
+          };
+          return;
+        }
+
+        if (eSend.statusCode != 404 && eSend.statusCode != 405) {
+          rethrow;
+        }
+
+        try {
+        _lastResult = _unwrap(
+          await _repository.reportInvoice(invoiceId: invoiceId.trim()),
+        );
+        } on ApiClientException catch (e0) {
+          if (e0.statusCode != 404 && e0.statusCode != 405) {
+            rethrow;
+          }
+
+          try {
+            _lastResult = _unwrap(
+              await _repository.submitInvoice(invoiceId: invoiceId.trim()),
+            );
+          } on ApiClientException catch (e1) {
+            if (e1.statusCode != 404 && e1.statusCode != 405) {
+              rethrow;
+            }
+
+            try {
+              _lastResult = _unwrap(
+                await _repository.clearInvoice(invoiceId: invoiceId.trim()),
+              );
+            } on ApiClientException catch (e2) {
+              if (e2.statusCode != 404 && e2.statusCode != 405) {
+                rethrow;
+              }
+
+              // Some backends only expose /zatca/validate (even if web UI calls it "submit").
+              _lastResult = _unwrap(
+                await _repository.validateInvoice(invoiceId: invoiceId.trim()),
+              );
+            }
+          }
+        }
+      }
     } catch (e) {
       _errorMessage = e.toString();
     } finally {

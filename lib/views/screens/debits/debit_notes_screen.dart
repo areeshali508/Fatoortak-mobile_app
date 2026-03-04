@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../app/app_routes.dart';
+import '../../../controllers/auth_controller.dart';
 import '../../../controllers/debit_notes_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
 import '../../../models/debit_note.dart';
+import '../../../repositories/company_repository.dart';
 import '../../layout/app_drawer.dart';
 import '../../widgets/buttons/primary_add_fab.dart';
 import 'debit_note_details_screen.dart';
@@ -22,11 +24,202 @@ class DebitNotesScreen extends StatefulWidget {
 class _DebitNotesScreenState extends State<DebitNotesScreen> {
   final TextEditingController _searchController = TextEditingController();
 
+  bool _isLoadingCompanies = false;
+  List<Map<String, dynamic>> _companies = const <Map<String, dynamic>>[];
+  String? _selectedCompanyId;
+
+  String _companyLabelById(String? id) {
+    final String key = (id ?? '').trim();
+    if (key.isEmpty) return '';
+    try {
+      final Map<String, dynamic> c = _companies.firstWhere(
+        (Map<String, dynamic> c) =>
+            (c['_id'] ?? c['id'])?.toString().trim() == key,
+      );
+      final String label = (c['companyName'] ?? c['name'] ?? key)
+              ?.toString()
+              .trim() ??
+          key;
+      return label.isEmpty ? key : label;
+    } catch (_) {
+      return key;
+    }
+  }
+
+  Future<void> _loadCompanies() async {
+    if (_isLoadingCompanies) return;
+    _isLoadingCompanies = true;
+    if (mounted) setState(() {});
+    try {
+      final CompanyRepository repo = context.read<CompanyRepository>();
+      final List<Map<String, dynamic>> list =
+          await repo.listCompanyMaps(page: 1, limit: 50);
+      if (!mounted) return;
+      setState(() {
+        _companies = List<Map<String, dynamic>>.unmodifiable(list);
+      });
+    } finally {
+      _isLoadingCompanies = false;
+      if (mounted) setState(() {});
+    }
+  }
+
+  void _syncSelectedCompanyFromAuth() {
+    final AuthController auth = context.read<AuthController>();
+    final String? activeId = auth.activeCompanyId;
+    final Set<String> ids = _companies
+        .map(
+          (Map<String, dynamic> c) =>
+              (c['_id'] ?? c['id'])?.toString().trim() ?? '',
+        )
+        .where((String s) => s.isNotEmpty)
+        .toSet();
+
+    if (activeId != null && activeId.trim().isNotEmpty && ids.contains(activeId)) {
+      _selectedCompanyId = activeId;
+      return;
+    }
+
+    if (ids.isNotEmpty) {
+      _selectedCompanyId = ids.first;
+      try {
+        final Map<String, dynamic> selected = _companies.firstWhere(
+          (Map<String, dynamic> c) =>
+              (c['_id'] ?? c['id'])?.toString().trim() == _selectedCompanyId,
+        );
+        auth.setActiveCompany(selected);
+      } catch (_) {
+        // ignore
+      }
+    }
+  }
+
+  Future<void> _openCompanyPicker() async {
+    if (_isLoadingCompanies || _companies.isEmpty) return;
+    final String? selected = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (BuildContext ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                const Text(
+                  'Select Company',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFF0B1B4B),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _companies.length,
+                    separatorBuilder: (BuildContext context, int index) =>
+                        const SizedBox(height: 8),
+                    itemBuilder: (BuildContext context, int i) {
+                      final Map<String, dynamic> c = _companies[i];
+                      final String id =
+                          (c['_id'] ?? c['id'])?.toString().trim() ?? '';
+                      final String label =
+                          (c['companyName'] ?? c['name'] ?? id)
+                                  ?.toString()
+                                  .trim() ??
+                              id;
+                      final bool isSelected =
+                          (id.isNotEmpty && id == (_selectedCompanyId ?? '').trim());
+
+                      return Material(
+                        color: const Color(0xFFF7FAFF),
+                        borderRadius: BorderRadius.circular(14),
+                        child: InkWell(
+                          onTap:
+                              id.isEmpty ? null : () => Navigator.of(ctx).pop(id),
+                          borderRadius: BorderRadius.circular(14),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            child: Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: Text(
+                                    label.isEmpty ? id : label,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xFF0B1B4B),
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                                Icon(
+                                  isSelected
+                                      ? Icons.radio_button_checked
+                                      : Icons.radio_button_off,
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : const Color(0xFF9AA5B6),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    final String next = (selected ?? '').trim();
+    if (next.isEmpty || next == (_selectedCompanyId ?? '').trim()) return;
+    try {
+      final Map<String, dynamic> picked = _companies.firstWhere(
+        (Map<String, dynamic> c) =>
+            (c['_id'] ?? c['id'])?.toString().trim() == next,
+      );
+      if (!mounted) return;
+      setState(() {
+        _selectedCompanyId = next;
+      });
+      context.read<AuthController>().setActiveCompany(picked);
+      await context.read<DebitNotesController>().refresh();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to change company')),
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      _loadCompanies().then((_) {
+        if (!mounted) return;
+        setState(() {
+          _syncSelectedCompanyFromAuth();
+        });
+      });
       context.read<DebitNotesController>().refresh();
     });
   }
@@ -366,11 +559,95 @@ class _DebitNotesScreenState extends State<DebitNotesScreen> {
           18,
         );
 
+        final bool showRefreshingBar =
+            ctrl.isLoading && ctrl.notes.isNotEmpty;
+
         return Scaffold(
           backgroundColor: const Color(0xFFF7FAFF),
           drawer: const AppDrawer(),
           appBar: AppBar(
             title: const Text('Debit Notes'),
+            bottom: _companies.isEmpty
+                ? null
+                : PreferredSize(
+                    preferredSize: const Size.fromHeight(66),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: InkWell(
+                        onTap: _openCompanyPicker,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE9EEF5)),
+                            boxShadow: const <BoxShadow>[
+                              BoxShadow(
+                                color: Color(0x0A0B1B4B),
+                                blurRadius: 10,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF2F6FF),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.apartment_rounded,
+                                  color: AppColors.primary,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    const Text(
+                                      'Company',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Color(0xFF9AA5B6),
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _companyLabelById(_selectedCompanyId),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Color(0xFF0B1B4B),
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                color: Color(0xFF9AA5B6),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
             leading: Builder(
               builder: (BuildContext context) {
                 return IconButton(
@@ -411,7 +688,8 @@ class _DebitNotesScreenState extends State<DebitNotesScreen> {
           body: SafeArea(
             child: RefreshIndicator(
               onRefresh: ctrl.refresh,
-              child: ListView(
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: EdgeInsets.fromLTRB(
                   hPad,
                   gap,
@@ -422,72 +700,107 @@ class _DebitNotesScreenState extends State<DebitNotesScreen> {
                     140,
                   ),
                 ),
-                children: <Widget>[
-                  _StatsGrid(
-                    constraints: constraints,
-                    totalNotes: ctrl.totalNotesCount.toString(),
-                    draft: ctrl.draftCount.toString(),
-                    clearedOrReported: ctrl.clearedOrReportedCount.toString(),
-                    debits: ctrl.debitsLabel,
-                  ),
-                  SizedBox(height: gap),
-                  _SearchField(
-                    constraints: constraints,
-                    controller: _searchController,
-                    onChanged: ctrl.setSearchQuery,
-                  ),
-                  SizedBox(height: gap),
-                  _FilterRow(
-                    constraints: constraints,
-                    statusLabel: ctrl.statusFilterLabel,
-                    statusSelected: ctrl.statusFilter != null,
-                    onStatus: _openStatusFilter,
-                    dateLabel: ctrl.dateRangeLabel,
-                    dateSelected: ctrl.dateRange != null,
-                    onDate: _openDateFilter,
-                    moreLabel: ctrl.paymentStatusFilterLabel,
-                    moreSelected: ctrl.paymentStatusFilter != null,
-                    onMoreFilters: _openPaymentStatusFilter,
-                  ),
-                  SizedBox(height: gap),
-                  if (ctrl.isLoading && ctrl.notes.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 28),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    )
-                  else if (ctrl.visibleNotes.isEmpty &&
+                itemCount: () {
+                  final int headerCount = 6 + (showRefreshingBar ? 1 : 0);
+                  if (ctrl.isLoading && ctrl.notes.isEmpty) {
+                    return headerCount + 1;
+                  }
+                  if (ctrl.visibleNotes.isEmpty &&
                       (ctrl.searchQuery.isNotEmpty ||
                           ctrl.dateRange != null ||
                           ctrl.statusFilter != null ||
-                          ctrl.paymentStatusFilter != null))
-                    _NoResultsState(onClear: _clearFilters)
-                  else if (ctrl.visibleNotes.isEmpty)
-                    _EmptyState(
+                          ctrl.paymentStatusFilter != null)) {
+                    return headerCount + 1;
+                  }
+                  if (ctrl.visibleNotes.isEmpty) return headerCount + 1;
+                  return headerCount + ctrl.visibleNotes.length;
+                }(),
+                itemBuilder: (BuildContext context, int index) {
+                  final List<Widget> header = <Widget>[
+                    _StatsGrid(
+                      constraints: constraints,
+                      totalNotes: ctrl.totalNotesCount.toString(),
+                      draft: ctrl.draftCount.toString(),
+                      clearedOrReported: ctrl.clearedOrReportedCount.toString(),
+                      debits: ctrl.debitsLabel,
+                    ),
+                    SizedBox(height: gap),
+                    _SearchField(
+                      constraints: constraints,
+                      controller: _searchController,
+                      onChanged: ctrl.setSearchQuery,
+                    ),
+                    SizedBox(height: gap),
+                    _FilterRow(
+                      constraints: constraints,
+                      statusLabel: ctrl.statusFilterLabel,
+                      statusSelected: ctrl.statusFilter != null,
+                      onStatus: _openStatusFilter,
+                      dateLabel: ctrl.dateRangeLabel,
+                      dateSelected: ctrl.dateRange != null,
+                      onDate: _openDateFilter,
+                      moreLabel: ctrl.paymentStatusFilterLabel,
+                      moreSelected: ctrl.paymentStatusFilter != null,
+                      onMoreFilters: _openPaymentStatusFilter,
+                    ),
+                    SizedBox(height: gap),
+                    if (showRefreshingBar)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 10),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.all(Radius.circular(999)),
+                          child: LinearProgressIndicator(minHeight: 3),
+                        ),
+                      ),
+                  ];
+
+                  if (index < header.length) return header[index];
+
+                  if (ctrl.isLoading && ctrl.notes.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.only(top: 28),
+                      child: Center(
+                        child: CircularProgressIndicator(color: AppColors.primary),
+                      ),
+                    );
+                  }
+
+                  if (ctrl.visibleNotes.isEmpty &&
+                      (ctrl.searchQuery.isNotEmpty ||
+                          ctrl.dateRange != null ||
+                          ctrl.statusFilter != null ||
+                          ctrl.paymentStatusFilter != null)) {
+                    return _NoResultsState(onClear: _clearFilters);
+                  }
+
+                  if (ctrl.visibleNotes.isEmpty) {
+                    return _EmptyState(
                       constraints: constraints,
                       onGetStarted: _openCreateDebitNote,
-                    )
-                  else
-                    ...ctrl.visibleNotes.map((DebitNote n) {
-                      return _DebitNoteCard(
-                        id: n.id,
-                        customer: n.customer,
-                        date: ctrl.dateLabel(n.issueDate),
-                        amount: ctrl.amountLabel(n),
-                        status: n.status,
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => DebitNoteDetailsScreen(note: n),
-                            ),
-                          );
-                        },
+                    );
+                  }
+
+                  final int i = index - header.length;
+                  final DebitNote n = ctrl.visibleNotes[i];
+                  return _DebitNoteCard(
+                    id: n.id,
+                    customer: n.customer,
+                    date: ctrl.dateLabel(n.issueDate),
+                    amount: ctrl.amountLabel(n),
+                    status: n.status,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => DebitNoteDetailsScreen(
+                            initialNote: n,
+                            debitNoteId:
+                                n.backendId.trim().isEmpty ? null : n.backendId,
+                          ),
+                        ),
                       );
-                    }),
-                ],
+                    },
+                  );
+                },
               ),
             ),
           ),

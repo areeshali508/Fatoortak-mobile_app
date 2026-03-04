@@ -10,6 +10,45 @@ class CustomerRepository {
     _api = api;
   }
 
+  Future<List<Customer>> listCustomersByType({
+    required String customerType,
+    int page = 1,
+    int limit = 20,
+    String? search,
+  }) async {
+    final String type = customerType.trim();
+    if (type.isEmpty) {
+      throw const ApiClientException('Customer type is required');
+    }
+
+    final Map<String, String> qp = <String, String>{
+      'customerType': type,
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+    if (search != null && search.trim().isNotEmpty) {
+      qp['search'] = search.trim();
+    }
+
+    final Map<String, dynamic> res = await _api.getJson(
+      '/api/customers',
+      queryParameters: qp,
+    );
+
+    final Object? data = res['data'];
+    if (data is Map<String, dynamic>) {
+      final Object? customers = data['customers'];
+      if (customers is List) {
+        return customers
+            .whereType<Map<String, dynamic>>()
+            .map(_mapCustomer)
+            .where((Customer c) => c.id.trim().isNotEmpty)
+            .toList();
+      }
+    }
+    return <Customer>[];
+  }
+
   Future<List<Customer>> listCustomers({
     required String companyId,
     int page = 1,
@@ -48,6 +87,38 @@ class CustomerRepository {
           if (cid.isEmpty) return true;
           return cid == companyFilter;
         }).toList();
+      }
+    }
+    return <Customer>[];
+  }
+
+  Future<List<Customer>> listCustomersUnfiltered({
+    int page = 1,
+    int limit = 50,
+    String? search,
+  }) async {
+    final Map<String, String> qp = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+    if (search != null && search.trim().isNotEmpty) {
+      qp['search'] = search.trim();
+    }
+
+    final Map<String, dynamic> res = await _api.getJson(
+      '/api/customers',
+      queryParameters: qp,
+    );
+
+    final Object? data = res['data'];
+    if (data is Map<String, dynamic>) {
+      final Object? customers = data['customers'];
+      if (customers is List) {
+        return customers
+            .whereType<Map<String, dynamic>>()
+            .map(_mapCustomer)
+            .where((Customer c) => c.id.trim().isNotEmpty)
+            .toList();
       }
     }
     return <Customer>[];

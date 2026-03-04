@@ -19,7 +19,7 @@ class AuthApiException implements Exception {
 class AuthRepository {
   const AuthRepository();
 
-  static const String _baseUrl = 'https://e-invoicing-solution-backend.vercel.app';
+  static const String _baseUrl = 'https://e-invoicing-solution-backenduat.vercel.app';
   static const String _tokenStorageKey = 'auth_jwt_token';
   static final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
   static String? _inMemoryToken;
@@ -42,6 +42,55 @@ class AuthRepository {
   void _debugLog(String message) {
     if (!kDebugMode) return;
     debugPrint(message);
+  }
+
+  static const List<String> _sensitiveKeys = <String>[
+    'token',
+    'password',
+    'confirmPassword',
+    'avatarUrl',
+    'website',
+    'qrCode',
+    'zatcaCredentials',
+    'privateKey',
+    'csr',
+    'complianceSecret',
+    'productionSecret',
+    'complianceCertificate',
+    'productionCSID',
+  ];
+
+  Object? _scrubSecrets(Object? v) {
+    if (v is List) {
+      return v.map(_scrubSecrets).toList();
+    }
+    if (v is Map) {
+      final Map<String, dynamic> m =
+          v.map((dynamic k, dynamic v) => MapEntry(k.toString(), v));
+
+      for (final String k in _sensitiveKeys) {
+        if (m.containsKey(k)) {
+          if (k == 'zatcaCredentials') {
+            m[k] = <String, dynamic>{};
+          } else {
+            m[k] = '<redacted>';
+          }
+        }
+      }
+
+      return m.map((String k, dynamic v) => MapEntry(k, _scrubSecrets(v)));
+    }
+    return v;
+  }
+
+  String _redactSensitiveFields(String rawBody) {
+    try {
+      final Object? decoded = jsonDecode(rawBody);
+      final Object? cleaned = _scrubSecrets(decoded);
+      return jsonEncode(cleaned);
+    } catch (_) {
+      return rawBody;
+    }
   }
 
   String _extractErrorMessage(http.Response res) {
@@ -93,7 +142,7 @@ class AuthRepository {
     };
     try {
       _debugLog('LOGIN POST $uri');
-      _debugLog('LOGIN BODY ${jsonEncode(payload)}');
+      _debugLog('LOGIN BODY ${_redactSensitiveFields(jsonEncode(payload))}');
       final Stopwatch sw = Stopwatch()..start();
       late final http.Response res;
       try {
@@ -115,7 +164,7 @@ class AuthRepository {
       }
 
       _debugLog('LOGIN STATUS ${res.statusCode}');
-      _debugLog('LOGIN RESPONSE ${res.body}');
+      _debugLog('LOGIN RESPONSE ${_redactSensitiveFields(res.body)}');
 
       if (res.statusCode == 200) {
         final String raw = res.body.trim();
@@ -166,7 +215,7 @@ class AuthRepository {
     };
     try {
       _debugLog('SIGNUP POST $uri');
-      _debugLog('SIGNUP BODY ${jsonEncode(payload)}');
+      _debugLog('SIGNUP BODY ${_redactSensitiveFields(jsonEncode(payload))}');
       final Stopwatch sw = Stopwatch()..start();
       late final http.Response res;
       try {
@@ -188,7 +237,7 @@ class AuthRepository {
       }
 
       _debugLog('SIGNUP STATUS ${res.statusCode}');
-      _debugLog('SIGNUP RESPONSE ${res.body}');
+      _debugLog('SIGNUP RESPONSE ${_redactSensitiveFields(res.body)}');
 
       if (res.statusCode == 201) {
         return true;
@@ -250,7 +299,7 @@ class AuthRepository {
       }
 
       _debugLog('PROFILE STATUS ${res.statusCode}');
-      _debugLog('PROFILE RESPONSE ${res.body}');
+      _debugLog('PROFILE RESPONSE ${_redactSensitiveFields(res.body)}');
 
       if (res.statusCode == 200) {
         final Object? decoded = jsonDecode(res.body);
@@ -294,7 +343,7 @@ class AuthRepository {
       }
 
       _debugLog('COMPANY_ME STATUS ${res.statusCode}');
-      _debugLog('COMPANY_ME RESPONSE ${res.body}');
+      _debugLog('COMPANY_ME RESPONSE ${_redactSensitiveFields(res.body)}');
 
       if (res.statusCode == 200) {
         final Object? decoded = jsonDecode(res.body);

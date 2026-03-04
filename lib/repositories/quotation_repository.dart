@@ -490,10 +490,163 @@ class QuotationRepository {
       throw const ApiClientException('Quotation id is required');
     }
 
-    final Map<String, dynamic> res = await _api.postJson(
-      '/api/quotations/$id/convert',
-      body: const <String, dynamic>{},
-    );
+    String? customerId;
+    String? companyId;
+    String currency = 'SAR';
+    String paymentTerms = '';
+    String termsAndConditions = '';
+    String notes = '';
+    DateTime? quoteDate;
+    DateTime? validUntil;
+    List<Map<String, dynamic>> quotationItems = const <Map<String, dynamic>>[];
+    Map<String, dynamic>? quotationRaw;
+    try {
+      final Map<String, dynamic> qRes = await _api.getJson('/api/quotations/$id');
+      final Object? qData = qRes['data'] ?? qRes;
+      Object? q;
+      if (qData is Map<String, dynamic>) {
+        q = qData['quotation'] ?? qData['quote'] ?? qData;
+      } else {
+        q = qData;
+      }
+      if (q is Map<String, dynamic>) {
+        quotationRaw = q;
+        final Object? ci = q['customerInfo'];
+        if (ci is Map<String, dynamic>) {
+          customerId = (ci['customerId'] ?? ci['_id'] ?? ci['id'])?.toString();
+        }
+        customerId ??= (q['customerId'] is Map<String, dynamic>)
+            ? ((q['customerId'] as Map<String, dynamic>)['_id'] ??
+                    (q['customerId'] as Map<String, dynamic>)['id'])
+                ?.toString()
+            : q['customerId']?.toString();
+
+        companyId = (q['companyId'] is Map<String, dynamic>)
+            ? ((q['companyId'] as Map<String, dynamic>)['_id'] ??
+                    (q['companyId'] as Map<String, dynamic>)['id'])
+                ?.toString()
+            : q['companyId']?.toString();
+
+        currency = (q['currency'] ?? 'SAR')?.toString() ?? 'SAR';
+        paymentTerms = (q['paymentTerms'] ?? '')?.toString() ?? '';
+        termsAndConditions =
+            (q['termsAndConditions'] ?? q['terms'] ?? '')?.toString() ?? '';
+        notes = (q['notes'] ?? '')?.toString() ?? '';
+
+        final String qd = (q['quoteDate'] ?? q['issueDate'] ?? '')?.toString() ?? '';
+        quoteDate = DateTime.tryParse(qd);
+
+        final String vu = (q['validUntil'] ?? '')?.toString() ?? '';
+        validUntil = DateTime.tryParse(vu);
+
+        final Object? itemsRaw = q['items'];
+        if (itemsRaw is List) {
+          quotationItems = itemsRaw.whereType<Map<String, dynamic>>().toList();
+        }
+      }
+    } catch (_) {
+      // ignore and try convert without customer id
+    }
+
+    customerId = (customerId ?? '').trim();
+    companyId = (companyId ?? '').trim();
+
+    ApiClientException? last;
+    Map<String, dynamic>? res;
+
+    final List<Map<String, dynamic>> bodies = <Map<String, dynamic>>[
+      if (customerId.isNotEmpty)
+        <String, dynamic>{
+          'customerInfo': <String, dynamic>{'customerId': customerId},
+        },
+      if (customerId.isNotEmpty) <String, dynamic>{'customerId': customerId},
+      const <String, dynamic>{},
+    ];
+
+    for (final Map<String, dynamic> body in bodies) {
+      try {
+        res = await _api.postJson(
+          '/api/quotations/$id/convert',
+          body: body,
+        );
+        last = null;
+        break;
+      } on ApiClientException catch (e) {
+        last = e;
+        continue;
+      }
+    }
+
+    if (res == null) {
+      final String msg = (last?.message ?? '').toLowerCase();
+      final bool missingCustomerInfoId = msg.contains('customerinfo.customerid');
+      if (!missingCustomerInfoId ||
+          companyId.isEmpty ||
+          customerId.isEmpty ||
+          quotationRaw == null) {
+        throw ApiClientException(
+          last?.message ?? 'Failed to convert quotation to invoice',
+          statusCode: last?.statusCode,
+        );
+      }
+
+      final DateTime invoiceDate = quoteDate ?? DateTime.now();
+      final DateTime dueDate = validUntil ?? invoiceDate;
+
+      final List<Map<String, dynamic>> invoiceItems = quotationItems.map(
+        (Map<String, dynamic> it) {
+          final int quantity = (it['quantity'] is num)
+              ? (it['quantity'] as num).toInt()
+              : int.tryParse(it['quantity']?.toString() ?? '') ?? 0;
+          final double unitPrice = (it['unitPrice'] is num)
+              ? (it['unitPrice'] as num).toDouble()
+              : double.tryParse(it['unitPrice']?.toString() ?? '') ?? 0;
+          final double taxRate = (it['taxRate'] is num)
+              ? (it['taxRate'] as num).toDouble()
+              : double.tryParse(it['taxRate']?.toString() ?? '') ?? 0;
+          final double discount = (it['discount'] is num)
+              ? (it['discount'] as num).toDouble()
+              : double.tryParse(it['discount']?.toString() ?? '') ?? 0;
+
+          return <String, dynamic>{
+            'description': (it['description'] ?? '')?.toString() ?? '',
+            'quantity': quantity,
+            'unitPrice': unitPrice,
+            'taxRate': taxRate,
+            'discount': discount,
+          };
+        },
+      ).toList();
+
+      final Map<String, dynamic> createBody = <String, dynamic>{
+        'customerId': customerId,
+        'companyId': companyId,
+        'invoiceDate': _toDateOnly(invoiceDate),
+        'dueDate': _toDateOnly(dueDate),
+        'items': invoiceItems,
+        'currency': currency,
+        'invoiceType': 'standard',
+        'paymentTerms': paymentTerms,
+        'notes': notes,
+        'termsAndConditions': termsAndConditions,
+      };
+
+      final Map<String, dynamic> invRes =
+          await _api.postJson('/api/invoices', body: createBody);
+
+      Object? invData = invRes['data'] ?? invRes['invoice'] ?? invRes;
+      if (invData is Map<String, dynamic>) {
+        invData = invData['invoice'] ?? invData['data'] ?? invData;
+      }
+      if (invData is Map<String, dynamic>) {
+        final String? newId = (invData['_id'] ?? invData['id'])?.toString().trim();
+        if (newId != null && newId.isNotEmpty) {
+          return newId;
+        }
+      }
+
+      throw const ApiClientException('Converted invoice not returned');
+    }
 
     final Object? data = res['data'] ?? res['invoice'] ?? res;
     Object? invoice;
@@ -504,11 +657,9 @@ class QuotationRepository {
     }
 
     if (invoice is Map<String, dynamic>) {
-      final String? invId = (invoice['invoiceNo'] ?? invoice['_id'] ?? invoice['id'])
-          ?.toString()
-          .trim();
-      if (invId != null && invId.isNotEmpty) {
-        return invId;
+      final String? apiId = (invoice['_id'] ?? invoice['id'])?.toString().trim();
+      if (apiId != null && apiId.isNotEmpty) {
+        return apiId;
       }
     }
     return null;

@@ -507,6 +507,8 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
 
         final List<Invoice> visibleInvoices = invoiceCtrl.visibleInvoices;
         final bool isLoading = invoiceCtrl.isLoading;
+        final bool showSkeleton = isLoading && visibleInvoices.isEmpty;
+        final bool showRefreshingBar = isLoading && visibleInvoices.isNotEmpty;
 
         return Scaffold(
           backgroundColor: const Color(0xFFF7FAFF),
@@ -661,129 +663,133 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
           body: SafeArea(
             child: RefreshIndicator(
               onRefresh: _reloadInvoices,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.fromLTRB(
-                  hPad,
-                  gap,
-                  hPad,
-                  AppResponsive.clamp(
-                    AppResponsive.scaledByHeight(constraints, 110),
-                    100,
-                    140,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    _SearchField(
-                      constraints: constraints,
-                      controller: _searchController,
-                      onChanged: (String v) {
-                        invoiceCtrl.setSearchQuery(v);
-                      },
-                    ),
-                    SizedBox(height: gap),
-                    _FilterRow(
-                      constraints: constraints,
-                      index: _filterIndex,
-                      onChanged: (int i) => setState(() => _filterIndex = i),
-                      dateSelected: invoiceCtrl.dateRange != null,
-                      onDate: _openDateFilter,
-                      moreSelected: invoiceCtrl.statusFilter != null,
-                      onMoreFilters: _openMoreFilters,
-                    ),
-                    SizedBox(height: gap),
-                    Skeletonizer(
-                      enabled: isLoading,
-                      child: AbsorbPointer(
-                        absorbing: isLoading,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: isLoading
-                              ? List<Widget>.generate(6, (int i) {
-                                  return _InvoiceCard(
-                                    invoiceNo: '----',
-                                    customer: 'Loading',
-                                    date: '----',
-                                    amount: '----',
-                                    status: InvoiceStatus.draft,
-                                    onTap: () {},
-                                  );
-                                })
-                              : invoiceCtrl.errorMessage != null &&
-                                      invoiceCtrl.errorMessage!
-                                          .trim()
-                                          .isNotEmpty
-                                  ? <Widget>[
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 14,
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.stretch,
-                                          children: <Widget>[
-                                            Text(
-                                              invoiceCtrl.errorMessage!,
-                                              textAlign: TextAlign.center,
-                                              style: const TextStyle(
-                                                color: Color(0xFFD93025),
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 12),
-                                            ElevatedButton(
-                                              onPressed: _reloadInvoices,
-                                              child: const Text('Retry'),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ]
-                                  : visibleInvoices.isEmpty
-                                      ? <Widget>[
-                                          const Padding(
-                                            padding: EdgeInsets.symmetric(
-                                              vertical: 28,
-                                            ),
-                                            child: Text(
-                                              'No invoices found',
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
-                                                color: Color(0xFF6B7895),
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                          ),
-                                        ]
-                                      : visibleInvoices
-                                          .map((Invoice inv) {
-                                            return _InvoiceCard(
-                                              invoiceNo: inv.invoiceNo,
-                                              customer: inv.customer,
-                                              date: invoiceCtrl
-                                                  .dateLabel(inv.issueDate),
-                                              amount:
-                                                  invoiceCtrl.amountLabel(inv),
-                                              status: inv.status,
-                                              onTap: () {
-                                                Navigator.of(context).push(
-                                                  MaterialPageRoute<void>(
-                                                    builder: (_) =>
-                                                        InvoiceDetailsScreen(
-                                                      invoice: inv,
-                                                    ),
-                                                  ),
-                                                );
-                                              },
-                                            );
-                                          })
-                                          .toList(),
-                        ),
+              child: Skeletonizer(
+                enabled: showSkeleton,
+                child: AbsorbPointer(
+                  absorbing: showSkeleton,
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(
+                      hPad,
+                      gap,
+                      hPad,
+                      AppResponsive.clamp(
+                        AppResponsive.scaledByHeight(constraints, 110),
+                        100,
+                        140,
                       ),
                     ),
-                  ],
+                    itemCount: () {
+                      final int headerCount = 4 + (showRefreshingBar ? 1 : 0);
+                      if (showSkeleton) return headerCount + 6;
+                      if (invoiceCtrl.errorMessage != null &&
+                          invoiceCtrl.errorMessage!.trim().isNotEmpty) {
+                        return headerCount + 1;
+                      }
+                      if (visibleInvoices.isEmpty) return headerCount + 1;
+                      return headerCount + visibleInvoices.length;
+                    }(),
+                    itemBuilder: (BuildContext context, int index) {
+                      final List<Widget> header = <Widget>[
+                        _SearchField(
+                          constraints: constraints,
+                          controller: _searchController,
+                          onChanged: (String v) {
+                            invoiceCtrl.setSearchQuery(v);
+                          },
+                        ),
+                        SizedBox(height: gap),
+                        _FilterRow(
+                          constraints: constraints,
+                          index: _filterIndex,
+                          onChanged: (int i) => setState(() => _filterIndex = i),
+                          dateSelected: invoiceCtrl.dateRange != null,
+                          onDate: _openDateFilter,
+                          moreSelected: invoiceCtrl.statusFilter != null,
+                          onMoreFilters: _openMoreFilters,
+                        ),
+                        SizedBox(height: gap),
+                        if (showRefreshingBar)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 10),
+                            child: ClipRRect(
+                              borderRadius:
+                                  BorderRadius.all(Radius.circular(999)),
+                              child: LinearProgressIndicator(minHeight: 3),
+                            ),
+                          ),
+                      ];
+
+                      if (index < header.length) return header[index];
+                      final int i = index - header.length;
+
+                      if (showSkeleton) {
+                        return _InvoiceCard(
+                          invoiceNo: '----',
+                          customer: 'Loading',
+                          date: '----',
+                          amount: '----',
+                          status: InvoiceStatus.draft,
+                          onTap: () {},
+                        );
+                      }
+
+                      if (invoiceCtrl.errorMessage != null &&
+                          invoiceCtrl.errorMessage!.trim().isNotEmpty) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              Text(
+                                invoiceCtrl.errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Color(0xFFD93025),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              ElevatedButton(
+                                onPressed: _reloadInvoices,
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      if (visibleInvoices.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 28),
+                          child: Text(
+                            'No invoices found',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Color(0xFF6B7895),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        );
+                      }
+
+                      final Invoice inv = visibleInvoices[i];
+                      return _InvoiceCard(
+                        invoiceNo: inv.invoiceNo,
+                        customer: inv.customer,
+                        date: invoiceCtrl.dateLabel(inv.issueDate),
+                        amount: invoiceCtrl.amountLabel(inv),
+                        status: inv.status,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => InvoiceDetailsScreen(invoice: inv),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
               ),
             ),

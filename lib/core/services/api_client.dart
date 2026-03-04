@@ -33,6 +33,62 @@ class ApiClient {
     debugPrint(message);
   }
 
+  static const List<String> _sensitiveKeys = <String>[
+    'zatcaCredentials',
+    'privateKey',
+    'csr',
+    'complianceSecret',
+    'productionSecret',
+    'complianceCertificate',
+    'productionCSID',
+    'password',
+    'confirmPassword',
+    'avatarUrl',
+    'website',
+    'qrCode',
+  ];
+
+  Object? _scrubSecrets(Object? v) {
+    if (v is List) {
+      return v.map(_scrubSecrets).toList();
+    }
+    if (v is Map) {
+      final Map<String, dynamic> m =
+          v.map((dynamic k, dynamic v) => MapEntry(k.toString(), v));
+
+      for (final String k in _sensitiveKeys) {
+        if (m.containsKey(k)) {
+          if (k == 'zatcaCredentials') {
+            m[k] = <String, dynamic>{};
+          } else {
+            m[k] = '<redacted>';
+          }
+        }
+      }
+
+      return m.map((String k, dynamic v) => MapEntry(k, _scrubSecrets(v)));
+    }
+    return v;
+  }
+
+  String _redactSensitiveFields(String rawBody) {
+    try {
+      final Object? decoded = jsonDecode(rawBody);
+      final Object? cleaned = _scrubSecrets(decoded);
+      return jsonEncode(cleaned);
+    } catch (_) {
+      return rawBody;
+    }
+  }
+
+  Map<String, dynamic> _sanitizeDecodedMap(Map<String, dynamic> decoded) {
+    final Object? cleaned = _scrubSecrets(decoded);
+    if (cleaned is Map<String, dynamic>) {
+      return cleaned;
+    }
+    return decoded;
+  }
+
   Future<Map<String, dynamic>> postForm(
     String path, {
     Map<String, String>? queryParameters,
@@ -41,7 +97,7 @@ class ApiClient {
   }) async {
     final Uri uri = _buildUri(path, queryParameters);
     _debugLog('POST $uri');
-    _debugLog('POST FORM BODY $body');
+    _debugLog('POST FORM BODY ${_redactSensitiveFields(jsonEncode(body))}');
 
     final Stopwatch sw = Stopwatch()..start();
 
@@ -78,12 +134,12 @@ class ApiClient {
     }
 
     _debugLog('POST STATUS ${res.statusCode}');
-    _debugLog('POST RESPONSE ${res.body}');
+    _debugLog('POST RESPONSE ${_redactSensitiveFields(res.body)}');
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final Object? decoded = jsonDecode(res.body);
       if (decoded is Map<String, dynamic>) {
-        return decoded;
+        return _sanitizeDecodedMap(decoded);
       }
       throw const ApiClientException('Invalid response');
     }
@@ -120,7 +176,7 @@ class ApiClient {
     }
 
     _debugLog('GET STATUS ${res.statusCode}');
-    _debugLog('GET RESPONSE ${res.body}');
+    _debugLog('GET RESPONSE ${_redactSensitiveFields(res.body)}');
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return res.body;
@@ -207,12 +263,12 @@ class ApiClient {
       _debugLog('GET TIME ${sw.elapsedMilliseconds}ms $uri');
     }
     _debugLog('GET STATUS ${res.statusCode}');
-    _debugLog('GET RESPONSE ${res.body}');
+    _debugLog('GET RESPONSE ${_redactSensitiveFields(res.body)}');
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final Object? decoded = jsonDecode(res.body);
       if (decoded is Map<String, dynamic>) {
-        return decoded;
+        return _sanitizeDecodedMap(decoded);
       }
       throw const ApiClientException('Invalid response');
     }
@@ -228,7 +284,7 @@ class ApiClient {
   }) async {
     final Uri uri = _buildUri(path, queryParameters);
     _debugLog('POST $uri');
-    _debugLog('POST BODY ${jsonEncode(body)}');
+    _debugLog('POST BODY ${_redactSensitiveFields(jsonEncode(body))}');
 
     final Stopwatch sw = Stopwatch()..start();
 
@@ -253,13 +309,14 @@ class ApiClient {
       sw.stop();
       _debugLog('POST TIME ${sw.elapsedMilliseconds}ms $uri');
     }
+
     _debugLog('POST STATUS ${res.statusCode}');
-    _debugLog('POST RESPONSE ${res.body}');
+    _debugLog('POST RESPONSE ${_redactSensitiveFields(res.body)}');
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final Object? decoded = jsonDecode(res.body);
       if (decoded is Map<String, dynamic>) {
-        return decoded;
+        return _sanitizeDecodedMap(decoded);
       }
       throw const ApiClientException('Invalid response');
     }
@@ -275,7 +332,7 @@ class ApiClient {
   }) async {
     final Uri uri = _buildUri(path, queryParameters);
     _debugLog('PATCH $uri');
-    _debugLog('PATCH BODY ${jsonEncode(body)}');
+    _debugLog('PATCH BODY ${_redactSensitiveFields(jsonEncode(body))}');
 
     final Stopwatch sw = Stopwatch()..start();
 
@@ -301,12 +358,12 @@ class ApiClient {
       _debugLog('PATCH TIME ${sw.elapsedMilliseconds}ms $uri');
     }
     _debugLog('PATCH STATUS ${res.statusCode}');
-    _debugLog('PATCH RESPONSE ${res.body}');
+    _debugLog('PATCH RESPONSE ${_redactSensitiveFields(res.body)}');
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final Object? decoded = jsonDecode(res.body);
       if (decoded is Map<String, dynamic>) {
-        return decoded;
+        return _sanitizeDecodedMap(decoded);
       }
       throw const ApiClientException('Invalid response');
     }

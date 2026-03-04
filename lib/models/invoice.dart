@@ -73,6 +73,8 @@ class InvoiceItem {
 
 class Invoice {
   final String id;
+  final String? companyId;
+  final String? customerId;
   final String invoiceNo;
   final String customer;
   final DateTime issueDate;
@@ -90,6 +92,8 @@ class Invoice {
 
   const Invoice({
     required this.id,
+    this.companyId,
+    this.customerId,
     required this.invoiceNo,
     required this.customer,
     required this.issueDate,
