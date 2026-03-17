@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../app/app_routes.dart';
 import '../../../controllers/auth_controller.dart';
@@ -222,13 +223,33 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _loadCompanies();
-      if (!mounted) return;
-      setState(() {
-        _syncSelectedCompanyFromAuth();
-      });
+      final AuthController auth = context.read<AuthController>();
+      final String? activeCompanyId = auth.activeCompanyId?.trim();
 
-      await _reloadInvoices();
+      if (activeCompanyId != null && activeCompanyId.isNotEmpty) {
+        await Future.wait<void>(<Future<void>>[
+          _loadCompanies(),
+          context.read<InvoiceController>().loadInvoices(
+            companyId: activeCompanyId,
+          ),
+        ]);
+        if (!mounted) return;
+        setState(() {
+          _syncSelectedCompanyFromAuth();
+        });
+        if ((_selectedCompanyId ?? '').trim() != activeCompanyId) {
+          await _reloadInvoices();
+        }
+      } else {
+        await _loadCompanies();
+        if (!mounted) return;
+        setState(() {
+          _syncSelectedCompanyFromAuth();
+        });
+
+        await _reloadInvoices();
+      }
+
       if (!mounted) return;
 
       final InvoiceController invoiceCtrl = context.read<InvoiceController>();
@@ -664,7 +685,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
             child: RefreshIndicator(
               onRefresh: _reloadInvoices,
               child: Skeletonizer(
-                enabled: showSkeleton,
+                enabled: showSkeleton && !kIsWeb,
                 child: AbsorbPointer(
                   absorbing: showSkeleton,
                   child: ListView.builder(

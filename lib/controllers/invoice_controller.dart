@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../models/invoice.dart';
@@ -6,6 +7,9 @@ import '../repositories/invoice_repository.dart';
 class InvoiceController extends ChangeNotifier {
   InvoiceRepository _repository;
   List<Invoice> _invoices = <Invoice>[];
+
+  List<Invoice> _visibleInvoices = const <Invoice>[];
+  bool _visibleDirty = true;
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -68,27 +72,20 @@ class InvoiceController extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      final List<Invoice> first = await _repository.getInvoices(
+      // Avoid fetching all pages on Flutter Web for better responsiveness.
+      final bool fetchAll = !kIsWeb;
+      final List<Invoice> list = await _repository.getInvoices(
         companyId: companyId,
         page: 1,
         limit: 100,
-        fetchAll: false,
+        fetchAll: fetchAll,
       );
 
-      _invoices = first;
-      notifyListeners();
-
-      final List<Invoice> all = await _repository.getInvoices(
-        companyId: companyId,
-        page: 1,
-        limit: 100,
-        fetchAll: true,
-      );
-
-      _invoices = all;
+      _invoices = list;
+      _visibleDirty = true;
 
       debugPrint(
-        'INVOICES loaded count=${_invoices.length} companyId=${(companyId ?? '').trim()}',
+        'INVOICES loaded count=${_invoices.length} companyId=${(companyId ?? '').trim()} fetchAll=$fetchAll',
       );
     } catch (e) {
       _errorMessage = e.toString();
@@ -132,6 +129,7 @@ class InvoiceController extends ChangeNotifier {
       return;
     }
     _searchQuery = next;
+    _visibleDirty = true;
     notifyListeners();
   }
 
@@ -140,11 +138,13 @@ class InvoiceController extends ChangeNotifier {
       return;
     }
     _statusFilter = status;
+    _visibleDirty = true;
     notifyListeners();
   }
 
   void setDateRange(DateTimeRange? range) {
     _dateRange = range;
+    _visibleDirty = true;
     notifyListeners();
   }
 
@@ -156,22 +156,28 @@ class InvoiceController extends ChangeNotifier {
   }
 
   List<Invoice> get visibleInvoices {
-    final String q = _searchQuery.toLowerCase();
-    return _invoices.where((Invoice inv) {
-      final bool statusOk = _statusFilter == null
-          ? true
-          : inv.status == _statusFilter;
-      final bool dateOk = _inDateRange(inv.issueDate);
-      final bool searchOk = q.isEmpty
-          ? true
-          : inv.invoiceNo.toLowerCase().contains(q) ||
-                inv.customer.toLowerCase().contains(q);
-      return statusOk && dateOk && searchOk;
-    }).toList();
+    if (_visibleDirty) {
+      final String q = _searchQuery.toLowerCase();
+      final List<Invoice> next = _invoices.where((Invoice inv) {
+        final bool statusOk = _statusFilter == null
+            ? true
+            : inv.status == _statusFilter;
+        final bool dateOk = _inDateRange(inv.issueDate);
+        final bool searchOk = q.isEmpty
+            ? true
+            : inv.invoiceNo.toLowerCase().contains(q) ||
+                  inv.customer.toLowerCase().contains(q);
+        return statusOk && dateOk && searchOk;
+      }).toList();
+      _visibleInvoices = List<Invoice>.unmodifiable(next);
+      _visibleDirty = false;
+    }
+    return _visibleInvoices;
   }
 
   void addInvoice(Invoice invoice) {
     _invoices.insert(0, invoice);
+    _visibleDirty = true;
     notifyListeners();
   }
 

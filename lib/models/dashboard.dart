@@ -32,13 +32,17 @@ class DashboardProgressModel {
 
 class DashboardTrendModel {
   final List<double> values;
+  final List<double> rawValues;
   final List<String> labels;
   final int highlightIndex;
+  final bool isCurrency;
 
   const DashboardTrendModel({
     required this.values,
+    required this.rawValues,
     required this.labels,
     required this.highlightIndex,
+    required this.isCurrency,
   });
 }
 

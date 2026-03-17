@@ -20,6 +20,10 @@ class ApiClient {
   final Future<String?> Function() tokenProvider;
   final http.Client _client;
 
+  final Map<String, Map<String, dynamic>> _jsonCache =
+      <String, Map<String, dynamic>>{};
+  final Map<String, String> _textCache = <String, String>{};
+
   static const Duration requestTimeout = Duration(seconds: 20);
 
   ApiClient({
@@ -152,15 +156,30 @@ class ApiClient {
     Map<String, String>? queryParameters,
     bool auth = true,
   }) async {
-    final Uri uri = _buildUri(path, queryParameters);
+    final Map<String, String>? qp = queryParameters == null
+        ? (kIsWeb
+            ? <String, String>{
+                'cb': DateTime.now().millisecondsSinceEpoch.toString(),
+              }
+            : null)
+        : <String, String>{
+            ...queryParameters,
+            if (kIsWeb) 'cb': DateTime.now().millisecondsSinceEpoch.toString(),
+          };
+
+    final Uri uri = _buildUri(path, qp);
     _debugLog('GET $uri');
 
     final Stopwatch sw = Stopwatch()..start();
 
     late final http.Response res;
     try {
+      final Map<String, String> headers = await _headers(auth: auth);
+      headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+      headers['Pragma'] = 'no-cache';
+      headers['Expires'] = '0';
       res = await _client
-          .get(uri, headers: await _headers(auth: auth))
+          .get(uri, headers: headers)
           .timeout(requestTimeout);
     } on TimeoutException {
       throw const ApiClientException('Request timed out', statusCode: 408);
@@ -178,7 +197,16 @@ class ApiClient {
     _debugLog('GET STATUS ${res.statusCode}');
     _debugLog('GET RESPONSE ${_redactSensitiveFields(res.body)}');
 
+    if (res.statusCode == 304) {
+      final String? cached = _textCache[uri.toString()];
+      if (cached != null) {
+        return cached;
+      }
+      throw const ApiClientException('Not modified', statusCode: 304);
+    }
+
     if (res.statusCode >= 200 && res.statusCode < 300) {
+      _textCache[uri.toString()] = res.body;
       return res.body;
     }
 
@@ -240,16 +268,29 @@ class ApiClient {
     Map<String, String>? queryParameters,
     bool auth = true,
   }) async {
-    final Uri uri = _buildUri(path, queryParameters);
+    final Map<String, String>? qp = queryParameters == null
+        ? (kIsWeb
+            ? <String, String>{
+                'cb': DateTime.now().millisecondsSinceEpoch.toString(),
+              }
+            : null)
+        : <String, String>{
+            ...queryParameters,
+            if (kIsWeb) 'cb': DateTime.now().millisecondsSinceEpoch.toString(),
+          };
+
+    final Uri uri = _buildUri(path, qp);
     _debugLog('GET $uri');
 
     final Stopwatch sw = Stopwatch()..start();
 
     late final http.Response res;
     try {
-      res = await _client
-          .get(uri, headers: await _headers(auth: auth))
-          .timeout(requestTimeout);
+      final Map<String, String> headers = await _headers(auth: auth);
+      headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+      headers['Pragma'] = 'no-cache';
+      headers['Expires'] = '0';
+      res = await _client.get(uri, headers: headers).timeout(requestTimeout);
     } on TimeoutException {
       throw const ApiClientException('Request timed out', statusCode: 408);
     } on SocketException catch (e) {
@@ -265,10 +306,20 @@ class ApiClient {
     _debugLog('GET STATUS ${res.statusCode}');
     _debugLog('GET RESPONSE ${_redactSensitiveFields(res.body)}');
 
+    if (res.statusCode == 304) {
+      final Map<String, dynamic>? cached = _jsonCache[uri.toString()];
+      if (cached != null) {
+        return cached;
+      }
+      throw const ApiClientException('Not modified', statusCode: 304);
+    }
+
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final Object? decoded = jsonDecode(res.body);
       if (decoded is Map<String, dynamic>) {
-        return _sanitizeDecodedMap(decoded);
+        final Map<String, dynamic> sanitized = _sanitizeDecodedMap(decoded);
+        _jsonCache[uri.toString()] = sanitized;
+        return sanitized;
       }
       throw const ApiClientException('Invalid response');
     }

@@ -5,6 +5,7 @@ import 'package:provider/single_child_widget.dart';
 
 import '../controllers/auth_controller.dart';
 import '../controllers/customer_controller.dart';
+import '../controllers/dashboard_controller.dart';
 import '../controllers/invoice_controller.dart';
 import '../controllers/product_controller.dart';
 import '../controllers/reports_controller.dart';
@@ -29,13 +30,21 @@ import '../repositories/user_repository.dart';
 class AppProviders {
   static final List<SingleChildWidget> providers = <SingleChildWidget>[
     Provider<OnboardingRepository>(create: (_) => const OnboardingRepository()),
-    Provider<DashboardRepository>(create: (_) => const DashboardRepository()),
     Provider<AuthRepository>(create: (_) => const AuthRepository()),
     Provider<ApiClient>(
       create: (BuildContext ctx) => ApiClient(
         baseUrl: 'https://e-invoicing-solution-backenduat.vercel.app',
         tokenProvider: () => ctx.read<AuthRepository>().getToken(),
       ),
+    ),
+    ProxyProvider<ApiClient, DashboardRepository>(
+      update: (BuildContext ctx, ApiClient api, DashboardRepository? prev) {
+        if (prev == null) {
+          return DashboardRepository(api: api);
+        }
+        prev.updateApi(api);
+        return prev;
+      },
     ),
     ProxyProvider<ApiClient, DebitNoteRepository>(
       update: (BuildContext ctx, ApiClient api, DebitNoteRepository? prev) {
@@ -197,6 +206,19 @@ class AppProviders {
           ) {
             prev?.updateRepository(repo);
             return prev ?? ReportsController(repository: repo);
+          },
+    ),
+    ChangeNotifierProxyProvider<DashboardRepository, DashboardController>(
+      create: (BuildContext ctx) =>
+          DashboardController(repository: ctx.read<DashboardRepository>()),
+      update:
+          (
+            BuildContext ctx,
+            DashboardRepository repo,
+            DashboardController? prev,
+          ) {
+            prev?.updateRepository(repo);
+            return prev ?? DashboardController(repository: repo);
           },
     ),
     ChangeNotifierProxyProvider2<ZatcaRepository, AuthController, ZatcaController>(

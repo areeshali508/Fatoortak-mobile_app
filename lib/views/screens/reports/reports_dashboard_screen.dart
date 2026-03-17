@@ -259,9 +259,15 @@ class _BusinessOverviewGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ReportsController ctrl = context.watch<ReportsController>();
-    final DashboardStats stats = ctrl.dashboardStats;
-    final bool isLoading = ctrl.isLoadingDashboard;
+    final ({DashboardStats stats, bool isLoading}) vm =
+        context.select<ReportsController, ({DashboardStats stats, bool isLoading})>(
+          (ReportsController ctrl) => (
+            stats: ctrl.dashboardStats,
+            isLoading: ctrl.isLoadingDashboard,
+          ),
+        );
+    final DashboardStats stats = vm.stats;
+    final bool isLoading = vm.isLoading;
 
     final double gap = AppResponsive.clamp(
       AppResponsive.vw(constraints, 3.2),

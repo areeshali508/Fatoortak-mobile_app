@@ -1002,9 +1002,16 @@ class _TopCustomersCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ReportsController ctrl = context.watch<ReportsController>();
-    final List<TopCustomer> customers = ctrl.topCustomers;
-    final bool isLoading = ctrl.isLoadingCustomers;
+    final ({List<TopCustomer> customers, bool isLoading}) vm =
+        context.select<ReportsController,
+            ({List<TopCustomer> customers, bool isLoading})>(
+          (ReportsController ctrl) => (
+            customers: ctrl.topCustomers,
+            isLoading: ctrl.isLoadingCustomers,
+          ),
+        );
+    final List<TopCustomer> customers = vm.customers;
+    final bool isLoading = vm.isLoading;
 
     final double titleSize = AppResponsive.clamp(
       AppResponsive.sp(constraints, 15.5),

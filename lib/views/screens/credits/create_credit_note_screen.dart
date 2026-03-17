@@ -658,8 +658,10 @@ class _CreateCreditNoteScreenState extends State<CreateCreditNoteScreen> {
           : ctrl.companyById(activeId) ?? companies.first;
 
       ctrl.setCompany(companyId: selected.id, companyName: selected.name);
-      await ctrl.loadNextNumber();
-      await invCtrl.loadInvoices(companyId: selected.id);
+      await Future.wait<void>(<Future<void>>[
+        ctrl.loadNextNumber(),
+        invCtrl.loadInvoices(companyId: selected.id),
+      ]);
     });
   }
 

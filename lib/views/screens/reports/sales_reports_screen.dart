@@ -214,7 +214,7 @@ class _RangeChips extends StatelessWidget {
             ),
           ),
         );
-      }),
+      }).toList(),
     );
   }
 }
@@ -226,9 +226,15 @@ class _MetricsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ReportsController ctrl = context.watch<ReportsController>();
-    final SalesOverview overview = ctrl.salesOverview;
-    final bool isLoading = ctrl.isLoadingSales;
+    final ({SalesOverview overview, bool isLoading}) vm =
+        context.select<ReportsController, ({SalesOverview overview, bool isLoading})>(
+          (ReportsController ctrl) => (
+            overview: ctrl.salesOverview,
+            isLoading: ctrl.isLoadingSales,
+          ),
+        );
+    final SalesOverview overview = vm.overview;
+    final bool isLoading = vm.isLoading;
 
     final double gap = AppResponsive.clamp(
       AppResponsive.vw(constraints, 3.5),
@@ -307,119 +313,6 @@ class _MetricsGrid extends StatelessWidget {
           ],
         ),
       ],
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  final BoxConstraints constraints;
-  final IconData icon;
-  final Color iconBg;
-  final Color iconColor;
-  final String title;
-  final String value;
-  final String deltaText;
-  final bool deltaUp;
-
-  const _MetricCard({
-    required this.constraints,
-    required this.icon,
-    required this.iconBg,
-    required this.iconColor,
-    required this.title,
-    required this.value,
-    required this.deltaText,
-    required this.deltaUp,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final double titleSize = AppResponsive.clamp(
-      AppResponsive.sp(constraints, 11.5),
-      11,
-      13,
-    );
-    final double valueSize = AppResponsive.clamp(
-      AppResponsive.sp(constraints, 18),
-      16,
-      20,
-    );
-
-    final Color deltaColor = deltaUp ? const Color(0xFF1DB954) : const Color(0xFFD93025);
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE9EEF5)),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(
-            color: Color(0x0A0B1B4B),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: iconColor, size: 18),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: const Color(0xFF6B7895),
-                    fontWeight: FontWeight.w800,
-                    fontSize: titleSize,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: TextStyle(
-              color: const Color(0xFF0B1B4B),
-              fontWeight: FontWeight.w900,
-              fontSize: valueSize,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: <Widget>[
-              Icon(
-                deltaUp ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-                size: 14,
-                color: deltaColor,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                deltaText,
-                style: TextStyle(
-                  color: deltaColor,
-                  fontWeight: FontWeight.w900,
-                  fontSize: titleSize,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }
@@ -847,6 +740,217 @@ class _PayRow extends StatelessWidget {
   }
 }
 
+class _MetricCard extends StatelessWidget {
+  final BoxConstraints constraints;
+  final IconData icon;
+  final Color iconBg;
+  final Color iconColor;
+  final String title;
+  final String value;
+  final String deltaText;
+  final bool deltaUp;
+
+  const _MetricCard({
+    required this.constraints,
+    required this.icon,
+    required this.iconBg,
+    required this.iconColor,
+    required this.title,
+    required this.value,
+    required this.deltaText,
+    required this.deltaUp,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final double titleSize = AppResponsive.clamp(
+      AppResponsive.sp(constraints, 11.5),
+      11,
+      13,
+    );
+    final double valueSize = AppResponsive.clamp(
+      AppResponsive.sp(constraints, 18),
+      16,
+      20,
+    );
+    final Color deltaColor =
+        deltaUp ? const Color(0xFF1DB954) : const Color(0xFFD93025);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE9EEF5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: iconColor, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: const Color(0xFF6B7895),
+                    fontWeight: FontWeight.w800,
+                    fontSize: titleSize,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: TextStyle(
+              color: const Color(0xFF0B1B4B),
+              fontWeight: FontWeight.w900,
+              fontSize: valueSize,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: <Widget>[
+              Icon(
+                deltaUp
+                    ? Icons.arrow_upward_rounded
+                    : Icons.arrow_downward_rounded,
+                size: 14,
+                color: deltaColor,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                deltaText,
+                style: TextStyle(
+                  color: deltaColor,
+                  fontWeight: FontWeight.w900,
+                  fontSize: titleSize,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RankTile extends StatelessWidget {
+  final String rank;
+  final String name;
+  final String meta;
+  final String amount;
+  final String deltaText;
+  final bool deltaUp;
+
+  const _RankTile({
+    required this.rank,
+    required this.name,
+    required this.meta,
+    required this.amount,
+    required this.deltaText,
+    required this.deltaUp,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color deltaColor =
+        deltaUp ? const Color(0xFF1DB954) : const Color(0xFFD93025);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FAFF),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 30,
+            height: 30,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF4FF),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              rank,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w900,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF0B1B4B),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  meta,
+                  style: const TextStyle(
+                    color: Color(0xFF6B7895),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
+              Text(
+                amount,
+                style: const TextStyle(
+                  color: Color(0xFF0B1B4B),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                deltaText,
+                style: TextStyle(
+                  color: deltaColor,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TopCustomersCard extends StatelessWidget {
   final BoxConstraints constraints;
   final VoidCallback onViewAll;
@@ -858,9 +962,16 @@ class _TopCustomersCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ReportsController ctrl = context.watch<ReportsController>();
-    final List<TopCustomer> customers = ctrl.topCustomers;
-    final bool isLoading = ctrl.isLoadingCustomers;
+    final ({List<TopCustomer> customers, bool isLoading}) vm =
+        context.select<ReportsController,
+            ({List<TopCustomer> customers, bool isLoading})>(
+          (ReportsController ctrl) => (
+            customers: ctrl.topCustomers,
+            isLoading: ctrl.isLoadingCustomers,
+          ),
+        );
+    final List<TopCustomer> customers = vm.customers;
+    final bool isLoading = vm.isLoading;
 
     final double titleSize = AppResponsive.clamp(
       AppResponsive.sp(constraints, 15.5),
@@ -967,108 +1078,6 @@ class _TopCustomersCard extends StatelessWidget {
   }
 }
 
-class _RankTile extends StatelessWidget {
-  final String rank;
-  final String name;
-  final String meta;
-  final String amount;
-  final String deltaText;
-  final bool deltaUp;
-
-  const _RankTile({
-    required this.rank,
-    required this.name,
-    required this.meta,
-    required this.amount,
-    required this.deltaText,
-    required this.deltaUp,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final Color deltaColor = deltaUp ? const Color(0xFF1DB954) : const Color(0xFFD93025);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFF),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: 26,
-            height: 26,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEFF4FF),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              rank,
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w900,
-                fontSize: 12,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF0B1B4B),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  meta,
-                  style: const TextStyle(
-                    color: Color(0xFF6B7895),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: <Widget>[
-              Text(
-                amount,
-                style: const TextStyle(
-                  color: Color(0xFF0B1B4B),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                deltaText,
-                style: TextStyle(
-                  color: deltaColor,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _TopProductsCard extends StatelessWidget {
   final BoxConstraints constraints;
 
@@ -1076,9 +1085,16 @@ class _TopProductsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ReportsController ctrl = context.watch<ReportsController>();
-    final List<TopProduct> products = ctrl.topProducts;
-    final bool isLoading = ctrl.isLoadingProducts;
+    final ({List<TopProduct> products, bool isLoading}) vm =
+        context.select<ReportsController,
+            ({List<TopProduct> products, bool isLoading})>(
+          (ReportsController ctrl) => (
+            products: ctrl.topProducts,
+            isLoading: ctrl.isLoadingProducts,
+          ),
+        );
+    final List<TopProduct> products = vm.products;
+    final bool isLoading = vm.isLoading;
 
     final double titleSize = AppResponsive.clamp(
       AppResponsive.sp(constraints, 15.5),

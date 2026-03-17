@@ -1131,9 +1131,16 @@ class _TopProductsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ReportsController ctrl = context.watch<ReportsController>();
-    final List<TopProduct> products = ctrl.topProducts;
-    final bool isLoading = ctrl.isLoadingProducts;
+    final ({List<TopProduct> products, bool isLoading}) vm =
+        context.select<ReportsController,
+            ({List<TopProduct> products, bool isLoading})>(
+          (ReportsController ctrl) => (
+            products: ctrl.topProducts,
+            isLoading: ctrl.isLoadingProducts,
+          ),
+        );
+    final List<TopProduct> products = vm.products;
+    final bool isLoading = vm.isLoading;
 
     final double titleSize = AppResponsive.clamp(
       AppResponsive.sp(constraints, 14),

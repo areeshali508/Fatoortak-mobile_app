@@ -209,13 +209,41 @@ class DebitNoteRepository {
 
     final List<DebitNote> all = <DebitNote>[...first.notes];
     final int pages = first.pages > 0 ? first.pages : 1;
-    for (int p = 2; p <= pages; p++) {
-      final res = await listDebitNotesWithPagination(
-        page: p,
-        limit: limit,
-        companyId: companyId,
+    final List<int> remainingPages = <int>[
+      for (int p = 2; p <= pages; p++) p,
+    ];
+    const int batchSize = 4;
+
+    for (int i = 0; i < remainingPages.length; i += batchSize) {
+      final int end = (i + batchSize < remainingPages.length)
+          ? i + batchSize
+          : remainingPages.length;
+      final List<int> batch = remainingPages.sublist(i, end);
+      final List<({
+        List<DebitNote> notes,
+        int total,
+        int pages,
+        int current,
+        int limit,
+      })> batchResults = await Future.wait(
+        batch.map(
+          (int currentPage) => listDebitNotesWithPagination(
+            page: currentPage,
+            limit: limit,
+            companyId: companyId,
+          ),
+        ),
       );
-      all.addAll(res.notes);
+
+      for (final ({
+        List<DebitNote> notes,
+        int total,
+        int pages,
+        int current,
+        int limit,
+      }) result in batchResults) {
+        all.addAll(result.notes);
+      }
     }
     return all;
   }

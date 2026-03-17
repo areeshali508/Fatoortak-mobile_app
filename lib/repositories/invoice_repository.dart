@@ -104,18 +104,83 @@ class InvoiceRepository {
     ];
 
     if (fetchAll && pages != null && pages > page) {
-      for (int p = page + 1; p <= pages; p++) {
-        try {
-          final Map<String, dynamic> res = await fetchPage(p);
-          all.addAll(extractInvoices(res));
-        } catch (_) {
-          // ignore page failure and keep what we have
+      final List<int> remainingPages = <int>[
+        for (int p = page + 1; p <= pages; p++) p,
+      ];
+      const int batchSize = 4;
+
+      for (int i = 0; i < remainingPages.length; i += batchSize) {
+        final int end = (i + batchSize < remainingPages.length)
+            ? i + batchSize
+            : remainingPages.length;
+        final List<int> batch = remainingPages.sublist(i, end);
+
+        final List<List<Map<String, dynamic>>> batchResults =
+            await Future.wait(
+              batch.map((int currentPage) async {
+                try {
+                  final Map<String, dynamic> res = await fetchPage(currentPage);
+                  return extractInvoices(res);
+                } catch (_) {
+                  return <Map<String, dynamic>>[];
+                }
+              }),
+            );
+
+        for (final List<Map<String, dynamic>> pageItems in batchResults) {
+          all.addAll(pageItems);
         }
       }
     }
 
+    final Set<String> customerIdsNeedingLookup = <String>{};
+    for (final Map<String, dynamic> raw in all) {
+      final Object? customerObj = raw['customerId'] ?? raw['customer'];
+      if (customerObj is String) {
+        final String id = customerObj.trim();
+        if (id.isNotEmpty) {
+          customerIdsNeedingLookup.add(id);
+        }
+      }
+    }
+
+    final Map<String, String> customerNameById = <String, String>{};
+    if (trimmed.isNotEmpty && customerIdsNeedingLookup.isNotEmpty) {
+      try {
+        final Map<String, dynamic> custRes = await _api.getJson(
+          '/api/customers',
+          queryParameters: <String, String>{
+            'companyId': trimmed,
+            'page': '1',
+            'limit': '200',
+          },
+        );
+        final Object? d = custRes['data'];
+        if (d is Map<String, dynamic>) {
+          final Object? list = d['customers'];
+          if (list is List) {
+            for (final Object? item in list) {
+              if (item is! Map<String, dynamic>) continue;
+              final String id = (item['_id'] ?? item['id'])?.toString() ?? '';
+              if (id.trim().isEmpty) continue;
+              final String name =
+                  (item['customerName'] ?? item['name'] ?? '').toString().trim();
+              if (name.isNotEmpty) {
+                customerNameById[id] = name;
+              }
+            }
+          }
+        }
+      } catch (_) {
+        // ignore enrichment failure
+      }
+    }
+
     return all
-        .map((Map<String, dynamic> e) => _mapInvoice(e))
+        .map(
+          (Map<String, dynamic> e) =>
+              _mapInvoice(e, customerNameById: customerNameById),
+        )
         .where((Invoice inv) => inv.id.trim().isNotEmpty)
         .toList();
   }
@@ -175,10 +240,20 @@ class InvoiceRepository {
     }
 
     Map<String, dynamic> extractInvoice(Map<String, dynamic> res) {
-      final Object? invoice = res['invoice'] ?? res['data'];
-      if (invoice is Map<String, dynamic>) {
-        return invoice;
+      final Object? top = res['invoice'];
+      if (top is Map<String, dynamic>) {
+        return top;
       }
+
+      final Object? data = res['data'];
+      if (data is Map<String, dynamic>) {
+        final Object? nested = data['invoice'];
+        if (nested is Map<String, dynamic>) {
+          return nested;
+        }
+        return data;
+      }
+
       throw const ApiClientException('Invalid invoice response');
     }
 
@@ -221,15 +296,25 @@ class InvoiceRepository {
       body: <String, dynamic>{'status': status},
     );
 
-    final Object? invoice = res['invoice'] ?? res['data'];
-    if (invoice is Map<String, dynamic>) {
-      return _mapInvoice(invoice);
+    Object? raw = res['invoice'] ?? res['data'];
+    if (raw is Map<String, dynamic>) {
+      final Object? nested = raw['invoice'] ?? raw['data'];
+      if (nested is Map<String, dynamic>) {
+        raw = nested;
+      }
+    }
+
+    if (raw is Map<String, dynamic>) {
+      return _mapInvoice(raw);
     }
 
     throw const ApiClientException('Invalid invoice response');
   }
 
-  Invoice _mapInvoice(Map<String, dynamic> json) {
+  Invoice _mapInvoice(
+    Map<String, dynamic> json, {
+    Map<String, String>? customerNameById,
+  }) {
     final String id = (json['_id'] ?? json['id'])?.toString() ?? '';
     final String invoiceNo =
         (json['invoiceNumber'] ?? json['invoiceNo'])?.toString() ?? '';
@@ -241,18 +326,29 @@ class InvoiceRepository {
 
     String customer = '';
     final Object? customerObj = json['customerId'] ?? json['customer'];
-    final String? customerId = customerObj is Map<String, dynamic>
-        ? (customerObj['_id'] ?? customerObj['id'])?.toString()
-        : null;
+    String? customerId;
     if (customerObj is Map<String, dynamic>) {
+      customerId = (customerObj['_id'] ?? customerObj['id'])?.toString();
       customer = (customerObj['customerName'] ??
               customerObj['customerNameAr'] ??
+              customerObj['name'] ??
               customerObj['email'] ??
               customerObj['_id'])
           ?.toString() ??
           '';
+    } else if (customerObj is String) {
+      customerId = customerObj.trim();
+      final String? lookedUp = customerNameById == null
+          ? null
+          : customerNameById[customerId];
+      customer = (lookedUp ?? '').trim();
     } else {
       customer = customerObj?.toString() ?? '';
+    }
+
+    customer = customer.trim();
+    if (customer.isEmpty) {
+      customer = 'Unknown';
     }
 
     DateTime issueDate = DateTime.now();
@@ -283,7 +379,8 @@ class InvoiceRepository {
 
     String customerType = '';
     if (customerObj is Map<String, dynamic>) {
-      customerType = (customerObj['customerType'] ?? customerObj['type'])?.toString() ?? '';
+      customerType =
+          (customerObj['customerType'] ?? customerObj['type'])?.toString() ?? '';
     }
     customerType = customerType.trim();
 

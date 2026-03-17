@@ -148,13 +148,41 @@ class CreditNotesController extends ChangeNotifier {
       final List<CreditNote> all = <CreditNote>[...first.notes];
       final int pages = first.pages > 0 ? first.pages : 1;
 
-      for (int p = 2; p <= pages; p++) {
-        final res = await _repository.listCreditNotesWithPagination(
-          page: p,
-          limit: pageLimit,
-          companyId: cid,
+      final List<int> remainingPages = <int>[
+        for (int p = 2; p <= pages; p++) p,
+      ];
+      const int batchSize = 4;
+
+      for (int i = 0; i < remainingPages.length; i += batchSize) {
+        final int end = (i + batchSize < remainingPages.length)
+            ? i + batchSize
+            : remainingPages.length;
+        final List<int> batch = remainingPages.sublist(i, end);
+        final List<({
+          List<CreditNote> notes,
+          int total,
+          int pages,
+          int current,
+          int limit,
+        })> batchResults = await Future.wait(
+          batch.map(
+            (int currentPage) => _repository.listCreditNotesWithPagination(
+              page: currentPage,
+              limit: pageLimit,
+              companyId: cid,
+            ),
+          ),
         );
-        all.addAll(res.notes);
+
+        for (final ({
+          List<CreditNote> notes,
+          int total,
+          int pages,
+          int current,
+          int limit,
+        }) result in batchResults) {
+          all.addAll(result.notes);
+        }
       }
 
       final int totalNotes = first.total > 0 ? first.total : all.length;

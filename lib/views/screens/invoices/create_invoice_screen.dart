@@ -98,8 +98,10 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       final Company only = Company(id: companyId, name: safeName);
       await ctrl.loadCompanies(onlyCompany: only);
       ctrl.setCompany(companyId: only.id, companyName: only.name);
-      await ctrl.loadNextInvoiceNumber();
-      await ctrl.loadCustomers(companyId: only.id);
+      await Future.wait<void>(<Future<void>>[
+        ctrl.loadNextInvoiceNumber(),
+        ctrl.loadCustomers(companyId: only.id),
+      ]);
       if (!mounted) return;
       if (ctrl.errorMessage != null && ctrl.errorMessage!.trim().isNotEmpty) {
         messenger.showSnackBar(

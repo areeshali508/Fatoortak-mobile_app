@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -27,6 +28,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
+  List<Product>? _lastProductSource;
+  bool? _lastProductLoading;
+  int? _lastProductSegmentIndex;
+  String? _lastProductSearchQuery;
+  ({
+    List<_ProductVM> items,
+    int inStockCount,
+    int lowCount,
+    int emptyCount,
+    double inventoryValue,
+  })? _cachedProductView;
 
   @override
   void initState() {
@@ -136,12 +148,151 @@ class _ProductsScreenState extends State<ProductsScreen> {
     }
   }
 
+  ({
+    List<_ProductVM> items,
+    int inStockCount,
+    int lowCount,
+    int emptyCount,
+    double inventoryValue,
+  }) _productView({
+    required bool isLoading,
+    required List<Product> rawProducts,
+    required String searchQuery,
+  }) {
+    if (_cachedProductView != null &&
+        identical(_lastProductSource, rawProducts) &&
+        _lastProductLoading == isLoading &&
+        _lastProductSegmentIndex == _segmentIndex &&
+        _lastProductSearchQuery == searchQuery) {
+      return _cachedProductView!;
+    }
+
+    if (isLoading) {
+      final ({
+        List<_ProductVM> items,
+        int inStockCount,
+        int lowCount,
+        int emptyCount,
+        double inventoryValue,
+      }) loadingView = (
+        items: List<_ProductVM>.generate(
+          6,
+          (int i) => _ProductVM(
+            index: i,
+            name: 'Loading',
+            sku: '----',
+            category: '----',
+            active: true,
+            units: 0,
+            price: 0,
+            currency: 'SAR',
+          ),
+        ),
+        inStockCount: 0,
+        lowCount: 0,
+        emptyCount: 0,
+        inventoryValue: 0.0,
+      );
+      _lastProductSource = rawProducts;
+      _lastProductLoading = isLoading;
+      _lastProductSegmentIndex = _segmentIndex;
+      _lastProductSearchQuery = searchQuery;
+      _cachedProductView = loadingView;
+      return loadingView;
+    }
+
+    final List<_ProductVM> items = <_ProductVM>[];
+    int inStockCount = 0;
+    int lowCount = 0;
+    int emptyCount = 0;
+    double inventoryValue = 0.0;
+
+    for (final MapEntry<int, Product> entry in rawProducts.asMap().entries) {
+      final _ProductVM product = _ProductVM.fromProduct(
+        product: entry.value,
+        index: entry.key,
+      );
+
+      switch (product.stockStatus) {
+        case _StockStatus.inStock:
+          inStockCount += 1;
+          break;
+        case _StockStatus.low:
+          lowCount += 1;
+          break;
+        case _StockStatus.empty:
+          emptyCount += 1;
+          break;
+      }
+
+      inventoryValue += entry.value.price * max(0, product.units);
+
+      if (searchQuery.isNotEmpty) {
+        final bool matchesSearch =
+            product.name.toLowerCase().contains(searchQuery) ||
+            product.sku.toLowerCase().contains(searchQuery) ||
+            product.category.toLowerCase().contains(searchQuery);
+        if (!matchesSearch) {
+          continue;
+        }
+      }
+
+      switch (_segmentIndex) {
+        case 1:
+          if (!product.active) {
+            continue;
+          }
+          break;
+        case 2:
+          if (product.category.toLowerCase() != 'services') {
+            continue;
+          }
+          break;
+        case 3:
+          if (product.active) {
+            continue;
+          }
+          break;
+      }
+
+      items.add(product);
+    }
+
+    final ({
+      List<_ProductVM> items,
+      int inStockCount,
+      int lowCount,
+      int emptyCount,
+      double inventoryValue,
+    }) view = (
+      items: items,
+      inStockCount: inStockCount,
+      lowCount: lowCount,
+      emptyCount: emptyCount,
+      inventoryValue: inventoryValue,
+    );
+    _lastProductSource = rawProducts;
+    _lastProductLoading = isLoading;
+    _lastProductSegmentIndex = _segmentIndex;
+    _lastProductSearchQuery = searchQuery;
+    _cachedProductView = view;
+    return view;
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final ProductController ctrl = context.watch<ProductController>();
-        final bool isLoading = ctrl.isLoading;
+        final bool isLoading = context.select<ProductController, bool>(
+          (ProductController ctrl) => ctrl.isLoading,
+        );
+        final List<Product> rawProducts =
+            context.select<ProductController, List<Product>>(
+              (ProductController ctrl) => ctrl.products,
+            );
+        final String? errorMessage = context.select<ProductController, String?>(
+          (ProductController ctrl) => ctrl.errorMessage,
+        );
 
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
@@ -155,93 +306,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
           18,
         );
 
-        final List<_ProductVM> items = isLoading
-            ? List<_ProductVM>.generate(
-                6,
-                (int i) => _ProductVM(
-                  index: i,
-                  name: 'Loading',
-                  sku: '----',
-                  category: '----',
-                  active: true,
-                  units: 0,
-                  price: 0,
-                  currency: 'SAR',
-                ),
-              )
-            : ctrl.products
-                .asMap()
-                .entries
-                .map(
-                  (MapEntry<int, Product> e) =>
-                      _ProductVM.fromProduct(product: e.value, index: e.key),
-                )
-                .where((_ProductVM p) {
-                  final String q = _searchController.text.trim().toLowerCase();
-                  if (q.isNotEmpty) {
-                    final bool matches =
-                        p.name.toLowerCase().contains(q) ||
-                        p.sku.toLowerCase().contains(q) ||
-                        p.category.toLowerCase().contains(q);
-                    if (!matches) {
-                      return false;
-                    }
-                  }
-
-                  switch (_segmentIndex) {
-                    case 1:
-                      return p.active;
-                    case 2:
-                      return p.category.toLowerCase() == 'services';
-                    case 3:
-                      return !p.active;
-                    default:
-                      return true;
-                  }
-                })
-                .toList();
-
-        final int inStockCount = ctrl.products
-            .asMap()
-            .entries
-            .map(
-              (MapEntry<int, Product> e) =>
-                  _ProductVM.fromProduct(product: e.value, index: e.key),
-            )
-            .where((_ProductVM p) => p.stockStatus == _StockStatus.inStock)
-            .length;
-
-        final int lowCount = ctrl.products
-            .asMap()
-            .entries
-            .map(
-              (MapEntry<int, Product> e) =>
-                  _ProductVM.fromProduct(product: e.value, index: e.key),
-            )
-            .where((_ProductVM p) => p.stockStatus == _StockStatus.low)
-            .length;
-
-        final int emptyCount = ctrl.products
-            .asMap()
-            .entries
-            .map(
-              (MapEntry<int, Product> e) =>
-                  _ProductVM.fromProduct(product: e.value, index: e.key),
-            )
-            .where((_ProductVM p) => p.stockStatus == _StockStatus.empty)
-            .length;
-
-        final double inventoryValue = ctrl.products
-            .asMap()
-            .entries
-            .map((MapEntry<int, Product> e) {
-              final _ProductVM p = _ProductVM.fromProduct(
-                product: e.value,
-                index: e.key,
-              );
-              return e.value.price * max(0, p.units);
-            })
-            .fold(0.0, (double a, double b) => a + b);
+        final String searchQuery = _searchController.text.trim().toLowerCase();
+        final ({
+          List<_ProductVM> items,
+          int inStockCount,
+          int lowCount,
+          int emptyCount,
+          double inventoryValue,
+        }) productView = _productView(
+          isLoading: isLoading,
+          rawProducts: rawProducts,
+          searchQuery: searchQuery,
+        );
 
         return Scaffold(
           backgroundColor: const Color(0xFFF7FAFF),
@@ -293,18 +369,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       : _searchController.text.trim(),
                 ),
                 child: Skeletonizer(
-                  enabled: isLoading,
+                  enabled: isLoading && !kIsWeb,
                   child: AbsorbPointer(
                     absorbing: isLoading,
                     child: ListView(
                       padding: EdgeInsets.only(bottom: gap + 120),
                       children: <Widget>[
-                        if (!isLoading &&
-                            (ctrl.errorMessage ?? '').trim().isNotEmpty)
+                        if (!isLoading && (errorMessage ?? '').trim().isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: Text(
-                              ctrl.errorMessage!,
+                              errorMessage!,
                               style: const TextStyle(
                                 color: Color(0xFFD93025),
                                 fontWeight: FontWeight.w800,
@@ -327,7 +402,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         SizedBox(height: gap),
                         _InventoryValueCard(
                           constraints: constraints,
-                          valueLabel: _moneyLabel(inventoryValue),
+                          valueLabel: _moneyLabel(productView.inventoryValue),
                           deltaText: '+4.2%',
                         ),
                         SizedBox(height: gap),
@@ -336,7 +411,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             Expanded(
                               child: _MiniStatCard(
                                 label: 'IN STOCK',
-                                value: inStockCount.toString(),
+                                value: productView.inStockCount.toString(),
                                 dotColor: const Color(0xFF1DB954),
                               ),
                             ),
@@ -344,7 +419,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             Expanded(
                               child: _MiniStatCard(
                                 label: 'LOW',
-                                value: lowCount.toString(),
+                                value: productView.lowCount.toString(),
                                 dotColor: const Color(0xFFFF9500),
                               ),
                             ),
@@ -352,7 +427,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             Expanded(
                               child: _MiniStatCard(
                                 label: 'EMPTY',
-                                value: emptyCount.toString(),
+                                value: productView.emptyCount.toString(),
                                 dotColor: const Color(0xFFFF3B30),
                               ),
                             ),
@@ -394,38 +469,35 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           ),
                         ),
                         SizedBox(height: gap),
-                        if (!isLoading && items.isEmpty)
+                        if (!isLoading && productView.items.isEmpty)
                           const Padding(
-                            padding: EdgeInsets.only(top: 24),
+                            padding: EdgeInsets.symmetric(vertical: 32),
                             child: Center(
                               child: Text(
-                                'No products',
+                                'No products found',
                                 style: TextStyle(
-                                  color: Color(0xFF9AA5B6),
+                                  color: Color(0xFF6B7895),
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
                           )
                         else
-                          ...items.map((_ProductVM p) {
+                          ...productView.items.map((_ProductVM p) {
+                            final Product raw = rawProducts[p.index];
                             return _ProductCard(
                               product: p,
-                              onTap: () {
-                                final int index = p.index;
-                                if (index < 0 || index >= ctrl.products.length) {
-                                  _showComingSoon();
-                                  return;
-                                }
-                                final Product raw = ctrl.products[index];
-                                Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => ProductPreviewScreen(
-                                      product: raw,
-                                    ),
-                                  ),
-                                );
-                              },
+                              onTap: isLoading
+                                  ? () {}
+                                  : () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => ProductPreviewScreen(
+                                            product: raw,
+                                          ),
+                                        ),
+                                      );
+                                    },
                             );
                           }),
                       ],

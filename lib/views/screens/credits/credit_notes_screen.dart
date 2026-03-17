@@ -468,14 +468,31 @@ class _CreditNotesScreenState extends State<CreditNotesScreen> {
 
       if (!_requestedInitial) {
         _requestedInitial = true;
+        final String? activeId = auth.activeCompanyId?.trim();
+
+        if (activeId != null && activeId.isNotEmpty) {
+          ctrl.setCompanyId(activeId);
+          await Future.wait<void>(<Future<void>>[
+            ctrl.loadCompanies(page: 1, limit: 50),
+            ctrl.refresh(),
+          ]);
+          if (!mounted) return;
+
+          final List<Company> companies = ctrl.companies;
+          if (companies.isNotEmpty) {
+            final Company selected = ctrl.companyById(activeId) ?? companies.first;
+            if (selected.id != (ctrl.companyId ?? '').trim()) {
+              ctrl.setCompanyId(selected.id);
+              await ctrl.refresh();
+            }
+          }
+          return;
+        }
+
         await ctrl.loadCompanies(page: 1, limit: 50);
-        final String? activeId = auth.activeCompanyId;
-        final List companies = ctrl.companies;
+        final List<Company> companies = ctrl.companies;
         if (companies.isNotEmpty) {
-          final selected = (activeId == null || activeId.trim().isEmpty)
-              ? companies.first
-              : ctrl.companyById(activeId) ?? companies.first;
-          ctrl.setCompanyId(selected.id);
+          ctrl.setCompanyId(companies.first.id);
         }
       }
 

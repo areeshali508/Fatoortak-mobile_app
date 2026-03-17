@@ -212,15 +212,26 @@ class _DebitNotesScreenState extends State<DebitNotesScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      _loadCompanies().then((_) {
-        if (!mounted) return;
-        setState(() {
-          _syncSelectedCompanyFromAuth();
-        });
+      final AuthController auth = context.read<AuthController>();
+      final String initialActiveId = auth.activeCompanyId?.trim() ?? '';
+      final Future<void> initialRefresh =
+          context.read<DebitNotesController>().refresh();
+
+      await _loadCompanies();
+      if (!mounted) return;
+      setState(() {
+        _syncSelectedCompanyFromAuth();
       });
-      context.read<DebitNotesController>().refresh();
+
+      final String syncedCompanyId = (_selectedCompanyId ?? '').trim();
+      if (syncedCompanyId.isNotEmpty && syncedCompanyId != initialActiveId) {
+        await context.read<DebitNotesController>().refresh();
+        return;
+      }
+
+      await initialRefresh;
     });
   }
 

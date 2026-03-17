@@ -6,6 +6,9 @@ import '../repositories/customer_repository.dart';
 class CustomerController extends ChangeNotifier {
   CustomerRepository _repository;
   bool _isLoading = false;
+  String? _loadedCompanyId;
+  bool _hasLoadedCompany = false;
+  int _refreshRequestId = 0;
 
   List<Customer> _customers = const <Customer>[];
 
@@ -20,14 +23,33 @@ class CustomerController extends ChangeNotifier {
     _repository = repository;
   }
 
-  Future<void> refresh({required String companyId}) async {
+  Future<void> refresh({required String companyId, bool force = false}) async {
+    final String cid = companyId.trim();
+    if (cid.isEmpty) {
+      return;
+    }
+    if (!force && _hasLoadedCompany && _loadedCompanyId == cid) {
+      return;
+    }
+
+    final int requestId = ++_refreshRequestId;
     _isLoading = true;
     notifyListeners();
     try {
-      _customers = await _repository.listCustomers(companyId: companyId);
+      final List<Customer> customers = await _repository.listCustomers(
+        companyId: cid,
+      );
+      if (requestId != _refreshRequestId) {
+        return;
+      }
+      _customers = customers;
+      _loadedCompanyId = cid;
+      _hasLoadedCompany = true;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (requestId == _refreshRequestId) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 }

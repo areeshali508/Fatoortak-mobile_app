@@ -122,10 +122,19 @@ class AppRoutes {
         );
       case dashboard:
         return MaterialPageRoute<void>(
-          builder: (_) => ChangeNotifierProvider<DashboardController>(
-            create: (BuildContext ctx) => DashboardController(
-              repository: ctx.read<DashboardRepository>(),
-            ),
+          builder: (_) => MultiProvider(
+            providers: <SingleChildWidget>[
+              ChangeNotifierProvider<DashboardController>(
+                create: (BuildContext ctx) => DashboardController(
+                  repository: ctx.read<DashboardRepository>(),
+                ),
+              ),
+              ChangeNotifierProvider<CompaniesController>(
+                create: (BuildContext ctx) => CompaniesController(
+                  repository: ctx.read<CompanyRepository>(),
+                )..load(),
+              ),
+            ],
             child: const DashboardScreen(),
           ),
           settings: settings,

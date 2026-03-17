@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../app/app_routes.dart';
 import '../../../controllers/auth_controller.dart';
@@ -22,41 +23,75 @@ class CustomersScreen extends StatefulWidget {
 class _CustomersScreenState extends State<CustomersScreen> {
   int _filterIndex = 0;
   String? _lastCompanyId;
+  late final AuthController _authController;
+  List<Customer>? _lastVmSource;
+  int? _lastVmFilterIndex;
+  bool? _lastVmLoading;
+  List<_CustomerVM>? _cachedCustomers;
 
   Future<void> _openAddCustomer() async {
     final Object? res = await Navigator.of(context).pushNamed(AppRoutes.addCustomer);
     if (!mounted) return;
     if (res == true) {
-      await _reload();
+      await _reload(force: true);
     }
   }
 
-  String? _activeCompanyId() {
-    final AuthController auth = context.read<AuthController>();
-    final Map<String, dynamic>? company = auth.activeCompany;
-    final String? companyId = (company?['_id'] ?? company?['id'])?.toString().trim();
-    if (companyId == null || companyId.isEmpty) return null;
-    return companyId;
-  }
-
-  Future<void> _reload() async {
-    final String? companyId = _activeCompanyId();
-    if (companyId == null || companyId.isEmpty) {
+  Future<void> _reload({
+    String? companyId,
+    bool showMissingCompanyMessage = true,
+    bool force = false,
+  }) async {
+    final String activeCompanyId =
+        (companyId ?? _authController.activeCompanyId ?? '').trim();
+    if (activeCompanyId.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Company not loaded')),
-      );
+      if (showMissingCompanyMessage) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Company not loaded')),
+        );
+      }
       return;
     }
-    await context.read<CustomerController>().refresh(companyId: companyId);
+    await context.read<CustomerController>().refresh(
+      companyId: activeCompanyId,
+      force: force,
+    );
+  }
+
+  void _handleActiveCompanyChanged() {
+    final String nextCompanyId = (_authController.activeCompanyId ?? '').trim();
+    final String? normalized = nextCompanyId.isEmpty ? null : nextCompanyId;
+    if (normalized == _lastCompanyId) {
+      return;
+    }
+    _lastCompanyId = normalized;
+    if (normalized == null) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _reload(
+        companyId: normalized,
+        showMissingCompanyMessage: false,
+      );
+    });
   }
 
   @override
   void initState() {
     super.initState();
+    _authController = context.read<AuthController>();
+    _authController.addListener(_handleActiveCompanyChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _reload();
+      _handleActiveCompanyChanged();
     });
+  }
+
+  @override
+  void dispose() {
+    _authController.removeListener(_handleActiveCompanyChanged);
+    super.dispose();
   }
 
   void _comingSoon() {
@@ -80,28 +115,73 @@ class _CustomersScreenState extends State<CustomersScreen> {
     }
   }
 
+  List<_CustomerVM> _customerViewModels({
+    required bool isLoading,
+    required List<Customer> rawCustomers,
+  }) {
+    if (_cachedCustomers != null &&
+        identical(_lastVmSource, rawCustomers) &&
+        _lastVmFilterIndex == _filterIndex &&
+        _lastVmLoading == isLoading) {
+      return _cachedCustomers!;
+    }
+
+    final List<_CustomerVM> customers = isLoading
+        ? List<_CustomerVM>.generate(
+            6,
+            (int i) => const _CustomerVM(
+              raw: Customer(
+                id: '',
+                name: 'Loading',
+                email: '',
+                phone: '',
+              ),
+              name: 'Loading',
+              company: '----',
+              active: true,
+              vip: true,
+              ytdAmount: 0,
+            ),
+          )
+        : rawCustomers
+            .asMap()
+            .entries
+            .map(
+              (MapEntry<int, Customer> e) =>
+                  _CustomerVM.fromCustomer(customer: e.value, index: e.key),
+            )
+            .where((_CustomerVM c) {
+              switch (_filterIndex) {
+                case 1:
+                  return c.vip;
+                case 2:
+                  return c.active;
+                case 3:
+                  return !c.active;
+                default:
+                  return true;
+              }
+            })
+            .toList();
+
+    _lastVmSource = rawCustomers;
+    _lastVmFilterIndex = _filterIndex;
+    _lastVmLoading = isLoading;
+    _cachedCustomers = customers;
+    return customers;
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final AuthController auth = context.watch<AuthController>();
-        final CustomerController ctrl = context.watch<CustomerController>();
-        final bool isLoading = ctrl.isLoading;
-
-        final Map<String, dynamic>? company = auth.activeCompany;
-        final String? companyId = (company?['_id'] ?? company?['id'])
-            ?.toString()
-            .trim();
-
-        if (companyId != null &&
-            companyId.isNotEmpty &&
-            companyId != _lastCompanyId) {
-          _lastCompanyId = companyId;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            _reload();
-          });
-        }
+        final bool isLoading = context.select<CustomerController, bool>(
+          (CustomerController ctrl) => ctrl.isLoading,
+        );
+        final List<Customer> rawCustomers =
+            context.select<CustomerController, List<Customer>>(
+              (CustomerController ctrl) => ctrl.customers,
+            );
 
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
@@ -115,43 +195,10 @@ class _CustomersScreenState extends State<CustomersScreen> {
           18,
         );
 
-        final List<_CustomerVM> customers = isLoading
-            ? List<_CustomerVM>.generate(
-                6,
-                (int i) => const _CustomerVM(
-                  raw: Customer(
-                    id: '',
-                    name: 'Loading',
-                    email: '',
-                    phone: '',
-                  ),
-                  name: 'Loading',
-                  company: '----',
-                  active: true,
-                  vip: true,
-                  ytdAmount: 0,
-                ),
-              )
-            : ctrl.customers
-                .asMap()
-                .entries
-                .map(
-                  (MapEntry<int, Customer> e) =>
-                      _CustomerVM.fromCustomer(customer: e.value, index: e.key),
-                )
-                .where((_CustomerVM c) {
-                  switch (_filterIndex) {
-                    case 1:
-                      return c.vip;
-                    case 2:
-                      return c.active;
-                    case 3:
-                      return !c.active;
-                    default:
-                      return true;
-                  }
-                })
-                .toList();
+        final List<_CustomerVM> customers = _customerViewModels(
+          isLoading: isLoading,
+          rawCustomers: rawCustomers,
+        );
 
         return Scaffold(
           backgroundColor: const Color(0xFFF7FAFF),
@@ -221,9 +268,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   SizedBox(height: gap),
                   Expanded(
                     child: RefreshIndicator(
-                      onRefresh: _reload,
+                      onRefresh: () => _reload(force: true),
                       child: Skeletonizer(
-                        enabled: isLoading,
+                        enabled: isLoading && !kIsWeb,
                         child: AbsorbPointer(
                           absorbing: isLoading,
                           child: customers.isEmpty
