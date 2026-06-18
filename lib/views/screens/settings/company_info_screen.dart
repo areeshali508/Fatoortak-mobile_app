@@ -111,7 +111,16 @@ class _CompanyInfoScreenState extends State<CompanyInfoScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final CompaniesController ctrl = context.watch<CompaniesController>();
+        // PERF: select only what we need — avoids rebuilding the whole screen on unrelated changes
+        final bool isLoading = context.select<CompaniesController, bool>(
+          (CompaniesController c) => c.isLoading,
+        );
+        final List<Map<String, dynamic>> companies = context.select<CompaniesController, List<Map<String, dynamic>>>(
+          (CompaniesController c) => c.companies,
+        );
+        final String? errorMessage = context.select<CompaniesController, String?>(
+          (CompaniesController c) => c.errorMessage,
+        );
 
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 6),
@@ -132,7 +141,7 @@ class _CompanyInfoScreenState extends State<CompanyInfoScreen> {
         );
 
         final List<Map<String, dynamic>> visibleCompanyMaps =
-            _applyFilter(ctrl.companies, _filter);
+            _applyFilter(companies, _filter);
         final List<_CompanyItem> visibleCompanies = visibleCompanyMaps
             .map(_toItem)
             .toList();
@@ -175,7 +184,7 @@ class _CompanyInfoScreenState extends State<CompanyInfoScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: <Widget>[
                           Text(
-                            '${ctrl.companies.length}/10',
+                            '${companies.length}/10',
                             style: const TextStyle(
                               color: Color(0xFF0B1B4B),
                               fontWeight: FontWeight.w900,
@@ -200,7 +209,7 @@ class _CompanyInfoScreenState extends State<CompanyInfoScreen> {
                   SizedBox(
                     height: 52,
                     child: ElevatedButton.icon(
-                      onPressed: ctrl.isLoading
+                      onPressed: isLoading
                           ? null
                           : () {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -229,21 +238,21 @@ class _CompanyInfoScreenState extends State<CompanyInfoScreen> {
                     onChanged: (_CompanyStatus? v) => setState(() => _filter = v),
                   ),
                   SizedBox(height: sectionGap),
-                  if (ctrl.isLoading) ...<Widget>[
+                  if (isLoading) ...<Widget>[
                     const Center(
                       child: Padding(
                         padding: EdgeInsets.only(top: 18),
                         child: CircularProgressIndicator(),
                       ),
                     ),
-                  ] else if ((ctrl.errorMessage ?? '').trim().isNotEmpty) ...<Widget>[
+                  ] else if ((errorMessage ?? '').trim().isNotEmpty) ...<Widget>[
                     _EmptyState(
                       title: 'Failed to load companies',
-                      subtitle: ctrl.errorMessage!,
+                      subtitle: errorMessage!,
                       actionText: 'Retry',
                       onAction: () => context.read<CompaniesController>().load(),
                     ),
-                  ] else if (ctrl.companies.isEmpty) ...<Widget>[
+                  ] else if (companies.isEmpty) ...<Widget>[
                     _EmptyState(
                       title: 'No companies yet',
                       subtitle: 'Tap Add Company to register your first business entity.',

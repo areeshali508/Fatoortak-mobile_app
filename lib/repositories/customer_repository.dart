@@ -79,14 +79,7 @@ class CustomerRepository {
             .map(_mapCustomer)
             .where((Customer c) => c.id.trim().isNotEmpty)
             .toList();
-        if (companyFilter.isEmpty) {
-          return mapped;
-        }
-        return mapped.where((Customer c) {
-          final String cid = c.companyId.trim();
-          if (cid.isEmpty) return true;
-          return cid == companyFilter;
-        }).toList();
+        return mapped;
       }
     }
     return <Customer>[];

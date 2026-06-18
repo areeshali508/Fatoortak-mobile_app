@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -25,6 +26,16 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   int _filterIndex = 0;
 
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
+
+  void _onSearchChanged(String v) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        context.read<InvoiceController>().setSearchQuery(v);
+      }
+    });
+  }
 
   bool _requestedInitialLoad = false;
 
@@ -264,6 +275,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -512,8 +524,6 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
           });
         }
 
-        final InvoiceController invoiceCtrl = context
-            .watch<InvoiceController>();
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
           16,
@@ -525,11 +535,6 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
           12,
           18,
         );
-
-        final List<Invoice> visibleInvoices = invoiceCtrl.visibleInvoices;
-        final bool isLoading = invoiceCtrl.isLoading;
-        final bool showSkeleton = isLoading && visibleInvoices.isEmpty;
-        final bool showRefreshingBar = isLoading && visibleInvoices.isNotEmpty;
 
         return Scaffold(
           backgroundColor: const Color(0xFFF7FAFF),
@@ -682,122 +687,127 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
             },
           ),
           body: SafeArea(
-            child: RefreshIndicator(
-              onRefresh: _reloadInvoices,
-              child: Skeletonizer(
-                enabled: showSkeleton && !kIsWeb,
-                child: AbsorbPointer(
-                  absorbing: showSkeleton,
-                  child: ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.fromLTRB(
-                      hPad,
-                      gap,
-                      hPad,
-                      AppResponsive.clamp(
-                        AppResponsive.scaledByHeight(constraints, 110),
-                        100,
-                        140,
-                      ),
-                    ),
-                    itemCount: () {
-                      final int headerCount = 4 + (showRefreshingBar ? 1 : 0);
-                      if (showSkeleton) return headerCount + 6;
-                      if (invoiceCtrl.errorMessage != null &&
-                          invoiceCtrl.errorMessage!.trim().isNotEmpty) {
-                        return headerCount + 1;
-                      }
-                      if (visibleInvoices.isEmpty) return headerCount + 1;
-                      return headerCount + visibleInvoices.length;
-                    }(),
-                    itemBuilder: (BuildContext context, int index) {
-                      final List<Widget> header = <Widget>[
-                        _SearchField(
-                          constraints: constraints,
-                          controller: _searchController,
-                          onChanged: (String v) {
-                            invoiceCtrl.setSearchQuery(v);
-                          },
-                        ),
-                        SizedBox(height: gap),
-                        _FilterRow(
-                          constraints: constraints,
-                          index: _filterIndex,
-                          onChanged: (int i) => setState(() => _filterIndex = i),
-                          dateSelected: invoiceCtrl.dateRange != null,
-                          onDate: _openDateFilter,
-                          moreSelected: invoiceCtrl.statusFilter != null,
-                          onMoreFilters: _openMoreFilters,
-                        ),
-                        SizedBox(height: gap),
-                        if (showRefreshingBar)
-                          const Padding(
-                            padding: EdgeInsets.only(bottom: 10),
-                            child: ClipRRect(
-                              borderRadius:
-                                  BorderRadius.all(Radius.circular(999)),
-                              child: LinearProgressIndicator(minHeight: 3),
-                            ),
+            child: Consumer<InvoiceController>(
+              builder: (BuildContext context, InvoiceController invoiceCtrl, Widget? child) {
+                final List<Invoice> visibleInvoices = invoiceCtrl.visibleInvoices;
+                final bool isLoading = invoiceCtrl.isLoading;
+                final bool showSkeleton = isLoading && visibleInvoices.isEmpty;
+                final bool showRefreshingBar = isLoading && visibleInvoices.isNotEmpty;
+
+                return RefreshIndicator(
+                  onRefresh: _reloadInvoices,
+                  child: Skeletonizer(
+                    enabled: showSkeleton && !kIsWeb,
+                    child: AbsorbPointer(
+                      absorbing: showSkeleton,
+                      child: ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(
+                          hPad,
+                          gap,
+                          hPad,
+                          AppResponsive.clamp(
+                            AppResponsive.scaledByHeight(constraints, 110),
+                            100,
+                            140,
                           ),
-                      ];
+                        ),
+                        itemCount: () {
+                          final int headerCount = 4 + (showRefreshingBar ? 1 : 0);
+                          if (showSkeleton) return headerCount + 6;
+                          if (invoiceCtrl.errorMessage != null &&
+                              invoiceCtrl.errorMessage!.trim().isNotEmpty) {
+                            return headerCount + 1;
+                          }
+                          if (visibleInvoices.isEmpty) return headerCount + 1;
+                          return headerCount + visibleInvoices.length;
+                        }(),
+                        itemBuilder: (BuildContext context, int index) {
+                          final List<Widget> header = <Widget>[
+                            _SearchField(
+                              constraints: constraints,
+                              controller: _searchController,
+                              onChanged: _onSearchChanged,
+                            ),
+                            SizedBox(height: gap),
+                            _FilterRow(
+                              constraints: constraints,
+                              index: _filterIndex,
+                              onChanged: (int i) => setState(() => _filterIndex = i),
+                              dateSelected: invoiceCtrl.dateRange != null,
+                              onDate: _openDateFilter,
+                              moreSelected: invoiceCtrl.statusFilter != null,
+                              onMoreFilters: _openMoreFilters,
+                            ),
+                            SizedBox(height: gap),
+                            if (showRefreshingBar)
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: 10),
+                                child: ClipRRect(
+                                  borderRadius:
+                                      BorderRadius.all(Radius.circular(999)),
+                                  child: LinearProgressIndicator(minHeight: 3),
+                                ),
+                              ),
+                          ];
 
-                      if (index < header.length) return header[index];
-                      final int i = index - header.length;
+                          if (index < header.length) return header[index];
+                          final int i = index - header.length;
 
-                      if (showSkeleton) {
-                        return _InvoiceCard(
-                          invoiceNo: '----',
-                          customer: 'Loading',
-                          date: '----',
-                          amount: '----',
-                          status: InvoiceStatus.draft,
-                          onTap: () {},
-                        );
-                      }
+                          if (showSkeleton) {
+                            return _InvoiceCard(
+                              invoiceNo: '----',
+                              customer: 'Loading',
+                              date: '----',
+                              amount: '----',
+                              status: InvoiceStatus.draft,
+                              onTap: () {},
+                            );
+                          }
 
-                      if (invoiceCtrl.errorMessage != null &&
-                          invoiceCtrl.errorMessage!.trim().isNotEmpty) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: <Widget>[
-                              Text(
-                                invoiceCtrl.errorMessage!,
+                          if (invoiceCtrl.errorMessage != null &&
+                              invoiceCtrl.errorMessage!.trim().isNotEmpty) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: <Widget>[
+                                  Text(
+                                    invoiceCtrl.errorMessage!,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: Color(0xFFD93025),
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  ElevatedButton(
+                                    onPressed: _reloadInvoices,
+                                    child: const Text('Retry'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          if (visibleInvoices.isEmpty) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 28),
+                              child: Text(
+                                'No invoices found',
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Color(0xFFD93025),
+                                style: TextStyle(
+                                  color: Color(0xFF6B7895),
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
-                              const SizedBox(height: 12),
-                              ElevatedButton(
-                                onPressed: _reloadInvoices,
-                                child: const Text('Retry'),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
+                            );
+                          }
 
-                      if (visibleInvoices.isEmpty) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 28),
-                          child: Text(
-                            'No invoices found',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Color(0xFF6B7895),
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        );
-                      }
-
-                      final Invoice inv = visibleInvoices[i];
-                      return _InvoiceCard(
-                        invoiceNo: inv.invoiceNo,
-                        customer: inv.customer,
+                          final Invoice inv = visibleInvoices[i];
+                          return _InvoiceCard(
+                            invoiceNo: inv.invoiceNo,
+                            customer: inv.customer,
                         date: invoiceCtrl.dateLabel(inv.issueDate),
                         amount: invoiceCtrl.amountLabel(inv),
                         status: inv.status,
@@ -813,9 +823,11 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                   ),
                 ),
               ),
-            ),
-          ),
-          bottomNavigationBar: BottomNavigationBar(
+            );
+          },
+        ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
             currentIndex: 1,
             onTap: _onBottomTap,
             type: BottomNavigationBarType.fixed,
@@ -1142,10 +1154,13 @@ class _InvoiceCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Expanded(
                       child: Text(
                         'Invoice #$invoiceNo',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: AppColors.primary,
                           fontWeight: FontWeight.w800,
@@ -1153,8 +1168,10 @@ class _InvoiceCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 12),
                     Text(
                       amount,
+                      textAlign: TextAlign.right,
                       style: const TextStyle(
                         color: Color(0xFF0B1B4B),
                         fontWeight: FontWeight.w900,
@@ -1166,6 +1183,8 @@ class _InvoiceCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   customer,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Color(0xFF0B1B4B),
                     fontWeight: FontWeight.w800,

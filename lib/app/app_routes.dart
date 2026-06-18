@@ -22,6 +22,8 @@ import '../controllers/add_new_user_controller.dart';
 import '../controllers/users_controller.dart';
 import '../controllers/roles_permissions_controller.dart';
 import '../models/product.dart';
+import '../models/credit_note.dart';
+import '../models/debit_note.dart';
 import '../repositories/customer_repository.dart';
 import '../repositories/invoice_repository.dart';
 import '../repositories/onboarding_repository.dart';
@@ -67,6 +69,9 @@ import '../views/screens/users_roles/users_roles_screen.dart';
 import '../views/screens/users_roles/add_new_user_screen.dart';
 import '../views/screens/users_roles/new_role_screen.dart';
 import '../views/screens/users_roles/team_members_screen.dart';
+import '../views/screens/pos/pos_screen.dart';
+
+
 
 class AppRoutes {
   static const String splash = '/';
@@ -74,6 +79,7 @@ class AppRoutes {
   static const String dashboard = '/dashboard';
   static const String invoices = '/invoices';
   static const String createInvoice = '/create-invoice';
+  static const String pos = '/pos';
   static const String creditNotes = '/credit-notes';
   static const String createCreditNote = '/create-credit-note';
   static const String debitNotes = '/debit-notes';
@@ -139,6 +145,7 @@ class AppRoutes {
           ),
           settings: settings,
         );
+    
       case AppRoutes.invoices:
         return MaterialPageRoute<void>(
           builder: (_) => const InvoicesScreen(),
@@ -156,6 +163,11 @@ class AppRoutes {
           ),
           settings: settings,
         );
+      case AppRoutes.pos:
+        return MaterialPageRoute<void>(
+          builder: (_) => const PosScreen(),
+          settings: settings,
+        );
       case AppRoutes.creditNotes:
         return MaterialPageRoute<void>(
           builder: (_) => ChangeNotifierProvider<CreditNotesController>(
@@ -168,7 +180,7 @@ class AppRoutes {
           settings: settings,
         );
       case AppRoutes.createCreditNote:
-        return MaterialPageRoute<void>(
+        return MaterialPageRoute<CreditNote>(
           builder: (_) => ChangeNotifierProvider<CreateCreditNoteController>(
             create: (BuildContext ctx) => CreateCreditNoteController(
               companyRepository: ctx.read<CompanyRepository>(),
@@ -190,7 +202,7 @@ class AppRoutes {
           settings: settings,
         );
       case AppRoutes.createDebitNote:
-        return MaterialPageRoute<void>(
+        return MaterialPageRoute<DebitNote>(
           builder: (_) => ChangeNotifierProvider<CreateDebitNoteController>(
             create: (BuildContext ctx) => CreateDebitNoteController(
               companyRepository: ctx.read<CompanyRepository>(),

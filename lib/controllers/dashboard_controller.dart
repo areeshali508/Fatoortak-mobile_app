@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../controllers/auth_controller.dart';
 import '../models/dashboard.dart';
 import '../repositories/dashboard_repository.dart';
 
@@ -7,11 +8,12 @@ class DashboardController extends ChangeNotifier {
   DashboardRepository _repository;
 
   int _bottomIndex = 0;
-  int _filterIndex = 0;
+  int _filterIndex = 1;
 
   int _trendMetricIndex = 0;
 
   String? _companyId;
+  bool _isCompanyInitialized = false;
 
   // Loading states
   bool _isLoading = false;
@@ -62,6 +64,32 @@ class DashboardController extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
+  void syncWithAuth(AuthController auth) {
+    if (!auth.isAuthenticated) {
+      _companyId = null;
+      _isCompanyInitialized = false;
+      _stats = const DashboardStats.empty();
+      _revenue = const RevenueMetrics.empty();
+      _recentInvoicesRaw = <Map<String, dynamic>>[];
+      _recentCustomersRaw = <Map<String, dynamic>>[];
+      _invoiceDistribution = <InvoiceStatusDistribution>[];
+      _topCustomers = <TopCustomer>[];
+      _invoiceStats = const InvoiceStats.empty();
+      _invoiceTrendSeries = <String, double>{};
+      
+      _recentInvoicesUiDirty = true;
+      _recentCustomersUiDirty = true;
+      _topCustomersUiDirty = true;
+      _topMetricsDirty = true;
+      _paidInvoicesProgressDirty = true;
+      _statsListDirty = true;
+      _salesTrendDirty = true;
+    } else if (!_isCompanyInitialized) {
+      _companyId = auth.activeCompanyId;
+      _isCompanyInitialized = true;
+    }
+  }
+
   bool get hasMoreRecentInvoices => _hasMoreRecentInvoices;
   bool get hasMoreRecentCustomers => _hasMoreRecentCustomers;
 
@@ -72,6 +100,7 @@ class DashboardController extends ChangeNotifier {
   Map<String, double> get invoiceTrendSeries => _invoiceTrendSeries;
 
   List<String> get filterLabels => _repository.getFilterLabels();
+  String get selectedFilterLabel => filterLabels[_filterIndex];
 
   List<String> get trendMetricLabels => const <String>['Revenue', 'Invoices'];
 
@@ -89,6 +118,141 @@ class DashboardController extends ChangeNotifier {
     'Nov',
     'Dec',
   ];
+
+  ({
+    String apiDateRange,
+    String dateFrom,
+    String dateTo,
+    DateTime start,
+    DateTime end,
+  }) _resolveActiveDateFilter({
+    String? overrideDateFrom,
+    String? overrideDateTo,
+  }) {
+    final DateTime now = DateTime.now();
+    final DateTime defaultEnd = _endOfDay(now);
+    late final DateTime defaultStart;
+
+    switch (_filterIndex) {
+      case 0:
+        defaultStart = _startOfDay(
+          defaultEnd.subtract(const Duration(days: 6)),
+        );
+        break;
+      case 1:
+        defaultStart = _startOfDay(
+          defaultEnd.subtract(const Duration(days: 29)),
+        );
+        break;
+      case 2:
+        defaultStart = _startOfDay(_subtractMonths(defaultEnd, 3));
+        break;
+      case 3:
+        defaultStart = _startOfDay(_subtractMonths(defaultEnd, 6));
+        break;
+      case 4:
+        defaultStart = _startOfDay(_subtractMonths(defaultEnd, 12));
+        break;
+      default:
+        defaultStart = _startOfDay(
+          defaultEnd.subtract(const Duration(days: 29)),
+        );
+        break;
+    }
+
+    final String trimmedDateFrom = (overrideDateFrom ?? '').trim();
+    final String trimmedDateTo = (overrideDateTo ?? '').trim();
+    final DateTime start = trimmedDateFrom.isNotEmpty
+        ? _startOfDay(DateTime.tryParse(trimmedDateFrom) ?? defaultStart)
+        : defaultStart;
+    final DateTime end = trimmedDateTo.isNotEmpty
+        ? _endOfDay(DateTime.tryParse(trimmedDateTo) ?? defaultEnd)
+        : defaultEnd;
+
+    return (
+      apiDateRange: _getPeriodFromFilter(),
+      dateFrom: _formatDateOnly(start),
+      dateTo: _formatDateOnly(end),
+      start: start,
+      end: end,
+    );
+  }
+
+  DateTime _startOfDay(DateTime value) {
+    return DateTime(value.year, value.month, value.day);
+  }
+
+  DateTime _endOfDay(DateTime value) {
+    return DateTime(value.year, value.month, value.day, 23, 59, 59, 999);
+  }
+
+  DateTime _subtractMonths(DateTime value, int months) {
+    int year = value.year;
+    int month = value.month - months;
+    while (month <= 0) {
+      month += 12;
+      year -= 1;
+    }
+    final int lastDay = DateTime(year, month + 1, 0).day;
+    final int day = value.day > lastDay ? lastDay : value.day;
+    return DateTime(year, month, day);
+  }
+
+  String _formatDateOnly(DateTime value) {
+    final String year = value.year.toString().padLeft(4, '0');
+    final String month = value.month.toString().padLeft(2, '0');
+    final String day = value.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
+  }
+
+  bool _isWithinDateRange(DateTime value, DateTime start, DateTime end) {
+    return !value.isBefore(start) && !value.isAfter(end);
+  }
+
+  List<Map<String, dynamic>> _filterItemsByDate(
+    List<Map<String, dynamic>> items, {
+    required DateTime start,
+    required DateTime end,
+  }) {
+    return items.where((Map<String, dynamic> item) {
+      final String raw = (item['createdAt'] ??
+                  item['invoiceDate'] ??
+                  item['issueDate'] ??
+                  item['date'])
+              ?.toString()
+              .trim() ??
+          '';
+      if (raw.isEmpty) {
+        return true;
+      }
+      try {
+        final DateTime parsed = DateTime.parse(raw).toLocal();
+        return _isWithinDateRange(parsed, start, end);
+      } catch (_) {
+        return true;
+      }
+    }).toList();
+  }
+
+  int _countInvoiceDistribution(Iterable<String> statuses) {
+    final Set<String> normalized = statuses
+        .map((String status) => status.trim().toLowerCase())
+        .where((String status) => status.isNotEmpty)
+        .toSet();
+    if (normalized.isEmpty) {
+      return 0;
+    }
+    return _invoiceDistribution.fold<int>(0, (
+      int sum,
+      InvoiceStatusDistribution item,
+    ) {
+      final String status = item.status.trim().toLowerCase();
+      if (!normalized.contains(status)) {
+        return sum;
+      }
+      return sum + item.count;
+    });
+  }
 
   int _monthIndexFromKey(String key) {
     final String k = key.trim();
@@ -163,17 +327,25 @@ class DashboardController extends ChangeNotifier {
   DashboardProgressModel get paidInvoicesProgress {
     if (_paidInvoicesProgressDirty || _paidInvoicesProgressCache == null) {
       // Use invoice stats for accurate counts
-      final int totalCount = _invoiceStats.totalInvoices > 0
-          ? _invoiceStats.totalInvoices
+      final int distributionTotal = _invoiceDistribution.fold(
+        0,
+        (int sum, InvoiceStatusDistribution d) => sum + d.count,
+      );
+      final bool hasDistribution = distributionTotal > 0;
+      final int totalCount = hasDistribution
+          ? distributionTotal
           : (_stats.totalInvoices > 0
               ? _stats.totalInvoices
-              : _invoiceDistribution.fold(
-                  0,
-                  (int sum, InvoiceStatusDistribution d) => sum + d.count,
-                ));
-      final int paidCount = _invoiceStats.paidInvoices;
-      final int sentCount = _invoiceStats.sentInvoices;
-      final int overdueCount = _invoiceStats.overdueInvoices;
+              : _invoiceStats.totalInvoices);
+      final int paidCount = hasDistribution
+          ? _countInvoiceDistribution(const <String>['paid'])
+          : _invoiceStats.paidInvoices;
+      final int sentCount = hasDistribution
+          ? _countInvoiceDistribution(const <String>['sent'])
+          : _invoiceStats.sentInvoices;
+      final int overdueCount = hasDistribution
+          ? _countInvoiceDistribution(const <String>['overdue'])
+          : _invoiceStats.overdueInvoices;
 
       // Calculate progress based on paid invoices
       final double progress = totalCount > 0 ? paidCount / totalCount : 0.0;
@@ -436,93 +608,152 @@ class DashboardController extends ChangeNotifier {
       const int recentInvoicesLimit = 10;
       const int recentCustomersLimit = 6;
       const int recentPreviewCount = 5;
+      final ({
+        String apiDateRange,
+        String dateFrom,
+        String dateTo,
+        DateTime start,
+        DateTime end,
+      }) activeFilter = _resolveActiveDateFilter(
+        overrideDateFrom: dateFrom,
+        overrideDateTo: dateTo,
+      );
 
-      final Future<int> invoicesTotalCountFuture = _repository
-          .getInvoicesTotalCount(companyId: companyId)
-          .catchError((Object e) {
-        debugPrint('Dashboard: Error loading invoices total count: $e');
-        return 0;
-      });
+      // PERFORMANCE OPTIMIZATION: Parallelize all API calls instead of sequential
+      final List<dynamic> results = await Future.wait<dynamic>([
+        _repository
+            .getDashboardStats(
+              companyId: companyId,
+              dateRange: activeFilter.apiDateRange,
+            )
+            .catchError((Object e) {
+          debugPrint('Dashboard: Error loading stats: $e');
+          return const DashboardStats.empty();
+        }),
+        _repository
+            .getRevenueMetrics(
+              companyId: companyId,
+              period: activeFilter.apiDateRange,
+            )
+            .catchError((Object e) {
+          debugPrint('Dashboard: Error loading revenue: $e');
+          return const RevenueMetrics.empty();
+        }),
+        _repository
+            .getInvoiceDistribution(
+              companyId: companyId,
+              dateRange: activeFilter.apiDateRange,
+            )
+            .catchError((Object e) {
+          debugPrint('Dashboard: Error loading invoice distribution: $e');
+          return <InvoiceStatusDistribution>[];
+        }),
+        _repository
+            .getRecentInvoices(
+              companyId: companyId,
+              limit: recentInvoicesLimit,
+            )
+            .catchError((Object e) {
+          debugPrint('Dashboard: Error loading recent invoices: $e');
+          return <Map<String, dynamic>>[];
+        }),
+        _repository
+            .getRecentCustomers(
+              companyId: companyId,
+              limit: recentCustomersLimit,
+            )
+            .catchError((Object e) {
+          debugPrint('Dashboard: Error loading recent customers: $e');
+          return <Map<String, dynamic>>[];
+        }),
+        _repository
+            .getInvoiceStats(
+              companyId: companyId,
+            )
+            .catchError((Object e) {
+          debugPrint('Dashboard: Error loading invoice stats: $e');
+          return const InvoiceStats.empty();
+        }),
+        _repository
+            .getCustomerStats(
+              companyId: companyId,
+            )
+            .catchError((Object e) {
+          debugPrint('Dashboard: Error loading customer stats: $e');
+          return const <String, dynamic>{};
+        }),
+      ]);
 
-      final Future<DashboardStats> statsFuture = _repository
-          .getDashboardStats(
-            companyId: companyId,
-            dateFrom: dateFrom,
-            dateTo: dateTo,
-          )
-          .catchError((Object e) {
-        debugPrint('Dashboard: Error loading stats: $e');
-        return const DashboardStats.empty();
-      });
-
-      final Future<RevenueMetrics> revenueFuture = _repository
-          .getRevenueMetrics(
-            companyId: companyId,
-            period: _getPeriodFromFilter(),
-          )
-          .catchError((Object e) {
-        debugPrint('Dashboard: Error loading revenue: $e');
-        return const RevenueMetrics.empty();
-      });
-
-      final Future<List<Map<String, dynamic>>> recentInvoicesFuture = _repository
-          .getRecentInvoices(
-            companyId: companyId,
-            limit: recentInvoicesLimit,
-          )
-          .catchError((Object e) {
-        debugPrint('Dashboard: Error loading recent invoices: $e');
-        return <Map<String, dynamic>>[];
-      });
-
-      final Future<List<Map<String, dynamic>>> recentCustomersFuture = _repository
-          .getRecentCustomers(
-            companyId: companyId,
-            limit: recentCustomersLimit,
-          )
-          .catchError((Object e) {
-        debugPrint('Dashboard: Error loading recent customers: $e');
-        return <Map<String, dynamic>>[];
-      });
-
-      final Future<InvoiceStats> invoiceStatsFuture = _repository
-          .getInvoiceStats(
-            companyId: companyId,
-          )
-          .catchError((Object e) {
-        debugPrint('Dashboard: Error loading invoice stats: $e');
-        return const InvoiceStats.empty();
-      });
-
-      final DashboardStats stats = await statsFuture;
-      final RevenueMetrics revenue = await revenueFuture;
-      final int invoicesTotalCount = await invoicesTotalCountFuture;
+      // Extract results from parallel execution
+      final DashboardStats stats = results[0] as DashboardStats;
+      final RevenueMetrics revenue = results[1] as RevenueMetrics;
+      final List<InvoiceStatusDistribution> invoiceDistribution =
+          results[2] as List<InvoiceStatusDistribution>;
       final List<Map<String, dynamic>> recentInvoices =
-          await recentInvoicesFuture;
+          results[3] as List<Map<String, dynamic>>;
       final List<Map<String, dynamic>> recentCustomers =
-          await recentCustomersFuture;
-      final InvoiceStats invoiceStats = await invoiceStatsFuture;
+          results[4] as List<Map<String, dynamic>>;
+      final InvoiceStats invoiceStats = results[5] as InvoiceStats;
+      final Map<String, dynamic> customerStats =
+          results[6] as Map<String, dynamic>;
 
-      _stats = stats;
+      final List<Map<String, dynamic>> filteredRecentInvoices =
+          _filterItemsByDate(
+        recentInvoices,
+        start: activeFilter.start,
+        end: activeFilter.end,
+      );
+      final List<Map<String, dynamic>> filteredRecentCustomers =
+          _filterItemsByDate(
+        recentCustomers,
+        start: activeFilter.start,
+        end: activeFilter.end,
+      );
+
+      final int totalCust = customerStats['total'] is int
+          ? (customerStats['total'] as int)
+          : (int.tryParse(customerStats['total']?.toString() ?? '') ??
+              stats.totalCustomers);
+      final int activeCust = customerStats['active'] is int
+          ? (customerStats['active'] as int)
+          : (int.tryParse(customerStats['active']?.toString() ?? '') ??
+              stats.activeCustomers);
+
+      _stats = DashboardStats(
+        totalCustomers: totalCust,
+        activeCustomers: activeCust,
+        totalInvoices: stats.totalInvoices,
+        paidInvoices: stats.paidInvoices,
+        totalRevenue: stats.totalRevenue,
+        pendingAmount: stats.pendingAmount,
+        trendPercentage: stats.trendPercentage,
+      );
       _revenue = revenue;
       _topMetricsDirty = true;
       _statsListDirty = true;
       _salesTrendDirty = true;
 
-      _hasMoreRecentInvoices = invoicesTotalCount > recentPreviewCount;
-      _hasMoreRecentCustomers = recentCustomers.length > recentPreviewCount;
+      _hasMoreRecentInvoices = filteredRecentInvoices.length > recentPreviewCount;
+      _hasMoreRecentCustomers =
+          filteredRecentCustomers.length > recentPreviewCount;
 
-      _recentCustomersRaw = recentCustomers.length > recentPreviewCount
-          ? recentCustomers.take(recentPreviewCount).toList()
-          : recentCustomers;
+      _recentCustomersRaw = filteredRecentCustomers.length > recentPreviewCount
+          ? filteredRecentCustomers.take(recentPreviewCount).toList()
+          : filteredRecentCustomers;
       _recentCustomersUiDirty = true;
 
       final List<Map<String, dynamic>> invoiceSample =
-          recentInvoices.length > 10 ? recentInvoices.take(10).toList() : recentInvoices;
+          filteredRecentInvoices.length > recentInvoicesLimit
+          ? filteredRecentInvoices.take(recentInvoicesLimit).toList()
+          : filteredRecentInvoices;
       final List<Map<String, dynamic>> invoiceUi =
-          invoiceSample.length > 5 ? invoiceSample.take(5).toList() : invoiceSample;
+          invoiceSample.length > recentPreviewCount
+          ? invoiceSample.take(recentPreviewCount).toList()
+          : invoiceSample;
 
-      _invoiceTrendSeries = _buildInvoiceTrendSeries(invoiceSample);
+      _invoiceTrendSeries = revenue.invoiceCounts.isNotEmpty
+          ? revenue.invoiceCounts
+          : _buildInvoiceTrendSeries(invoiceSample);
       _salesTrendDirty = true;
 
       // Strip heavy ZATCA fields to reduce memory bloat (UI list only)
@@ -538,22 +769,30 @@ class DashboardController extends ChangeNotifier {
       }).toList();
       _recentInvoicesUiDirty = true;
 
-      _invoiceDistribution = const <InvoiceStatusDistribution>[];
+      _invoiceDistribution = invoiceDistribution;
       _paidInvoicesProgressDirty = true;
       _topCustomers = const <TopCustomer>[];
       _topCustomersUiDirty = true;
       _invoiceStats = invoiceStats;
       _paidInvoicesProgressDirty = true;
 
-      // Authoritative totals:
-      // - totalInvoices should come from invoices pagination.total
-      // - totalRevenue should come from overview if present, otherwise invoiceStats
-      if (invoicesTotalCount > 0 && _stats.totalInvoices != invoicesTotalCount) {
+      final int distributionTotalCount = _invoiceDistribution.fold(
+        0,
+        (int sum, InvoiceStatusDistribution d) => sum + d.count,
+      );
+      final int distributionPaidCount = _invoiceDistribution.isNotEmpty
+          ? _countInvoiceDistribution(const <String>['paid'])
+          : _stats.paidInvoices;
+      final int nextStatsTotalInvoices = _stats.totalInvoices > 0
+          ? _stats.totalInvoices
+          : distributionTotalCount;
+      if (nextStatsTotalInvoices != _stats.totalInvoices ||
+          distributionPaidCount != _stats.paidInvoices) {
         _stats = DashboardStats(
           totalCustomers: _stats.totalCustomers,
           activeCustomers: _stats.activeCustomers,
-          totalInvoices: invoicesTotalCount,
-          paidInvoices: _stats.paidInvoices,
+          totalInvoices: nextStatsTotalInvoices,
+          paidInvoices: distributionPaidCount,
           totalRevenue: _stats.totalRevenue,
           pendingAmount: _stats.pendingAmount,
           trendPercentage: _stats.trendPercentage,
@@ -561,47 +800,40 @@ class DashboardController extends ChangeNotifier {
         _topMetricsDirty = true;
       }
 
-      if ((_stats.totalRevenue == 0.0) && _invoiceStats.totalRevenue > 0.0) {
+      // Authoritative totals:
+      // - totalInvoices should come from invoices pagination.total
+      // - totalRevenue should come from overview if present, otherwise invoiceStats
+      if ((_stats.totalRevenue == 0.0) && _revenue.currentRevenue > 0.0) {
+        final double revenueFromMetrics = _revenue.currentRevenue;
         _stats = DashboardStats(
           totalCustomers: _stats.totalCustomers,
           activeCustomers: _stats.activeCustomers,
           totalInvoices: _stats.totalInvoices,
           paidInvoices: _stats.paidInvoices,
-          totalRevenue: _invoiceStats.totalRevenue,
+          totalRevenue: revenueFromMetrics,
           pendingAmount: _stats.pendingAmount,
           trendPercentage: _stats.trendPercentage,
         );
         _topMetricsDirty = true;
       }
 
-      if ((_stats.totalRevenue == 0.0) && _invoiceStats.totalRevenue == 0.0) {
-        final double revenueFromMetrics = _revenue.currentRevenue;
-        if (revenueFromMetrics > 0.0) {
-          _stats = DashboardStats(
-            totalCustomers: _stats.totalCustomers,
-            activeCustomers: _stats.activeCustomers,
-            totalInvoices: _stats.totalInvoices,
-            paidInvoices: _stats.paidInvoices,
-            totalRevenue: revenueFromMetrics,
-            pendingAmount: _stats.pendingAmount,
-            trendPercentage: _stats.trendPercentage,
-          );
-          _topMetricsDirty = true;
-        }
-      }
-
       // Some backend report endpoints can return zeros when filtered by companyId
       // even though invoices exist. In that case, compute revenue from invoices.
       final String trimmedCompanyId = (_companyId ?? '').trim();
       final bool isCompanySelected = trimmedCompanyId.isNotEmpty;
+      final bool hasFilteredInvoiceEvidence =
+          _stats.totalInvoices > 0 ||
+          distributionTotalCount > 0 ||
+          filteredRecentInvoices.isNotEmpty;
       if (isCompanySelected &&
           _stats.totalRevenue == 0.0 &&
-          _invoiceStats.totalRevenue == 0.0 &&
-          invoicesTotalCount > 0) {
+          hasFilteredInvoiceEvidence) {
         try {
           final double computedRevenue =
               await _repository.getCompanyRevenueFromInvoices(
             companyId: trimmedCompanyId,
+            dateFrom: activeFilter.dateFrom,
+            dateTo: activeFilter.dateTo,
           );
 
           if (computedRevenue > 0.0) {
@@ -635,7 +867,7 @@ class DashboardController extends ChangeNotifier {
 
       final bool reportsEmpty =
           (_stats.totalInvoices == 0 && _stats.totalRevenue == 0.0) &&
-          (_invoiceStats.totalInvoices == 0 && _invoiceStats.totalRevenue == 0.0) &&
+          _invoiceDistribution.isEmpty &&
           invoiceSample.isNotEmpty;
 
       if (reportsEmpty) {
@@ -651,8 +883,13 @@ class DashboardController extends ChangeNotifier {
               companyId: null,
               limit: allCompaniesFallbackFetchLimit,
             );
-            if (bigger.isNotEmpty) {
-              fallbackInvoices = bigger;
+            final List<Map<String, dynamic>> filteredBigger = _filterItemsByDate(
+              bigger,
+              start: activeFilter.start,
+              end: activeFilter.end,
+            );
+            if (filteredBigger.isNotEmpty) {
+              fallbackInvoices = filteredBigger;
             }
           } catch (_) {
             // ignore fallback enrichment
@@ -662,12 +899,17 @@ class DashboardController extends ChangeNotifier {
         final _FallbackDashboardComputed computed =
             _computeFallbackFromInvoices(fallbackInvoices);
 
-        if (_stats.totalInvoices == 0 && computed.totalInvoices > 0) {
+        if ((_stats.totalInvoices == 0 && computed.totalInvoices > 0) ||
+            (_stats.paidInvoices == 0 && computed.paidInvoices > 0)) {
           _stats = DashboardStats(
             totalCustomers: _stats.totalCustomers,
             activeCustomers: _stats.activeCustomers,
-            totalInvoices: computed.totalInvoices,
-            paidInvoices: computed.paidInvoices,
+            totalInvoices: _stats.totalInvoices == 0
+                ? computed.totalInvoices
+                : _stats.totalInvoices,
+            paidInvoices: _stats.paidInvoices == 0
+                ? computed.paidInvoices
+                : _stats.paidInvoices,
             totalRevenue: computed.totalRevenue,
             pendingAmount: _stats.pendingAmount,
             trendPercentage: _stats.trendPercentage,
@@ -696,6 +938,7 @@ class DashboardController extends ChangeNotifier {
             trend: 0.0,
             trendUp: true,
             dailyRevenue: computed.monthlyRevenue,
+            invoiceCounts: computed.monthlyInvoiceCounts,
           );
         }
 
@@ -737,15 +980,24 @@ class DashboardController extends ChangeNotifier {
         ? null
         : companyId.trim();
     if (normalized == _companyId) return;
+    _isCompanyInitialized = true;
     await loadDashboardData(companyId: normalized);
   }
 
   String _getPeriodFromFilter() {
     switch (_filterIndex) {
       case 0:
-        return '30d';
+        return '7days';
+      case 1:
+        return '30days';
+      case 2:
+        return '3months';
+      case 3:
+        return '6months';
+      case 4:
+        return '12months';
       default:
-        return '30d';
+        return '30days';
     }
   }
 
@@ -781,12 +1033,16 @@ class DashboardController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setFilterIndex(int index) {
+  Future<void> setFilterIndex(int index) async {
+    if (index < 0 || index >= filterLabels.length) {
+      return;
+    }
     if (index == _filterIndex) {
       return;
     }
     _filterIndex = index;
     notifyListeners();
+    await loadDashboardData(companyId: _companyId);
   }
 
   void setTrendMetricIndex(int index) {

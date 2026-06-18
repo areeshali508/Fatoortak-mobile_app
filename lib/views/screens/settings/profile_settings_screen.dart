@@ -50,7 +50,10 @@ class ProfileSettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final Map<String, dynamic>? profile = context.watch<AuthController>().profile;
+        // PERF: select only the profile map — avoids rebuilding on unrelated auth changes
+        final Map<String, dynamic>? profile = context.select<AuthController, Map<String, dynamic>?>(
+          (AuthController c) => c.profile,
+        );
 
         final String firstName = _pickString(profile, <String>['firstName', 'first_name', 'firstname']);
         final String lastName = _pickString(profile, <String>['lastName', 'last_name', 'lastname']);

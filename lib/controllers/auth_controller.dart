@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 
 import '../repositories/auth_repository.dart';
 
@@ -10,6 +11,7 @@ class AuthController extends ChangeNotifier {
   Map<String, dynamic>? _profile;
   Map<String, dynamic>? _myCompany;
   Map<String, dynamic>? _activeCompany;
+  Future<void>? _sessionHydrationFuture;
 
   AuthController({required AuthRepository repository})
     : _repository = repository;
@@ -65,14 +67,8 @@ class AuthController extends ChangeNotifier {
       );
       if (!ok) return false;
 
-      final List<dynamic> res = await Future.wait<dynamic>([
-        _repository.getProfile(),
-        _repository.getMyCompany(),
-      ]);
-      _profile = res[0] as Map<String, dynamic>;
-      _myCompany = res[1] as Map<String, dynamic>;
-      _activeCompany ??= _myCompany;
       _isAuthenticated = true;
+      await _hydrateSessionContext();
       return true;
     } catch (e) {
       if (e is AuthApiException) {
@@ -100,6 +96,7 @@ class AuthController extends ChangeNotifier {
       final bool ok = await _repository.signInWithGoogle();
       if (ok) {
         _isAuthenticated = true;
+        await _hydrateSessionContext();
       }
       return ok;
     } finally {
@@ -125,9 +122,12 @@ class AuthController extends ChangeNotifier {
         password: password,
       );
       if (ok) {
-        _isAuthenticated = true;
+        return await signIn(
+          usernameOrEmail: email,
+          password: password,
+        );
       }
-      return ok;
+      return false;
     } catch (e) {
       if (e is AuthApiException) {
         _errorMessage = e.statusCode == null
@@ -150,6 +150,7 @@ class AuthController extends ChangeNotifier {
     _profile = null;
     _myCompany = null;
     _activeCompany = null;
+    _sessionHydrationFuture = null;
     notifyListeners();
   }
 
@@ -179,8 +180,50 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> refreshMyCompany() async {
+    final Future<void>? inFlight = _sessionHydrationFuture;
+    if (inFlight != null) {
+      await inFlight;
+      if (_myCompany != null) {
+        return;
+      }
+    }
+
     try {
       _myCompany = await _repository.getMyCompany();
+      _activeCompany ??= _myCompany;
+      notifyListeners();
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<void> _hydrateSessionContext() {
+    final Future<void>? inFlight = _sessionHydrationFuture;
+    if (inFlight != null) {
+      return inFlight;
+    }
+
+    late final Future<void> future;
+    future = _runSessionHydration().whenComplete(() {
+      if (identical(_sessionHydrationFuture, future)) {
+        _sessionHydrationFuture = null;
+      }
+    });
+    _sessionHydrationFuture = future;
+    return future;
+  }
+
+  Future<void> _runSessionHydration() async {
+    try {
+      final List<dynamic> res = await Future.wait<dynamic>([
+        _repository.getProfile(),
+        _repository.getMyCompany(),
+      ]);
+      if (!_isAuthenticated) {
+        return;
+      }
+      _profile = res[0] as Map<String, dynamic>;
+      _myCompany = res[1] as Map<String, dynamic>;
       _activeCompany ??= _myCompany;
       notifyListeners();
     } catch (_) {

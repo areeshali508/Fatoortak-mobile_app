@@ -217,10 +217,13 @@ class _QuotationDetailsScreenState extends State<QuotationDetailsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Expanded(
                         child: Text(
                           'Quotation #${quotation.id}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w800,
@@ -228,8 +231,10 @@ class _QuotationDetailsScreenState extends State<QuotationDetailsScreen> {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 12),
                       Text(
                         _amountLabel(),
+                        textAlign: TextAlign.right,
                         style: const TextStyle(
                           color: Color(0xFF0B1B4B),
                           fontWeight: FontWeight.w900,

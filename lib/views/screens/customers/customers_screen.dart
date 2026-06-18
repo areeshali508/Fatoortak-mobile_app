@@ -175,13 +175,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool isLoading = context.select<CustomerController, bool>(
-          (CustomerController ctrl) => ctrl.isLoading,
-        );
-        final List<Customer> rawCustomers =
-            context.select<CustomerController, List<Customer>>(
-              (CustomerController ctrl) => ctrl.customers,
-            );
+
 
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
@@ -195,10 +189,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
           18,
         );
 
-        final List<_CustomerVM> customers = _customerViewModels(
-          isLoading: isLoading,
-          rawCustomers: rawCustomers,
-        );
+
 
         return Scaffold(
           backgroundColor: const Color(0xFFF7FAFF),
@@ -267,7 +258,15 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   ),
                   SizedBox(height: gap),
                   Expanded(
-                    child: RefreshIndicator(
+                    child: Consumer<CustomerController>(
+                      builder: (BuildContext context, CustomerController ctrl, Widget? child) {
+                        final bool isLoading = ctrl.isLoading;
+                        final List<Customer> rawCustomers = ctrl.customers;
+                        final List<_CustomerVM> customers = _customerViewModels(
+                          isLoading: isLoading,
+                          rawCustomers: rawCustomers,
+                        );
+                        return RefreshIndicator(
                       onRefresh: () => _reload(force: true),
                       child: Skeletonizer(
                         enabled: isLoading && !kIsWeb,
@@ -304,6 +303,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                 ),
                         ),
                       ),
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -523,23 +524,20 @@ class _CustomerVM {
     required Customer customer,
     required int index,
   }) {
-    final bool vip = index % 4 == 1;
-    final bool active = index % 3 != 2;
+    final bool vip = customer.customerGroup.toLowerCase() == 'vip' ||
+        customer.tags.any((String t) => t.trim().toUpperCase() == 'VIP');
+    final bool active = customer.isActive;
 
-    final List<String> sampleCompanies = <String>[
-      'Tech Solutions Ltd',
-      'Retail Group',
-      'Individual',
-      'Creative Agency',
-      'Logistics Co.',
-    ];
+    final String company = customer.customerGroup.isNotEmpty
+        ? customer.customerGroup
+        : (customer.customerType == 'B2B' ? 'B2B Company' : 'B2C Individual');
 
-    final double ytd = <double>[45.2, 12.4, 3.1, 8.9, 21.5][index % 5] * 1000;
+    final double ytd = customer.totalPaymentsReceived.toDouble();
 
     return _CustomerVM(
       raw: customer,
       name: customer.name,
-      company: sampleCompanies[index % sampleCompanies.length],
+      company: company,
       active: active,
       vip: vip,
       ytdAmount: ytd,

@@ -78,7 +78,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
       if (!mounted) return;
       _reload(search: q.trim().isEmpty ? null : q.trim());
     });
-    setState(() {});
   }
 
   void _showComingSoon() {
@@ -283,16 +282,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool isLoading = context.select<ProductController, bool>(
-          (ProductController ctrl) => ctrl.isLoading,
-        );
-        final List<Product> rawProducts =
-            context.select<ProductController, List<Product>>(
-              (ProductController ctrl) => ctrl.products,
-            );
-        final String? errorMessage = context.select<ProductController, String?>(
-          (ProductController ctrl) => ctrl.errorMessage,
-        );
+
 
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
@@ -306,18 +296,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           18,
         );
 
-        final String searchQuery = _searchController.text.trim().toLowerCase();
-        final ({
-          List<_ProductVM> items,
-          int inStockCount,
-          int lowCount,
-          int emptyCount,
-          double inventoryValue,
-        }) productView = _productView(
-          isLoading: isLoading,
-          rawProducts: rawProducts,
-          searchQuery: searchQuery,
-        );
+
 
         return Scaffold(
           backgroundColor: const Color(0xFFF7FAFF),
@@ -360,9 +339,26 @@ class _ProductsScreenState extends State<ProductsScreen> {
             ],
           ),
           body: SafeArea(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(hPad, gap, hPad, 0),
-              child: RefreshIndicator(
+            child: Consumer<ProductController>(
+              builder: (BuildContext context, ProductController ctrl, Widget? child) {
+                final bool isLoading = ctrl.isLoading;
+                final List<Product> rawProducts = ctrl.products;
+                final String? errorMessage = ctrl.errorMessage;
+                final String searchQuery = _searchController.text.trim().toLowerCase();
+                final ({
+                  List<_ProductVM> items,
+                  int inStockCount,
+                  int lowCount,
+                  int emptyCount,
+                  double inventoryValue,
+                }) productView = _productView(
+                  isLoading: isLoading,
+                  rawProducts: rawProducts,
+                  searchQuery: searchQuery,
+                );
+                return Padding(
+                  padding: EdgeInsets.fromLTRB(hPad, gap, hPad, 0),
+                  child: RefreshIndicator(
                 onRefresh: () => _reload(
                   search: _searchController.text.trim().isEmpty
                       ? null
@@ -484,10 +480,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           )
                         else
                           ...productView.items.map((_ProductVM p) {
-                            final Product raw = rawProducts[p.index];
+                            final Product? raw = isLoading ? null : rawProducts[p.index];
                             return _ProductCard(
                               product: p,
-                              onTap: isLoading
+                              onTap: isLoading || raw == null
                                   ? () {}
                                   : () {
                                       Navigator.of(context).push(
@@ -505,6 +501,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   ),
                 ),
               ),
+                );
+              },
             ),
           ),
           floatingActionButton: SizedBox(

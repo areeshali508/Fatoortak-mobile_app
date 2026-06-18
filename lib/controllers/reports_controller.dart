@@ -1,16 +1,38 @@
 import 'package:flutter/material.dart';
-
+import '../controllers/auth_controller.dart';
 export '../repositories/reports_repository.dart';
 import '../repositories/reports_repository.dart';
 
 class ReportsController extends ChangeNotifier {
   ReportsRepository _repository;
+  String? _lastCompanyId;
 
   ReportsController({required ReportsRepository repository})
       : _repository = repository;
 
   void updateRepository(ReportsRepository repository) {
     _repository = repository;
+  }
+
+  void syncWithAuth(AuthController auth) {
+    final String? cid = auth.activeCompanyId;
+    if (!auth.isAuthenticated || cid == null) {
+      _dashboardStats = const DashboardStats.empty();
+      _salesOverview = const SalesOverview.empty();
+      _monthlyRevenue = <MonthlyRevenue>[];
+      _topCustomers = <TopCustomer>[];
+      _topProducts = <TopProduct>[];
+      _lastCompanyId = null;
+      notifyListeners();
+    } else if (cid != _lastCompanyId) {
+      _dashboardStats = const DashboardStats.empty();
+      _salesOverview = const SalesOverview.empty();
+      _monthlyRevenue = <MonthlyRevenue>[];
+      _topCustomers = <TopCustomer>[];
+      _topProducts = <TopProduct>[];
+      _lastCompanyId = cid;
+      notifyListeners();
+    }
   }
 
   // Loading states

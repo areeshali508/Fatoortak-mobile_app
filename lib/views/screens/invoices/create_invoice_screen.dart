@@ -376,7 +376,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final CreateInvoiceController ctrl = context
-            .watch<CreateInvoiceController>();
+            .read<CreateInvoiceController>();
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
           16,
@@ -673,7 +673,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                         TextField(
                           controller: ctrl.notesController,
                           maxLines: 3,
-                          onChanged: (_) => ctrl.refresh(),
                           decoration: _decoration(
                             label: 'Notes',
                             hint: 'Enter notes visible to customer...',
@@ -683,7 +682,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                         TextField(
                           controller: ctrl.termsController,
                           maxLines: 3,
-                          onChanged: (_) => ctrl.refresh(),
                           decoration: _decoration(
                             label: 'Terms & Conditions',
                             hint: 'Enter legal terms...',
@@ -755,42 +753,48 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
               ),
             ],
           ),
-          body: SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                hPad,
-                gap,
-                hPad,
-                AppResponsive.clamp(
-                  AppResponsive.scaledByHeight(constraints, 140),
-                  130,
-                  170,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  _WizardHeader(
-                    titles: stepTitles,
-                    currentStep: ctrl.currentStep,
-                    maxStepReached: ctrl.maxStepReached,
-                    onTapStep: _goToStep,
+          body: Consumer<CreateInvoiceController>(
+            builder: (BuildContext context, CreateInvoiceController _, Widget? child) {
+              return SafeArea(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    hPad,
+                    gap,
+                    hPad,
+                    AppResponsive.clamp(
+                      AppResponsive.scaledByHeight(constraints, 140),
+                      130,
+                      170,
+                    ),
                   ),
-                  SizedBox(height: gap),
-                  stepContent(),
-                ],
-              ),
-            ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      _WizardHeader(
+                        titles: stepTitles,
+                        currentStep: ctrl.currentStep,
+                        maxStepReached: ctrl.maxStepReached,
+                        onTapStep: _goToStep,
+                      ),
+                      SizedBox(height: gap),
+                      stepContent(),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
-          bottomNavigationBar: SafeArea(
-            top: false,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(top: BorderSide(color: Color(0xFFE9EEF5))),
-              ),
-              child: ctrl.currentStep == 3
+          bottomNavigationBar: Consumer<CreateInvoiceController>(
+            builder: (BuildContext context, CreateInvoiceController _, Widget? child) {
+              return SafeArea(
+                top: false,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    border: Border(top: BorderSide(color: Color(0xFFE9EEF5))),
+                  ),
+                  child: ctrl.currentStep == 3
                   ? Row(
                       children: <Widget>[
                         Container(
@@ -887,6 +891,8 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                       ],
                     ),
             ),
+              );
+            },
           ),
         );
       },
@@ -2300,10 +2306,6 @@ class _AddItemSheetState extends State<_AddItemSheet> {
 
   void _onSearchChanged(String _) {
     _searchDebounce?.cancel();
-    setState(() {
-      _selectedProduct = null;
-      _productError = null;
-    });
     _searchDebounce = Timer(const Duration(milliseconds: 350), () {
       _searchProducts();
     });
@@ -2314,6 +2316,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
     if (q.isEmpty) {
       if (!mounted) return;
       setState(() {
+        _selectedProduct = null;
         _suggestions = const <Product>[];
         _isSearching = false;
         _productError = null;
@@ -2325,6 +2328,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
     if (activeCompanyId == null || activeCompanyId.trim().isEmpty) {
       if (!mounted) return;
       setState(() {
+        _selectedProduct = null;
         _suggestions = const <Product>[];
         _isSearching = false;
         _productError = 'Please select a company first';
@@ -2334,6 +2338,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
 
     if (!mounted) return;
     setState(() {
+      _selectedProduct = null;
       _isSearching = true;
       _productError = null;
     });

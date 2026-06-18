@@ -309,7 +309,8 @@ class CreateDebitNoteController extends ChangeNotifier {
         return debitNoteNumberController.text.trim().isNotEmpty &&
             _issueDate != null &&
             originalInvoiceController.text.trim().isNotEmpty &&
-            customerController.text.trim().isNotEmpty;
+            customerController.text.trim().isNotEmpty &&
+            _reasonType != 'Select Reason';
       case 1:
         return _items.isNotEmpty;
       case 2:
@@ -353,6 +354,10 @@ class CreateDebitNoteController extends ChangeNotifier {
         originalInvoiceController.text.trim().isEmpty ||
         _issueDate == null) {
       return 'Please complete required fields before saving';
+    }
+
+    if (_reasonType == 'Select Reason') {
+      return 'Please select a reason';
     }
 
     if ((_companyId ?? '').trim().isEmpty) {

@@ -174,9 +174,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final SettingsController settingsCtrl = context
-            .watch<SettingsController>();
-        final Map<String, dynamic>? company = context.watch<AuthController>().myCompany;
+        // PERF: use select() so only the specific fields we need trigger a rebuild
+        final bool pushNotifications = context.select<SettingsController, bool>(
+          (SettingsController c) => c.pushNotifications,
+        );
+        final Map<String, dynamic>? company = context.select<AuthController, Map<String, dynamic>?>(
+          (AuthController c) => c.myCompany,
+        );
         final Object? creds = company?['zatcaCredentials'];
         final String zatcaStatus = (creds is Map<String, dynamic>
                 ? creds['status']?.toString()
@@ -304,7 +308,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SettingsSwitchTile(
                       icon: Icons.notifications_outlined,
                       title: 'Push Notifications',
-                      value: settingsCtrl.pushNotifications,
+                      value: pushNotifications,
                       onChanged: (bool v) => context
                           .read<SettingsController>()
                           .setPushNotifications(v),

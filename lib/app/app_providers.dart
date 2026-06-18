@@ -10,6 +10,7 @@ import '../controllers/invoice_controller.dart';
 import '../controllers/product_controller.dart';
 import '../controllers/reports_controller.dart';
 import '../controllers/zatca_controller.dart';
+import '../controllers/pos_controller.dart';
 import '../core/services/api_client.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/credit_note_repository.dart';
@@ -162,64 +163,92 @@ class AppProviders {
         return prev;
       },
     ),
+    ChangeNotifierProxyProvider3<ProductRepository, CustomerRepository, InvoiceRepository, PosController>(
+      create: (BuildContext ctx) => PosController(
+        productRepository: ctx.read<ProductRepository>(),
+        customerRepository: ctx.read<CustomerRepository>(),
+        invoiceRepository: ctx.read<InvoiceRepository>(),
+      ),
+      update: (BuildContext ctx, ProductRepository prodRepo, CustomerRepository custRepo, InvoiceRepository invRepo, PosController? prev) {
+        return prev ?? PosController(
+          productRepository: prodRepo,
+          customerRepository: custRepo,
+          invoiceRepository: invRepo,
+        );
+      },
+    ),
     Provider<SettingsRepository>(create: (_) => const SettingsRepository()),
-    ChangeNotifierProxyProvider<ProductRepository, ProductController>(
+    ChangeNotifierProxyProvider2<ProductRepository, AuthController, ProductController>(
       create: (BuildContext ctx) =>
           ProductController(repository: ctx.read<ProductRepository>()),
-      update:
-          (BuildContext ctx, ProductRepository repo, ProductController? prev) {
-            prev?.updateRepository(repo);
-            return prev ?? ProductController(repository: repo);
-          },
+      update: (
+        BuildContext ctx,
+        ProductRepository repo,
+        AuthController auth,
+        ProductController? prev,
+      ) {
+        prev?.updateRepository(repo);
+        prev?.syncWithAuth(auth);
+        return prev ?? (ProductController(repository: repo)..syncWithAuth(auth));
+      },
     ),
-    ChangeNotifierProxyProvider<InvoiceRepository, InvoiceController>(
+    ChangeNotifierProxyProvider2<InvoiceRepository, AuthController, InvoiceController>(
       create: (BuildContext ctx) => InvoiceController(
         repository: ctx.read<InvoiceRepository>(),
       ),
-      update:
-          (BuildContext ctx, InvoiceRepository repo, InvoiceController? prev) {
-            prev?.updateRepository(repo);
-            return prev ?? InvoiceController(repository: repo);
-          },
+      update: (
+        BuildContext ctx,
+        InvoiceRepository repo,
+        AuthController auth,
+        InvoiceController? prev,
+      ) {
+        prev?.updateRepository(repo);
+        prev?.syncWithAuth(auth);
+        return prev ?? (InvoiceController(repository: repo)..syncWithAuth(auth));
+      },
     ),
-    ChangeNotifierProxyProvider<CustomerRepository, CustomerController>(
+    ChangeNotifierProxyProvider2<CustomerRepository, AuthController, CustomerController>(
       create: (BuildContext ctx) =>
           CustomerController(repository: ctx.read<CustomerRepository>()),
-      update:
-          (
-            BuildContext ctx,
-            CustomerRepository repo,
-            CustomerController? prev,
-          ) {
-            prev?.updateRepository(repo);
-            return prev ?? CustomerController(repository: repo);
-          },
+      update: (
+        BuildContext ctx,
+        CustomerRepository repo,
+        AuthController auth,
+        CustomerController? prev,
+      ) {
+        prev?.updateRepository(repo);
+        prev?.syncWithAuth(auth);
+        return prev ?? (CustomerController(repository: repo)..syncWithAuth(auth));
+      },
     ),
-    ChangeNotifierProxyProvider<ReportsRepository, ReportsController>(
+    ChangeNotifierProxyProvider2<ReportsRepository, AuthController, ReportsController>(
       create: (BuildContext ctx) =>
           ReportsController(repository: ctx.read<ReportsRepository>()),
-      update:
-          (
-            BuildContext ctx,
-            ReportsRepository repo,
-            ReportsController? prev,
-          ) {
-            prev?.updateRepository(repo);
-            return prev ?? ReportsController(repository: repo);
-          },
+      update: (
+        BuildContext ctx,
+        ReportsRepository repo,
+        AuthController auth,
+        ReportsController? prev,
+      ) {
+        prev?.updateRepository(repo);
+        prev?.syncWithAuth(auth);
+        return prev ?? (ReportsController(repository: repo)..syncWithAuth(auth));
+      },
     ),
-    ChangeNotifierProxyProvider<DashboardRepository, DashboardController>(
-      create: (BuildContext ctx) =>
-          DashboardController(repository: ctx.read<DashboardRepository>()),
-      update:
-          (
-            BuildContext ctx,
-            DashboardRepository repo,
-            DashboardController? prev,
-          ) {
-            prev?.updateRepository(repo);
-            return prev ?? DashboardController(repository: repo);
-          },
+    ChangeNotifierProxyProvider2<DashboardRepository, AuthController, DashboardController>(
+      create: (BuildContext ctx) => DashboardController(
+        repository: ctx.read<DashboardRepository>(),
+      ),
+      update: (
+        BuildContext ctx,
+        DashboardRepository repo,
+        AuthController auth,
+        DashboardController? prev,
+      ) {
+        prev?.updateRepository(repo);
+        prev?.syncWithAuth(auth);
+        return prev ?? DashboardController(repository: repo)..syncWithAuth(auth);
+      },
     ),
     ChangeNotifierProxyProvider2<ZatcaRepository, AuthController, ZatcaController>(
       create: (BuildContext ctx) => ZatcaController(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../controllers/auth_controller.dart';
 import '../models/customer.dart';
 import '../repositories/customer_repository.dart';
 
@@ -21,6 +22,21 @@ class CustomerController extends ChangeNotifier {
 
   void updateRepository(CustomerRepository repository) {
     _repository = repository;
+  }
+
+  void syncWithAuth(AuthController auth) {
+    final String? cid = auth.activeCompanyId;
+    if (!auth.isAuthenticated || cid == null) {
+      _customers = const <Customer>[];
+      _loadedCompanyId = null;
+      _hasLoadedCompany = false;
+      notifyListeners();
+    } else if (cid != _loadedCompanyId) {
+      _customers = const <Customer>[];
+      _loadedCompanyId = cid;
+      _hasLoadedCompany = false;
+      notifyListeners();
+    }
   }
 
   Future<void> refresh({required String companyId, bool force = false}) async {

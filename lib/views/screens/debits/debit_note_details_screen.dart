@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../controllers/debit_notes_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_responsive.dart';
 import '../../../models/debit_note.dart';
@@ -84,6 +85,9 @@ class _DebitNoteDetailsScreenState extends State<DebitNoteDetailsScreen> {
             ),
           ),
         );
+      }
+      if (isValid && errors.isEmpty) {
+        context.read<DebitNotesController>().refresh().catchError((_) {});
       }
 
       final String fetchId = id;

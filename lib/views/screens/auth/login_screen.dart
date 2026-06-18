@@ -15,14 +15,16 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  bool _obscure = true;
-  bool _isEnglish = true;
+  final ValueNotifier<bool> _obscureNotifier = ValueNotifier<bool>(true);
+  final ValueNotifier<bool> _isEnglishNotifier = ValueNotifier<bool>(true);
 
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   @override
   void dispose() {
+    _obscureNotifier.dispose();
+    _isEnglishNotifier.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -175,23 +177,28 @@ class _LoginScreenState extends State<LoginScreen> {
                                     controller: _usernameController,
                                   ),
                                   SizedBox(height: fieldGap),
-                                  _LoginTextField(
-                                    constraints: constraints,
-                                    hintText: 'Password',
-                                    prefixIcon: Icons.lock_outline,
-                                    obscureText: _obscure,
-                                    controller: _passwordController,
-                                    suffix: IconButton(
-                                      onPressed: () => setState(() {
-                                        _obscure = !_obscure;
-                                      }),
-                                      icon: Icon(
-                                        _obscure
-                                            ? Icons.visibility_off_outlined
-                                            : Icons.visibility_outlined,
-                                        color: const Color(0xFF9AA5B6),
-                                      ),
-                                    ),
+                                  ValueListenableBuilder<bool>(
+                                    valueListenable: _obscureNotifier,
+                                    builder: (BuildContext context, bool obscure, Widget? _) {
+                                      return _LoginTextField(
+                                        constraints: constraints,
+                                        hintText: 'Password',
+                                        prefixIcon: Icons.lock_outline,
+                                        obscureText: obscure,
+                                        controller: _passwordController,
+                                        suffix: IconButton(
+                                          onPressed: () {
+                                            _obscureNotifier.value = !_obscureNotifier.value;
+                                          },
+                                          icon: Icon(
+                                            obscure
+                                                ? Icons.visibility_off_outlined
+                                                : Icons.visibility_outlined,
+                                            color: const Color(0xFF9AA5B6),
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                   SizedBox(
                                     height: AppResponsive.clamp(
@@ -520,12 +527,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                     _BottomLoginShortcut(
                                       constraints: constraints,
                                     ),
-                                    _LanguageToggle(
-                                      constraints: constraints,
-                                      isEnglish: _isEnglish,
-                                      onChanged: (bool value) => setState(() {
-                                        _isEnglish = value;
-                                      }),
+                                    ValueListenableBuilder<bool>(
+                                      valueListenable: _isEnglishNotifier,
+                                      builder: (BuildContext context, bool isEnglish, Widget? _) {
+                                        return _LanguageToggle(
+                                          constraints: constraints,
+                                          isEnglish: isEnglish,
+                                          onChanged: (bool value) {
+                                            _isEnglishNotifier.value = value;
+                                          },
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),

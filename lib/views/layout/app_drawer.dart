@@ -30,6 +30,7 @@ class _AppDrawerState extends State<AppDrawer> {
     final bool salesSelected =
         currentRoute == AppRoutes.invoices ||
         currentRoute == AppRoutes.createInvoice ||
+        currentRoute == AppRoutes.pos ||
         currentRoute == AppRoutes.creditNotes ||
         currentRoute == AppRoutes.debitNotes ||
         currentRoute == AppRoutes.quotations;
@@ -65,11 +66,13 @@ class _AppDrawerState extends State<AppDrawer> {
     final bool creditNotesSelected = currentRoute == AppRoutes.creditNotes;
     final bool debitNotesSelected = currentRoute == AppRoutes.debitNotes;
     final bool quotationsSelected = currentRoute == AppRoutes.quotations;
+    final bool posSelected = currentRoute == AppRoutes.pos;
     final bool salesSelected =
         invoicesSelected ||
         creditNotesSelected ||
         debitNotesSelected ||
-        quotationsSelected;
+        quotationsSelected ||
+        posSelected;
 
     final bool addUsersSelected =
         currentRoute == AppRoutes.teamMembers ||
@@ -275,6 +278,20 @@ class _AppDrawerState extends State<AppDrawer> {
                         },
                       ),
                     ),
+                    if (_salesExpanded)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),
+                        child: _DrawerItem(
+                          icon: Icons.point_of_sale,
+                          label: 'Point of Sale',
+                          selected: posSelected,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            if (currentRoute == AppRoutes.pos) return;
+                            Navigator.of(context).pushReplacementNamed(AppRoutes.pos);
+                          },
+                        ),
+                      ),
                     if (_salesExpanded)
                       Padding(
                         padding: EdgeInsets.fromLTRB(hPad + 18, 0, hPad, 0),

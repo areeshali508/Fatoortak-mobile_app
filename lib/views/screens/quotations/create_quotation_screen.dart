@@ -900,8 +900,8 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                               ),
                             ),
                           )
-                        : Builder(
-                            builder: (BuildContext context) {
+                        : StatefulBuilder(
+                            builder: (BuildContext context, StateSetter setLocalState) {
                               final String q =
                                   ctrl.customerController.text.trim().toLowerCase();
                               final List<Customer> filtered = ctrl.customers
@@ -926,7 +926,7 @@ class _CreateQuotationScreenState extends State<CreateQuotationScreen> {
                                 children: <Widget>[
                                   TextField(
                                     controller: ctrl.customerController,
-                                    onChanged: (_) => setState(() {}),
+                                    onChanged: (_) => setLocalState(() {}),
                                     decoration: _dec(
                                       label: 'Search Customer',
                                       hint: 'Type name or ID...',
@@ -1594,10 +1594,6 @@ class _AddItemSheetState extends State<_AddItemSheet> {
 
   void _onSearchChanged(String _) {
     _searchDebounce?.cancel();
-    setState(() {
-      _selectedProduct = null;
-      _productError = null;
-    });
     _searchDebounce = Timer(const Duration(milliseconds: 350), () {
       _searchProducts();
     });
@@ -1608,6 +1604,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
     if (q.isEmpty) {
       if (!mounted) return;
       setState(() {
+        _selectedProduct = null;
         _suggestions = const <Product>[];
         _isSearching = false;
         _productError = null;
@@ -1619,6 +1616,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
     if (companyId.isEmpty) {
       if (!mounted) return;
       setState(() {
+        _selectedProduct = null;
         _suggestions = const <Product>[];
         _isSearching = false;
         _productError = 'Please select a company first';
@@ -1628,6 +1626,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
 
     if (!mounted) return;
     setState(() {
+      _selectedProduct = null;
       _isSearching = true;
       _productError = null;
     });

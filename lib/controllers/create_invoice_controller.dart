@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../models/company.dart';
@@ -260,8 +261,13 @@ class CreateInvoiceController extends ChangeNotifier {
     ];
   }
 
+  Timer? _refreshDebounceTimer;
+
   void refresh() {
-    notifyListeners();
+    _refreshDebounceTimer?.cancel();
+    _refreshDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+      notifyListeners();
+    });
   }
 
   set company(String v) {

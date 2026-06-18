@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -282,6 +283,16 @@ class _Pill extends StatelessWidget {
 
 class _QuotationsScreenState extends State<QuotationsScreen> {
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
+
+  void _onSearchChanged(String v) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        context.read<QuotationsController>().setSearchQuery(v);
+      }
+    });
+  }
 
   bool _isLoadingCompanies = false;
   List<Map<String, dynamic>> _companies = const <Map<String, dynamic>>[];
@@ -782,6 +793,7 @@ class _QuotationsScreenState extends State<QuotationsScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -972,7 +984,7 @@ class _QuotationsScreenState extends State<QuotationsScreen> {
                     _SearchField(
                       constraints: constraints,
                       controller: _searchController,
-                      onChanged: ctrl.setSearchQuery,
+                      onChanged: _onSearchChanged,
                     ),
                     SizedBox(height: gap),
                     _FilterRow(
@@ -1181,10 +1193,13 @@ class _QuotationCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Expanded(
                       child: Text(
                         'Quotation #$id',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: AppColors.primary,
                           fontWeight: FontWeight.w800,
@@ -1192,17 +1207,15 @@ class _QuotationCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Flexible(
-                      child: Text(
-                        amount,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(
-                          color: Color(0xFF0B1B4B),
-                          fontWeight: FontWeight.w900,
-                          fontSize: 16,
-                        ),
+                    const SizedBox(width: 12),
+                    Text(
+                      amount,
+                      maxLines: 1,
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                        color: Color(0xFF0B1B4B),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
                       ),
                     ),
                   ],

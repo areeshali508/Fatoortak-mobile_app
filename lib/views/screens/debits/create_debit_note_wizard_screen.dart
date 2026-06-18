@@ -100,6 +100,19 @@ class _CreateDebitNoteWizardScreenState
   bool _isSubmitting = false;
   DebitNote? _createdDraft;
   String? _lastAutoDebitNoteNumber;
+  String? _zatcaUuid;
+  String? _zatcaHash;
+
+  void _onControllerChanged() {
+    if (!mounted) return;
+    final CreateDebitNoteController ctrl =
+        context.read<CreateDebitNoteController>();
+    if (!ctrl.zatcaValidated) {
+      _createdDraft = null;
+      _zatcaUuid = null;
+      _zatcaHash = null;
+    }
+  }
 
   Future<void> _loadNextNumberIfPossible() async {
     final CreateDebitNoteController ctrl =
@@ -130,11 +143,22 @@ class _CreateDebitNoteWizardScreenState
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<CreateDebitNoteController>().loadCompanies().then((_) {
+      final CreateDebitNoteController ctrl =
+          context.read<CreateDebitNoteController>();
+      ctrl.loadCompanies().then((_) {
         if (!mounted) return;
         _loadNextNumberIfPossible();
       });
+      ctrl.addListener(_onControllerChanged);
     });
+  }
+
+  @override
+  void dispose() {
+    try {
+      context.read<CreateDebitNoteController>().removeListener(_onControllerChanged);
+    } catch (_) {}
+    super.dispose();
   }
 
   Future<void> _createOnBackend({required String status}) async {
@@ -379,6 +403,11 @@ class _CreateDebitNoteWizardScreenState
   }
 
   void _saveDraft() {
+    if (_createdDraft != null) {
+      if (!mounted) return;
+      Navigator.of(context).pop(_createdDraft);
+      return;
+    }
     _createOnBackend(status: 'draft');
   }
 
@@ -437,6 +466,12 @@ class _CreateDebitNoteWizardScreenState
           : <String>[];
 
       ctrl.setZatcaValidated(isValid && errors.isEmpty);
+      if (isValid && errors.isEmpty) {
+        final String uuid = (data['uuid'] ?? data['zatcaUuid'] ?? data['zatca']?['uuid'] ?? '').toString();
+        final String hash = (data['hash'] ?? data['zatcaHash'] ?? data['zatca']?['hash'] ?? '').toString();
+        _zatcaUuid = uuid.isNotEmpty ? uuid : null;
+        _zatcaHash = hash.isNotEmpty ? hash : null;
+      }
       if (!mounted) return;
 
       if (errors.isNotEmpty) {
@@ -480,6 +515,37 @@ class _CreateDebitNoteWizardScreenState
       );
       return;
     }
+    
+    // If we have a draft that was created during validation, submit that draft
+    // instead of creating a new note to avoid duplication
+    if (_createdDraft != null) {
+      if (!mounted) return;
+      final DebitNoteStatus finalStatus =
+          (_createdDraft!.originalInvoiceCustomerType ?? '').toLowerCase().contains('b2b')
+          ? DebitNoteStatus.cleared
+          : DebitNoteStatus.reported;
+
+      final DebitNote finalNote = DebitNote(
+        backendId: _createdDraft!.backendId,
+        id: _createdDraft!.id,
+        customer: _createdDraft!.customer,
+        customerType: _createdDraft!.customerType,
+        issueDate: _createdDraft!.issueDate,
+        currency: _createdDraft!.currency,
+        amount: _createdDraft!.amount,
+        status: finalStatus,
+        paymentStatus: _createdDraft!.paymentStatus,
+        originalInvoiceNo: _createdDraft!.originalInvoiceNo,
+        originalInvoiceCustomerType: _createdDraft!.originalInvoiceCustomerType,
+        zatcaUuid: _zatcaUuid,
+        zatcaHash: _zatcaHash,
+        items: _createdDraft!.items,
+      );
+      Navigator.of(context).pop(finalNote);
+      return;
+    }
+    
+    // Otherwise, create a new submitted note (fallback if validation wasn't performed)
     _createOnBackend(status: 'submitted');
   }
 
@@ -751,7 +817,7 @@ class _CreateDebitNoteWizardScreenState
                 children: <Widget>[
                   const Expanded(
                     child: Text(
-                      'VAT (15%)',
+                      'Total VAT',
                       style: TextStyle(
                         color: Color(0xFF6B7895),
                         fontWeight: FontWeight.w700,
@@ -1522,6 +1588,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
 
   Timer? _debounce;
   bool _isSearchingProducts = false;
+  bool _isSelectingProduct = false;
   List<Product> _productSuggestions = const <Product>[];
 
   Future<void> _searchProducts(String q) async {
@@ -1564,6 +1631,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
   }
 
   void _onDescChanged() {
+    if (_isSelectingProduct) return;
     _debounce?.cancel();
     final String q = _descController.text;
     _debounce = Timer(const Duration(milliseconds: 350), () {
@@ -1572,27 +1640,46 @@ class _AddItemSheetState extends State<_AddItemSheet> {
     });
   }
 
+  void _onTaxChanged() {
+    final double tax = double.tryParse(_taxController.text.trim()) ?? -1;
+    if (tax == 0) {
+      if (_vatCategory != 'Z - 0%' && _vatCategory != 'E - Exempt') {
+        setState(() {
+          _vatCategory = 'Z - 0%';
+        });
+      }
+    } else if (tax == 15) {
+      if (_vatCategory != 'S - 15%') {
+        setState(() {
+          _vatCategory = 'S - 15%';
+        });
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     final DebitNoteItem? it = widget.initialItem;
-    if (it == null) return;
-    _descController.text = it.description;
-    _qtyController.text = it.qty.toString();
-    _priceController.text = it.price.toString();
-    _discountController.text = it.discount.toString();
-    _taxController.text = it.taxPercent.toString();
-    _vatCategory = it.vatCategory;
-    const List<String> vatOptions = <String>[
-      'S - 15%',
-      'Z - 0%',
-      'E - Exempt',
-    ];
-    if (!vatOptions.contains(_vatCategory)) {
-      _vatCategory = 'S - 15%';
+    if (it != null) {
+      _descController.text = it.description;
+      _qtyController.text = it.qty.toString();
+      _priceController.text = it.price.toString();
+      _discountController.text = it.discount.toString();
+      _taxController.text = it.taxPercent.toString();
+      _vatCategory = it.vatCategory;
+      const List<String> vatOptions = <String>[
+        'S - 15%',
+        'Z - 0%',
+        'E - Exempt',
+      ];
+      if (!vatOptions.contains(_vatCategory)) {
+        _vatCategory = 'S - 15%';
+      }
     }
 
     _descController.addListener(_onDescChanged);
+    _taxController.addListener(_onTaxChanged);
   }
 
   @override
@@ -1606,6 +1693,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
   void dispose() {
     _debounce?.cancel();
     _descController.removeListener(_onDescChanged);
+    _taxController.removeListener(_onTaxChanged);
     _descController.dispose();
     _qtyController.dispose();
     _priceController.dispose();
@@ -1718,6 +1806,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                         ),
                       ),
                       onTap: () {
+                        _isSelectingProduct = true;
                         _descController.text = p.name;
                         _priceController.text = p.price.toString();
                         _taxController.text = p.taxRate.toString();
@@ -1729,6 +1818,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                             _vatCategory = 'S - 15%';
                           }
                         });
+                        _isSelectingProduct = false;
                       },
                     );
                   },
@@ -1788,7 +1878,14 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                       .toList(),
                   onChanged: (String? v) {
                     if (v == null) return;
-                    setState(() => _vatCategory = v);
+                    setState(() {
+                      _vatCategory = v;
+                      if (v.contains('15%')) {
+                        _taxController.text = '15';
+                      } else if (v.contains('0%') || v.toLowerCase().contains('exempt')) {
+                        _taxController.text = '0';
+                      }
+                    });
                   },
                   decoration: dec(label: 'VAT Category'),
                   icon: const Icon(Icons.keyboard_arrow_down_rounded),

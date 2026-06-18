@@ -505,7 +505,11 @@ class _DebitNotesScreenState extends State<DebitNotesScreen> {
       return;
     }
 
-    await notesCtrl.addDebitNote(result);
+    // Refresh the notes list from backend instead of manually adding
+    // This prevents duplication that can occur with manual list manipulation
+    await notesCtrl.refresh();
+
+    if (!mounted) return;
 
     messenger.showSnackBar(
       SnackBar(
@@ -800,12 +804,18 @@ class _DebitNotesScreenState extends State<DebitNotesScreen> {
                     amount: ctrl.amountLabel(n),
                     status: n.status,
                     onTap: () {
+                      final DebitNotesController notesCtrl =
+                          context.read<DebitNotesController>();
                       Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                          builder: (_) => DebitNoteDetailsScreen(
-                            initialNote: n,
-                            debitNoteId:
-                                n.backendId.trim().isEmpty ? null : n.backendId,
+                          builder: (_) => ChangeNotifierProvider<DebitNotesController>.value(
+                            value: notesCtrl,
+                            child: DebitNoteDetailsScreen(
+                              initialNote: n,
+                              debitNoteId: n.backendId.trim().isEmpty
+                                  ? null
+                                  : n.backendId,
+                            ),
                           ),
                         ),
                       );

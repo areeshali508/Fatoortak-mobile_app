@@ -9,13 +9,73 @@ class DashboardRepository {
     return (companyId ?? '').trim();
   }
 
+  String _normalizeDateRange(String? dateRange) {
+    final String normalized = (dateRange ?? '').trim();
+    return normalized.isEmpty ? '30days' : normalized;
+  }
+
+  DateTime? _parseBoundaryDate(String? raw, {required bool endOfDay}) {
+    final String value = (raw ?? '').trim();
+    if (value.isEmpty) return null;
+    final DateTime? parsed = DateTime.tryParse(value)?.toLocal();
+    if (parsed == null) return null;
+    if (endOfDay) {
+      return DateTime(
+        parsed.year,
+        parsed.month,
+        parsed.day,
+        23,
+        59,
+        59,
+        999,
+      );
+    }
+    return DateTime(parsed.year, parsed.month, parsed.day);
+  }
+
+  DateTime? _extractInvoiceDate(Map<String, dynamic> invoice) {
+    final List<Object?> candidates = <Object?>[
+      invoice['invoiceDate'],
+      invoice['createdAt'],
+      invoice['issueDate'],
+      invoice['date'],
+    ];
+    for (final Object? candidate in candidates) {
+      final String raw = candidate?.toString().trim() ?? '';
+      if (raw.isEmpty) continue;
+      final DateTime? parsed = DateTime.tryParse(raw)?.toLocal();
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+    return null;
+  }
+
+  bool _isWithinDateBounds(
+    DateTime value, {
+    DateTime? start,
+    DateTime? end,
+  }) {
+    if (start != null && value.isBefore(start)) {
+      return false;
+    }
+    if (end != null && value.isAfter(end)) {
+      return false;
+    }
+    return true;
+  }
+
   Future<double> getCompanyRevenueFromInvoices({
     required String companyId,
+    String? dateFrom,
+    String? dateTo,
     int pageLimit = 200,
     int maxInvoices = 2000,
   }) async {
     final String trimmedCompanyId = _trimCompanyId(companyId);
     if (trimmedCompanyId.isEmpty) return 0.0;
+    final DateTime? start = _parseBoundaryDate(dateFrom, endOfDay: false);
+    final DateTime? end = _parseBoundaryDate(dateTo, endOfDay: true);
 
     int page = 1;
     int? totalPages;
@@ -41,6 +101,12 @@ class DashboardRepository {
 
       for (final Object? inv in invoices) {
         if (inv is! Map<String, dynamic>) continue;
+        final DateTime? invoiceDate = _extractInvoiceDate(inv);
+        if ((start != null || end != null) &&
+            (invoiceDate == null ||
+                !_isWithinDateBounds(invoiceDate, start: start, end: end))) {
+          continue;
+        }
         final Object? t = inv['total'] ?? inv['grandTotal'] ?? inv['amount'];
         if (t is num) {
           sum += t.toDouble();
@@ -75,7 +141,13 @@ class DashboardRepository {
   }
 
   List<String> getFilterLabels() {
-    return const <String>['Last 30 Days'];
+    return const <String>[
+      'Last 7 Days',
+      'Last 30 Days',
+      'Last 3 Months',
+      'Last 6 Months',
+      'Last 12 Months',
+    ];
   }
 
   /// Get authoritative invoices total count using pagination.total
@@ -171,11 +243,18 @@ class DashboardRepository {
     String? companyId,
     String? dateFrom,
     String? dateTo,
+    String? dateRange,
   }) async {
     final String trimmedCompanyId = _trimCompanyId(companyId);
+    final String trimmedDateFrom = (dateFrom ?? '').trim();
+    final String trimmedDateTo = (dateTo ?? '').trim();
+    final bool hasExplicitDates =
+        trimmedDateFrom.isNotEmpty && trimmedDateTo.isNotEmpty;
     final Map<String, String> qp = <String, String>{
-      'dateRange': '30days',
       if (trimmedCompanyId.isNotEmpty) 'companyId': trimmedCompanyId,
+      if (hasExplicitDates) 'dateFrom': trimmedDateFrom,
+      if (hasExplicitDates) 'dateTo': trimmedDateTo,
+      if (!hasExplicitDates) 'dateRange': _normalizeDateRange(dateRange),
     };
 
     final Map<String, dynamic> res = await _api.getJson(
@@ -198,7 +277,7 @@ class DashboardRepository {
   }) async {
     final String trimmedCompanyId = _trimCompanyId(companyId);
     final Map<String, String> qp = <String, String>{
-      'dateRange': '30days',
+      'dateRange': _normalizeDateRange(period),
       if (trimmedCompanyId.isNotEmpty) 'companyId': trimmedCompanyId,
     };
 
@@ -221,10 +300,11 @@ class DashboardRepository {
   /// GET /api/reports/sales/invoice-distribution?dateRange={dateRange}&companyId={companyId}
   Future<List<InvoiceStatusDistribution>> getInvoiceDistribution({
     String? companyId,
+    String? dateRange,
   }) async {
     final String trimmedCompanyId = _trimCompanyId(companyId);
     final Map<String, String> qp = <String, String>{
-      'dateRange': '30days',
+      'dateRange': _normalizeDateRange(dateRange),
       if (trimmedCompanyId.isNotEmpty) 'companyId': trimmedCompanyId,
     };
 
@@ -247,10 +327,11 @@ class DashboardRepository {
   Future<List<TopCustomer>> getTopCustomers({
     String? companyId,
     int limit = 5,
+    String? dateRange,
   }) async {
     final String trimmedCompanyId = _trimCompanyId(companyId);
     final Map<String, String> qp = <String, String>{
-      'dateRange': '30days',
+      'dateRange': _normalizeDateRange(dateRange),
       'limit': limit.toString(),
       if (trimmedCompanyId.isNotEmpty) 'companyId': trimmedCompanyId,
     };
@@ -292,6 +373,31 @@ class DashboardRepository {
       }
     }
     return const InvoiceStats.empty();
+  }
+
+  /// Get customer statistics
+  /// GET /api/customers/stats?companyId={companyId}
+  Future<Map<String, dynamic>> getCustomerStats({
+    String? companyId,
+  }) async {
+    final String trimmedCompanyId = _trimCompanyId(companyId);
+    final Map<String, String> qp = <String, String>{
+      if (trimmedCompanyId.isNotEmpty) 'companyId': trimmedCompanyId,
+    };
+
+    final Map<String, dynamic> res = await _api.getJson(
+      '/api/customers/stats',
+      queryParameters: qp,
+    );
+
+    final Object? data = res['data'];
+    if (data is Map<String, dynamic>) {
+      final Object? stats = data['stats'];
+      if (stats is Map<String, dynamic>) {
+        return stats;
+      }
+    }
+    return const <String, dynamic>{};
   }
 }
 
@@ -484,6 +590,7 @@ class RevenueMetrics {
   final double trend;
   final bool trendUp;
   final Map<String, double> dailyRevenue;
+  final Map<String, double> invoiceCounts;
 
   const RevenueMetrics({
     required this.currentRevenue,
@@ -491,6 +598,7 @@ class RevenueMetrics {
     required this.trend,
     required this.trendUp,
     required this.dailyRevenue,
+    required this.invoiceCounts,
   });
 
   const RevenueMetrics.empty()
@@ -498,32 +606,42 @@ class RevenueMetrics {
         previousRevenue = 0.0,
         trend = 0.0,
         trendUp = true,
-        dailyRevenue = const <String, double>{};
+        dailyRevenue = const <String, double>{},
+        invoiceCounts = const <String, double>{};
 
   factory RevenueMetrics.fromMonthlyData(List<Map<String, dynamic>> monthlyData) {
     if (monthlyData.isEmpty) {
       return const RevenueMetrics.empty();
     }
 
-    double totalRevenue = 0.0;
+    final List<Map<String, dynamic>> sorted = List<Map<String, dynamic>>.from(monthlyData)
+      ..sort((Map<String, dynamic> a, Map<String, dynamic> b) {
+        final int ai = _monthSortValue(a);
+        final int bi = _monthSortValue(b);
+        return ai.compareTo(bi);
+      });
+
     final Map<String, double> daily = <String, double>{};
+    final Map<String, double> invoiceCounts = <String, double>{};
 
-    for (final Map<String, dynamic> item in monthlyData) {
+    for (final Map<String, dynamic> item in sorted) {
       final double revenue = _parseDouble(item['revenue']);
-      totalRevenue += revenue;
-
-      final String month = item['month']?.toString() ?? '';
-      if (month.isNotEmpty) {
-        daily[month] = revenue;
+      final String key = _seriesKeyFromMonthItem(item);
+      if (key.isNotEmpty) {
+        daily[key] = revenue;
+        invoiceCounts[key] = _parseDouble(item['invoices']);
       }
     }
 
-    // Calculate trend (compare last month to previous)
     double trend = 0.0;
     bool trendUp = true;
-    if (monthlyData.length >= 2) {
-      final double lastMonth = _parseDouble(monthlyData.last['revenue']);
-      final double previousMonth = _parseDouble(monthlyData[monthlyData.length - 2]['revenue']);
+    final double currentRevenue = _parseDouble(sorted.last['revenue']);
+    final double previousRevenue = sorted.length > 1
+        ? _parseDouble(sorted[sorted.length - 2]['revenue'])
+        : 0.0;
+    if (sorted.length >= 2) {
+      final double lastMonth = currentRevenue;
+      final double previousMonth = previousRevenue;
       if (previousMonth > 0) {
         trend = ((lastMonth - previousMonth) / previousMonth).abs() * 100;
         trendUp = lastMonth >= previousMonth;
@@ -531,13 +649,12 @@ class RevenueMetrics {
     }
 
     return RevenueMetrics(
-      currentRevenue: totalRevenue,
-      previousRevenue: monthlyData.length > 1
-          ? _parseDouble(monthlyData[monthlyData.length - 2]['revenue'])
-          : 0.0,
+      currentRevenue: currentRevenue,
+      previousRevenue: previousRevenue,
       trend: trend,
       trendUp: trendUp,
       dailyRevenue: daily,
+      invoiceCounts: invoiceCounts,
     );
   }
 
@@ -559,8 +676,62 @@ class RevenueMetrics {
       trend: trend.abs(),
       trendUp: trend >= 0,
       dailyRevenue: daily,
+      invoiceCounts: const <String, double>{},
     );
   }
+}
+
+int _monthSortValue(Map<String, dynamic> item) {
+  final String rawYear = item['year']?.toString().trim() ?? '';
+  final int year = int.tryParse(rawYear) ?? 0;
+  final int month = _monthNumberFromValue(item['month']);
+  if (year > 0 && month > 0) {
+    return (year * 12) + month;
+  }
+  if (month > 0) {
+    return month;
+  }
+  return 0;
+}
+
+String _seriesKeyFromMonthItem(Map<String, dynamic> item) {
+  final String rawYear = item['year']?.toString().trim() ?? '';
+  final int? year = int.tryParse(rawYear);
+  final int month = _monthNumberFromValue(item['month']);
+  if (year != null && month > 0) {
+    final String mm = month.toString().padLeft(2, '0');
+    return '${year.toString().padLeft(4, '0')}-$mm';
+  }
+  return item['month']?.toString().trim() ?? '';
+}
+
+int _monthNumberFromValue(dynamic value) {
+  final String raw = value?.toString().trim() ?? '';
+  if (raw.isEmpty) return 0;
+  final int? numeric = int.tryParse(raw);
+  if (numeric != null && numeric >= 1 && numeric <= 12) {
+    return numeric;
+  }
+  const List<String> monthShortNames = <String>[
+    'jan',
+    'feb',
+    'mar',
+    'apr',
+    'may',
+    'jun',
+    'jul',
+    'aug',
+    'sep',
+    'oct',
+    'nov',
+    'dec',
+  ];
+  final String prefix = raw.length >= 3 ? raw.substring(0, 3).toLowerCase() : raw.toLowerCase();
+  final int index = monthShortNames.indexOf(prefix);
+  if (index == -1) {
+    return 0;
+  }
+  return index + 1;
 }
 
 double _parseDouble(dynamic value) {

@@ -278,6 +278,185 @@ class _CompanyFilter extends StatelessWidget {
   }
 }
 
+class _PeriodFilter extends StatelessWidget {
+  final int selectedIndex;
+  final List<String> labels;
+  final bool isLoading;
+  final Future<void> Function(int index) onChanged;
+
+  const _PeriodFilter({
+    required this.selectedIndex,
+    required this.labels,
+    required this.isLoading,
+    required this.onChanged,
+  });
+
+  Future<void> _openPeriodPicker(BuildContext context) async {
+    if (isLoading || labels.isEmpty) return;
+
+    final int? picked = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (BuildContext ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 6, 18, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                const Text(
+                  'Select Period',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFF0B1B4B),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: labels.length,
+                    separatorBuilder: (BuildContext context, int index) =>
+                        const SizedBox(height: 8),
+                    itemBuilder: (BuildContext context, int index) {
+                      final bool isSelected = index == selectedIndex;
+                      final String label = labels[index];
+                      return Material(
+                        color: const Color(0xFFF7FAFF),
+                        borderRadius: BorderRadius.circular(14),
+                        child: InkWell(
+                          onTap: () => Navigator.of(ctx).pop(index),
+                          borderRadius: BorderRadius.circular(14),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            child: Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: Text(
+                                    label,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xFF0B1B4B),
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                                Icon(
+                                  isSelected
+                                      ? Icons.radio_button_checked
+                                      : Icons.radio_button_off,
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : const Color(0xFF9AA5B6),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (picked == null || picked == selectedIndex) {
+      return;
+    }
+    await onChanged(picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final int safeIndex = labels.isEmpty
+        ? 0
+        : (selectedIndex < 0
+            ? 0
+            : (selectedIndex >= labels.length ? labels.length - 1 : selectedIndex));
+    final String label = labels.isEmpty ? 'Last 30 Days' : labels[safeIndex];
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: <Widget>[
+          const Text(
+            'Period',
+            style: TextStyle(
+              color: Color(0xFF9AA5B6),
+              fontWeight: FontWeight.w800,
+              fontSize: 11,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Material(
+              color: const Color(0xFFF7FAFF),
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                onTap: isLoading ? null : () => _openPeriodPicker(context),
+                borderRadius: BorderRadius.circular(14),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF0B1B4B),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      if (isLoading)
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: Color(0xFF9AA5B6),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
@@ -462,6 +641,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       onChanged: ctrl.setCompanyId,
                                     );
                                   },
+                                );
+                              },
+                            ),
+                            SizedBox(height: gap * 0.75),
+                            Selector<DashboardController, int>(
+                              selector: (_, DashboardController c) => c.filterIndex,
+                              builder: (
+                                BuildContext context,
+                                int filterIndex,
+                                Widget? _,
+                              ) {
+                                return _PeriodFilter(
+                                  selectedIndex: filterIndex,
+                                  labels: ctrl.filterLabels,
+                                  isLoading: isLoading,
+                                  onChanged: ctrl.setFilterIndex,
                                 );
                               },
                             ),
@@ -957,6 +1152,8 @@ class _ProgressCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Color(0xFF0B1B4B),
                     fontWeight: FontWeight.w800,
@@ -964,8 +1161,11 @@ class _ProgressCard extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
                 value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Color(0xFF0B1B4B),
                   fontWeight: FontWeight.w900,
@@ -1427,13 +1627,17 @@ class _StatCard extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Color(0xFF9AA5B6),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 11,
-                  letterSpacing: 1.2,
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF9AA5B6),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                    letterSpacing: 1.2,
+                  ),
                 ),
               ),
               const Spacer(),
@@ -1534,6 +1738,8 @@ class _CustomerTile extends StatelessWidget {
               children: <Widget>[
                 Text(
                   name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Color(0xFF0B1B4B),
                     fontWeight: FontWeight.w800,
@@ -1543,6 +1749,8 @@ class _CustomerTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   time,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Color(0xFF9AA5B6),
                     fontWeight: FontWeight.w700,
@@ -1552,8 +1760,11 @@ class _CustomerTile extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(width: 8),
           Text(
             amount,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Color(0xFF0B1B4B),
               fontWeight: FontWeight.w900,

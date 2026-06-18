@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../controllers/auth_controller.dart';
 import '../models/product.dart';
 import '../repositories/product_repository.dart';
 
@@ -7,6 +8,7 @@ class ProductController extends ChangeNotifier {
   ProductRepository _repository;
   bool _isLoading = false;
   String? _errorMessage;
+  String? _lastCompanyId;
 
   List<Product> _products = const <Product>[];
 
@@ -20,6 +22,19 @@ class ProductController extends ChangeNotifier {
 
   void updateRepository(ProductRepository repository) {
     _repository = repository;
+  }
+
+  void syncWithAuth(AuthController auth) {
+    final String? cid = auth.activeCompanyId;
+    if (!auth.isAuthenticated || cid == null) {
+      _products = const <Product>[];
+      _lastCompanyId = null;
+      notifyListeners();
+    } else if (cid != _lastCompanyId) {
+      _products = const <Product>[];
+      _lastCompanyId = cid;
+      notifyListeners();
+    }
   }
 
   Future<void> refresh({

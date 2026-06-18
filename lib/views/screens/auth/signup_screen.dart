@@ -17,6 +17,7 @@ class SignUpScreen extends StatefulWidget {
 class _SignUpScreenState extends State<SignUpScreen> {
   bool _obscure = true;
   bool _acceptedTerms = false;
+  _StrengthLevel _passwordStrength = _StrengthLevel.weak;
 
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
@@ -24,7 +25,42 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(_updatePasswordStrength);
+  }
+
+  void _updatePasswordStrength() {
+    final String text = _passwordController.text;
+    _StrengthLevel newLevel = _StrengthLevel.weak;
+    if (text.length >= 8) {
+      final bool hasUpper = text.contains(RegExp(r'[A-Z]'));
+      final bool hasLower = text.contains(RegExp(r'[a-z]'));
+      final bool hasDigit = text.contains(RegExp(r'[0-9]'));
+      final bool hasSpecial = text.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>]'));
+      
+      int types = 0;
+      if (hasUpper) types++;
+      if (hasLower) types++;
+      if (hasDigit) types++;
+      if (hasSpecial) types++;
+      
+      if (types >= 3) {
+        newLevel = _StrengthLevel.strong;
+      } else if (types == 2 || text.length >= 10) {
+        newLevel = _StrengthLevel.medium;
+      }
+    }
+    if (newLevel != _passwordStrength) {
+      setState(() {
+        _passwordStrength = newLevel;
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    _passwordController.removeListener(_updatePasswordStrength);
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
@@ -282,7 +318,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                           _PasswordStrength(
                             constraints: constraints,
-                            level: _StrengthLevel.medium,
+                            level: _passwordStrength,
                           ),
                           SizedBox(height: sectionGap),
                           Row(
@@ -352,7 +388,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           SizedBox(
                             height: btnH,
                             child: ElevatedButton(
-                              onPressed: isLoading
+                              onPressed: isLoading || !_acceptedTerms
                                   ? null
                                   : () async {
                                 final AuthController auth = context

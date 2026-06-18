@@ -175,10 +175,10 @@ class AuthRepository {
               final Object? token = decoded['token'];
               if (token is String && token.trim().isNotEmpty) {
                 _inMemoryToken = token.trim();
-                await _secureStorage.write(
+                unawaited(_secureStorage.write(
                   key: _tokenStorageKey,
                   value: token.trim(),
-                );
+                ));
               }
             }
           } catch (_) {

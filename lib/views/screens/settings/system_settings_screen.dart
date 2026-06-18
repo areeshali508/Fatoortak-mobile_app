@@ -25,7 +25,34 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final SystemSettingsController ctrl = context.watch<SystemSettingsController>();
+        // PERF: select only the fields we need — avoids full rebuild on every controller change
+        final bool isLoading = context.select<SystemSettingsController, bool>(
+          (SystemSettingsController c) => c.isLoading,
+        );
+        final bool isSaving = context.select<SystemSettingsController, bool>(
+          (SystemSettingsController c) => c.isSaving,
+        );
+        final bool isDirty = context.select<SystemSettingsController, bool>(
+          (SystemSettingsController c) => c.isDirty,
+        );
+        final bool emailNotifications = context.select<SystemSettingsController, bool>(
+          (SystemSettingsController c) => c.emailNotifications,
+        );
+        final bool smsNotifications = context.select<SystemSettingsController, bool>(
+          (SystemSettingsController c) => c.smsNotifications,
+        );
+        final bool pushNotifications = context.select<SystemSettingsController, bool>(
+          (SystemSettingsController c) => c.pushNotifications,
+        );
+        final bool systemAlerts = context.select<SystemSettingsController, bool>(
+          (SystemSettingsController c) => c.systemAlerts,
+        );
+        final bool maintenanceAlerts = context.select<SystemSettingsController, bool>(
+          (SystemSettingsController c) => c.maintenanceAlerts,
+        );
+        final String? errorMessage = context.select<SystemSettingsController, String?>(
+          (SystemSettingsController c) => c.errorMessage,
+        );
 
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 6),
@@ -75,7 +102,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                           ),
                           const SizedBox(height: 12),
                           ElevatedButton(
-                            onPressed: (!ctrl.isDirty || ctrl.isSaving)
+                            onPressed: (!isDirty || isSaving)
                                 ? null
                                 : () async {
                                     final bool ok = await context
@@ -87,7 +114,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                                         content: Text(
                                           ok
                                               ? 'Saved successfully'
-                                              : (ctrl.errorMessage ?? 'Save failed'),
+                                              : (errorMessage ?? 'Save failed'),
                                         ),
                                       ),
                                     );
@@ -101,7 +128,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                               ),
                               textStyle: const TextStyle(fontWeight: FontWeight.w900),
                             ),
-                            child: Text(ctrl.isSaving ? 'Saving...' : 'Save All Changes'),
+                            child: Text(isSaving ? 'Saving...' : 'Save All Changes'),
                           ),
                         ],
                       ),
@@ -117,8 +144,8 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                       icon: Icons.email_outlined,
                       title: 'Email Notifications',
                       subtitle: 'Receive email notifications for important events',
-                      value: ctrl.emailNotifications,
-                      onChanged: ctrl.isLoading
+                      value: emailNotifications,
+                      onChanged: isLoading
                           ? null
                           : (bool v) => context
                               .read<SystemSettingsController>()
@@ -128,8 +155,8 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                       icon: Icons.sms_outlined,
                       title: 'Sms Notifications',
                       subtitle: 'Receive SMS notifications for urgent matters',
-                      value: ctrl.smsNotifications,
-                      onChanged: ctrl.isLoading
+                      value: smsNotifications,
+                      onChanged: isLoading
                           ? null
                           : (bool v) => context
                               .read<SystemSettingsController>()
@@ -139,8 +166,8 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                       icon: Icons.notifications_outlined,
                       title: 'Push Notifications',
                       subtitle: 'Receive browser push notifications',
-                      value: ctrl.pushNotifications,
-                      onChanged: ctrl.isLoading
+                      value: pushNotifications,
+                      onChanged: isLoading
                           ? null
                           : (bool v) => context
                               .read<SystemSettingsController>()
@@ -150,14 +177,14 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                       icon: Icons.warning_amber_outlined,
                       title: 'System Alerts',
                       subtitle: 'Get notified about system updates and maintenance',
-                      value: ctrl.systemAlerts,
-                      onChanged: ctrl.isLoading
+                      value: systemAlerts,
+                      onChanged: isLoading
                           ? null
                           : (bool v) => context
                               .read<SystemSettingsController>()
                               .setSystemAlerts(v),
                     ),
-                    _SwitchTile(
+                    const _SwitchTile(
                       icon: Icons.security_outlined,
                       title: 'Security Alerts',
                       subtitle: 'Critical security notifications (always enabled)',
@@ -169,8 +196,8 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                       icon: Icons.build_outlined,
                       title: 'Maintenance Alerts',
                       subtitle: 'Scheduled maintenance and downtime notices',
-                      value: ctrl.maintenanceAlerts,
-                      onChanged: ctrl.isLoading
+                      value: maintenanceAlerts,
+                      onChanged: isLoading
                           ? null
                           : (bool v) => context
                               .read<SystemSettingsController>()

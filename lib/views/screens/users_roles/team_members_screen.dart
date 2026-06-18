@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -21,13 +23,20 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _query = '';
 
+  // PERF: debounce timer to avoid setState on every keystroke
+  Timer? _debounce;
+
   @override
   void initState() {
     super.initState();
-    _searchCtrl.addListener(() {
+    _searchCtrl.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
       final String next = _searchCtrl.text;
-      if (next == _query) return;
-      if (!mounted) return;
+      if (next == _query || !mounted) return;
       setState(() {
         _query = next;
       });
@@ -36,6 +45,8 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _searchCtrl.removeListener(_onSearchChanged);
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -217,7 +228,16 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final UsersController ctrl = context.watch<UsersController>();
+        // PERF: select only what we need — avoids rebuilding the whole screen on unrelated changes
+        final bool isLoading = context.select<UsersController, bool>(
+          (UsersController c) => c.isLoading,
+        );
+        final List<UserModel> users = context.select<UsersController, List<UserModel>>(
+          (UsersController c) => c.users,
+        );
+        final String? errorMessage = context.select<UsersController, String?>(
+          (UsersController c) => c.errorMessage,
+        );
         final double hPad = AppResponsive.clamp(
           AppResponsive.vw(constraints, 5.5),
           16,
@@ -230,15 +250,15 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
           18,
         );
 
-        final bool showSkeleton = ctrl.isLoading && ctrl.users.isEmpty;
-        final bool showRefreshingBar = ctrl.isLoading && ctrl.users.isNotEmpty;
+        final bool showSkeleton = isLoading && users.isEmpty;
+        final bool showRefreshingBar = isLoading && users.isNotEmpty;
         final bool showError =
-            ctrl.errorMessage != null && ctrl.errorMessage!.trim().isNotEmpty;
+            errorMessage != null && errorMessage.trim().isNotEmpty;
 
         final String q = _query.trim().toLowerCase();
         final List<UserModel> filteredUsers = q.isEmpty
-            ? ctrl.users
-            : ctrl.users.where((UserModel u) {
+            ? users
+            : users.where((UserModel u) {
                 final String name = u.fullName.toLowerCase();
                 final String email = u.email.toLowerCase();
                 final String role = u.roleName.toLowerCase();
@@ -325,12 +345,12 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                     title: 'Team Members',
                     child: Builder(
                       builder: (BuildContext context) {
-                        if (showError && ctrl.users.isEmpty) {
+                        if (showError && users.isEmpty) {
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: <Widget>[
                               Text(
-                                ctrl.errorMessage!.trim(),
+                                errorMessage.trim(),
                                 style: const TextStyle(
                                   color: Color(0xFF0B1B4B),
                                   fontWeight: FontWeight.w700,
@@ -339,7 +359,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                               ),
                               const SizedBox(height: 12),
                               OutlinedButton.icon(
-                                onPressed: ctrl.isLoading ? null : _reload,
+                                onPressed: isLoading ? null : _reload,
                                 icon: const Icon(Icons.refresh),
                                 label: const Text('Retry'),
                               ),
@@ -353,7 +373,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                             absorbing: showSkeleton,
                             child: Builder(
                               builder: (BuildContext context) {
-                                if (ctrl.users.isEmpty && !showSkeleton) {
+                                if (users.isEmpty && !showSkeleton) {
                                   return Column(
                                     crossAxisAlignment: CrossAxisAlignment.stretch,
                                     children: <Widget>[
@@ -454,10 +474,10 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                       },
                     ),
                   ),
-                  if (showError && ctrl.users.isNotEmpty) ...<Widget>[
+                  if (showError && users.isNotEmpty) ...<Widget>[
                     const SizedBox(height: 12),
                     Text(
-                      ctrl.errorMessage!.trim(),
+                      errorMessage.trim(),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Color(0xFFD93025),
