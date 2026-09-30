@@ -34,6 +34,35 @@ class PosController extends ChangeNotifier {
     _products = const <Product>[];
     _filteredProducts = const <Product>[];
     _sessionOrders.clear();
+    _holdCarts.clear();
+    _selectedCategory = 'All';
+    notifyListeners();
+  }
+
+  // ─── Categories ──────────────────────────────────────────────────────────
+  String _selectedCategory = 'All';
+  String get selectedCategory => _selectedCategory;
+
+  List<String> get categories {
+    final Set<String> cats = {'All'};
+    for (final Product p in _products) {
+      if (p.category.trim().isNotEmpty) {
+        cats.add(p.category.trim());
+      }
+    }
+    return cats.toList()
+      ..sort((String a, String b) {
+        if (a == 'All') return -1;
+        if (b == 'All') return 1;
+        return a.compareTo(b);
+      });
+  }
+
+  void setSelectedCategory(String cat) {
+    final String next = cat.trim();
+    if (next == _selectedCategory) return;
+    _selectedCategory = next;
+    _applySearchAndFilter();
     notifyListeners();
   }
 
@@ -56,7 +85,8 @@ class PosController extends ChangeNotifier {
         companyId: cid.isEmpty ? null : cid,
         limit: 100,
       );
-      _applySearch(_productSearch);
+      _selectedCategory = 'All';
+      _applySearchAndFilter();
     } catch (_) {
       _products = const <Product>[];
       _filteredProducts = const <Product>[];
@@ -68,21 +98,24 @@ class PosController extends ChangeNotifier {
 
   void setProductSearch(String q) {
     _productSearch = q.trim();
-    _applySearch(_productSearch);
+    _applySearchAndFilter();
     notifyListeners();
   }
 
-  void _applySearch(String q) {
-    if (q.isEmpty) {
-      _filteredProducts = _products;
-      return;
+  void _applySearchAndFilter() {
+    List<Product> results = _products;
+    if (_selectedCategory != 'All') {
+      results = results.where((Product p) => p.category == _selectedCategory).toList();
     }
-    final String lower = q.toLowerCase();
-    _filteredProducts = _products.where((Product p) {
-      return p.name.toLowerCase().contains(lower) ||
-          p.sku.toLowerCase().contains(lower) ||
-          p.barcode.toLowerCase().contains(lower);
-    }).toList();
+    if (_productSearch.isNotEmpty) {
+      final String lower = _productSearch.toLowerCase();
+      results = results.where((Product p) {
+        return p.name.toLowerCase().contains(lower) ||
+            p.sku.toLowerCase().contains(lower) ||
+            p.barcode.toLowerCase().contains(lower);
+      }).toList();
+    }
+    _filteredProducts = results;
   }
 
   // ─── Customers ───────────────────────────────────────────────────────────
@@ -282,6 +315,41 @@ class PosController extends ChangeNotifier {
       _isCheckingOut = false;
       notifyListeners();
     }
+  }
+
+  // ─── On Hold Carts ───────────────────────────────────────────────────────
+  final List<PosHoldCart> _holdCarts = <PosHoldCart>[];
+  List<PosHoldCart> get holdCarts => List<PosHoldCart>.unmodifiable(_holdCarts);
+
+  void holdCurrentCart({String? notes}) {
+    if (_cart.isEmpty) return;
+
+    final String holdId = DateTime.now().millisecondsSinceEpoch.toString();
+    final PosHoldCart hold = PosHoldCart(
+      id: holdId,
+      createdAt: DateTime.now(),
+      items: List<PosCartItem>.from(_cart),
+      customer: _selectedCustomer,
+      notes: (notes ?? '').trim().isEmpty ? null : notes!.trim(),
+    );
+
+    _holdCarts.insert(0, hold);
+    clearCart();
+    notifyListeners();
+  }
+
+  void resumeHoldCart(PosHoldCart hold) {
+    _cart.clear();
+    _cart.addAll(hold.items);
+    _selectedCustomer = hold.customer;
+
+    _holdCarts.removeWhere((PosHoldCart hc) => hc.id == hold.id);
+    notifyListeners();
+  }
+
+  void deleteHoldCart(String id) {
+    _holdCarts.removeWhere((PosHoldCart hc) => hc.id == id);
+    notifyListeners();
   }
 
   // ─── Utility ──────────────────────────────────────────────────────────────

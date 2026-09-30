@@ -10,7 +10,6 @@ import '../controllers/invoice_controller.dart';
 import '../controllers/product_controller.dart';
 import '../controllers/reports_controller.dart';
 import '../controllers/zatca_controller.dart';
-import '../controllers/pos_controller.dart';
 import '../core/services/api_client.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/credit_note_repository.dart';
@@ -161,20 +160,6 @@ class AppProviders {
         }
         prev.updateApi(api);
         return prev;
-      },
-    ),
-    ChangeNotifierProxyProvider3<ProductRepository, CustomerRepository, InvoiceRepository, PosController>(
-      create: (BuildContext ctx) => PosController(
-        productRepository: ctx.read<ProductRepository>(),
-        customerRepository: ctx.read<CustomerRepository>(),
-        invoiceRepository: ctx.read<InvoiceRepository>(),
-      ),
-      update: (BuildContext ctx, ProductRepository prodRepo, CustomerRepository custRepo, InvoiceRepository invRepo, PosController? prev) {
-        return prev ?? PosController(
-          productRepository: prodRepo,
-          customerRepository: custRepo,
-          invoiceRepository: invRepo,
-        );
       },
     ),
     Provider<SettingsRepository>(create: (_) => const SettingsRepository()),

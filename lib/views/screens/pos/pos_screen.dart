@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -124,8 +124,8 @@ class _PosScreenState extends State<PosScreen>
     }
     final PosOrder? order = await ctrl.checkout();
     if (!mounted) return;
-    Navigator.of(context).pop();
     if (order != null) {
+      Navigator.of(context).pop();
       _cashCtrl.clear();
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
@@ -161,10 +161,38 @@ class _PosScreenState extends State<PosScreen>
           ),
         ),
         actions: <Widget>[
+          Selector<PosController, int>(
+            selector: (_, PosController c) => c.holdCarts.length,
+            builder: (BuildContext context, int holdCount, Widget? child) => Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                IconButton(
+                  icon: const Icon(Icons.folder_special_outlined),
+                  tooltip: 'On Hold Sales',
+                  onPressed: _openHoldCartsSheet,
+                ),
+                if (holdCount > 0)
+                  Positioned(
+                    right: 4,
+                    top: 4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                          color: AppColors.primary, shape: BoxShape.circle),
+                      child: Text('$holdCount',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w900)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           if (!wide)
             Selector<PosController, int>(
               selector: (_, PosController c) => c.cartItemCount,
-              builder: (_, int count, __) => Stack(
+              builder: (BuildContext context, int count, Widget? child) => Stack(
                 clipBehavior: Clip.none,
                 children: <Widget>[
                   IconButton(
@@ -211,6 +239,7 @@ class _PosScreenState extends State<PosScreen>
             child: _CartPanel(
               onCustomer: _openCustomerPicker,
               onCheckout: _openPayment,
+              onHold: _openHoldDialog,
             ),
           ),
         ],
@@ -236,11 +265,156 @@ class _PosScreenState extends State<PosScreen>
               child: _CartPanel(
                 onCustomer: _openCustomerPicker,
                 onCheckout: _openPayment,
+                onHold: _openHoldDialog,
               ),
             ),
           ),
         ],
       );
+
+  Future<void> _openHoldDialog() async {
+    final PosController ctrl = context.read<PosController>();
+    if (ctrl.cartIsEmpty) return;
+
+    final TextEditingController notesCtrl = TextEditingController();
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: const Text('Hold Current Sale',
+            style: TextStyle(
+                color: Color(0xFF0B1B4B),
+                fontWeight: FontWeight.w900,
+                fontSize: 18)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            const Text(
+                'Enter notes or a reference name to identify this sale later.',
+                style: TextStyle(color: Color(0xFF6B7895), fontSize: 13)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: notesCtrl,
+              autofocus: true,
+              style: const TextStyle(fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'e.g. Table 5, John',
+                hintStyle: const TextStyle(color: Color(0xFF9AA5B6)),
+                filled: true,
+                fillColor: const Color(0xFFF7FAFF),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFE9EEF5)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide:
+                      const BorderSide(color: AppColors.primary, width: 1.2),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel',
+                style: TextStyle(
+                    color: Color(0xFF6B7895), fontWeight: FontWeight.w700)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Hold Sale',
+                style: TextStyle(fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      ctrl.holdCurrentCart(notes: notesCtrl.text);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sale put on hold')),
+      );
+    }
+    notesCtrl.dispose();
+  }
+
+  Future<void> _openHoldCartsSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext ctx) => _HoldCartsSheet(
+        onResume: (PosHoldCart holdCart) => _resumeCart(ctx, holdCart),
+      ),
+    );
+  }
+
+  Future<void> _resumeCart(
+      BuildContext sheetContext, PosHoldCart holdCart) async {
+    final PosController ctrl = context.read<PosController>();
+
+    if (!ctrl.cartIsEmpty) {
+      final bool? confirm = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext ctx) => AlertDialog(
+          backgroundColor: Colors.white,
+          title: const Text('Overwrite Cart?',
+              style: TextStyle(
+                  color: Color(0xFF0B1B4B),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18)),
+          content: const Text(
+            'Your current active cart is not empty. Resuming this sale will overwrite your current items. Do you want to proceed?',
+            style: TextStyle(color: Color(0xFF6B7895), fontSize: 13),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel',
+                  style: TextStyle(
+                      color: Color(0xFF6B7895), fontWeight: FontWeight.w700)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFD93025),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Overwrite',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+
+    ctrl.resumeHoldCart(holdCart);
+    if (sheetContext.mounted) {
+      Navigator.of(sheetContext).pop();
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sale resumed')),
+      );
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -287,77 +461,86 @@ class _ProductGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Selector<PosController,
-        ({List<Product> products, bool loading, String search})>(
-      selector: (_, PosController c) => (
-        products: c.filteredProducts,
-        loading: c.isLoadingProducts,
-        search: c.productSearch,
-      ),
-      builder: (BuildContext ctx,
-          ({List<Product> products, bool loading, String search}) vm, _) {
-        if (vm.loading) {
-          return Skeletonizer(
-            enabled: true,
-            child: GridView.builder(
-              padding: const EdgeInsets.all(14),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 180,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.82,
-              ),
-              itemCount: 8,
-              itemBuilder: (_, __) => const _ProductCardSkeleton(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        const _CategoryChips(),
+        Expanded(
+          child: Selector<PosController,
+              ({List<Product> products, bool loading, String search})>(
+            selector: (_, PosController c) => (
+              products: c.filteredProducts,
+              loading: c.isLoadingProducts,
+              search: c.productSearch,
             ),
-          );
-        }
-        if (vm.products.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(Icons.inventory_2_outlined,
-                      size: 52, color: Colors.grey[300]),
-                  const SizedBox(height: 12),
-                  Text(
-                    vm.search.isEmpty
-                        ? 'No products found'
-                        : 'No results for "${vm.search}"',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        color: Color(0xFF9AA5B6),
-                        fontWeight: FontWeight.w700),
+            builder: (BuildContext ctx,
+                ({List<Product> products, bool loading, String search}) vm, _) {
+              if (vm.loading) {
+                return Skeletonizer(
+                  enabled: true,
+                  child: GridView.builder(
+                    padding: const EdgeInsets.fromLTRB(14, 2, 14, 14),
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 180,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      childAspectRatio: 0.82,
+                    ),
+                    itemCount: 8,
+                    itemBuilder: (BuildContext context, int index) =>
+                        const _ProductCardSkeleton(),
                   ),
-                ],
-              ),
-            ),
-          );
-        }
-        return RefreshIndicator(
-          onRefresh: () => ctx.read<PosController>().loadProducts(),
-          child: GridView.builder(
-            padding: const EdgeInsets.all(14),
-            physics: const AlwaysScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 180,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.82,
-            ),
-            itemCount: vm.products.length,
-            itemBuilder: (BuildContext context, int i) {
-              final Product p = vm.products[i];
-              return _ProductTile(
-                product: p,
-                onTap: () => ctx.read<PosController>().addToCart(p),
+                );
+              }
+              if (vm.products.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(Icons.inventory_2_outlined,
+                            size: 52, color: Colors.grey[300]),
+                        const SizedBox(height: 12),
+                        Text(
+                          vm.search.isEmpty
+                              ? 'No products found'
+                              : 'No results for "${vm.search}"',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              color: Color(0xFF9AA5B6),
+                              fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              return RefreshIndicator(
+                onRefresh: () => ctx.read<PosController>().loadProducts(),
+                child: GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(14, 2, 14, 14),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 180,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 0.82,
+                  ),
+                  itemCount: vm.products.length,
+                  itemBuilder: (BuildContext context, int i) {
+                    final Product p = vm.products[i];
+                    return _ProductTile(
+                      product: p,
+                      onTap: () => ctx.read<PosController>().addToCart(p),
+                    );
+                  },
+                ),
               );
             },
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }
@@ -466,7 +649,13 @@ class _ProductCardSkeleton extends StatelessWidget {
 class _CartPanel extends StatelessWidget {
   final VoidCallback onCustomer;
   final VoidCallback onCheckout;
-  const _CartPanel({required this.onCustomer, required this.onCheckout});
+  final VoidCallback onHold;
+
+  const _CartPanel({
+    required this.onCustomer,
+    required this.onCheckout,
+    required this.onHold,
+  });
 
   static String _fmt(double v) {
     if ((v - v.truncateToDouble()).abs() < 0.005) return 'SAR ${v.toStringAsFixed(0)}';
@@ -668,34 +857,65 @@ class _CartPanel extends StatelessWidget {
                                     fontSize: 18)),
                           ]),
                       const SizedBox(height: 12),
-                      SizedBox(
-                        height: 48,
-                        child: ElevatedButton.icon(
-                          onPressed:
-                              vm.busy ? null : onCheckout,
-                          icon: vm.busy
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2.2,
-                                      color: Colors.white))
-                              : const Icon(
-                                  Icons.point_of_sale_outlined),
-                          label: Text(vm.busy
-                              ? 'Processing…'
-                              : 'Charge ${_fmt(vm.total)}'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(14)),
-                            textStyle: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 14),
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            flex: 2,
+                            child: SizedBox(
+                              height: 48,
+                              child: OutlinedButton.icon(
+                                onPressed: vm.cart.isEmpty || vm.busy
+                                    ? null
+                                    : onHold,
+                                icon: const Icon(Icons.pause_circle_outline,
+                                    size: 18),
+                                label: const Text('Hold'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.primary,
+                                  side: const BorderSide(
+                                      color: AppColors.primary),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14)),
+                                  textStyle: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 14),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 3,
+                            child: SizedBox(
+                              height: 48,
+                              child: ElevatedButton.icon(
+                                onPressed: vm.busy ? null : onCheckout,
+                                icon: vm.busy
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2.2,
+                                            color: Colors.white))
+                                    : const Icon(
+                                        Icons.point_of_sale_outlined),
+                                label: Text(vm.busy
+                                    ? 'Processing…'
+                                    : 'Charge ${_fmt(vm.total)}'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(14)),
+                                  textStyle: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 14),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1058,7 +1278,7 @@ class _PaymentSheet extends StatelessWidget {
                   const SizedBox(height: 6),
                   Selector<PosController, double>(
                     selector: (_, PosController c) => c.cartTotal,
-                    builder: (_, double total, __) => Text(
+                    builder: (BuildContext context, double total, Widget? child) => Text(
                       _fmt(total),
                       style: const TextStyle(
                           color: Colors.white,
@@ -1079,34 +1299,38 @@ class _PaymentSheet extends StatelessWidget {
                     fontSize: 12,
                     letterSpacing: 0.8)),
             const SizedBox(height: 8),
-            Selector<PosController, PosPaymentMethod>(
-              selector: (_, PosController c) => c.paymentMethod,
-              builder: (BuildContext ctx, PosPaymentMethod method, _) {
+            Selector<PosController, ({PosPaymentMethod method, bool busy})>(
+              selector: (_, PosController c) => (method: c.paymentMethod, busy: c.isCheckingOut),
+              builder: (BuildContext context, ({PosPaymentMethod method, bool busy}) vm, Widget? child) {
                 return Row(
                   children: <Widget>[
                     _PayChip(
                       label: 'Cash',
                       icon: Icons.payments_outlined,
-                      selected: method == PosPaymentMethod.cash,
-                      onTap: () => ctrl
-                          .setPaymentMethod(PosPaymentMethod.cash),
+                      selected: vm.method == PosPaymentMethod.cash,
+                      onTap: vm.busy
+                          ? null
+                          : () => ctrl.setPaymentMethod(PosPaymentMethod.cash),
                     ),
                     const SizedBox(width: 8),
                     _PayChip(
                       label: 'Card',
                       icon: Icons.credit_card_outlined,
-                      selected: method == PosPaymentMethod.card,
-                      onTap: () => ctrl
-                          .setPaymentMethod(PosPaymentMethod.card),
+                      selected: vm.method == PosPaymentMethod.card,
+                      onTap: vm.busy
+                          ? null
+                          : () => ctrl.setPaymentMethod(PosPaymentMethod.card),
                     ),
                     const SizedBox(width: 8),
                     _PayChip(
                       label: 'Bank',
                       icon: Icons.account_balance_outlined,
                       selected:
-                          method == PosPaymentMethod.bankTransfer,
-                      onTap: () => ctrl.setPaymentMethod(
-                          PosPaymentMethod.bankTransfer),
+                          vm.method == PosPaymentMethod.bankTransfer,
+                      onTap: vm.busy
+                          ? null
+                          : () => ctrl.setPaymentMethod(
+                              PosPaymentMethod.bankTransfer),
                     ),
                   ],
                 );
@@ -1115,10 +1339,10 @@ class _PaymentSheet extends StatelessWidget {
             const SizedBox(height: 14),
 
             // Cash given field (only for cash)
-            Selector<PosController, PosPaymentMethod>(
-              selector: (_, PosController c) => c.paymentMethod,
-              builder: (_, PosPaymentMethod method, __) {
-                if (method != PosPaymentMethod.cash) {
+            Selector<PosController, ({PosPaymentMethod method, bool busy})>(
+              selector: (_, PosController c) => (method: c.paymentMethod, busy: c.isCheckingOut),
+              builder: (BuildContext context, ({PosPaymentMethod method, bool busy}) vm, Widget? child) {
+                if (vm.method != PosPaymentMethod.cash) {
                   return const SizedBox.shrink();
                 }
                 return Column(
@@ -1133,6 +1357,7 @@ class _PaymentSheet extends StatelessWidget {
                     const SizedBox(height: 6),
                     TextField(
                       controller: cashCtrl,
+                      enabled: !vm.busy,
                       keyboardType: const TextInputType.numberWithOptions(
                           decimal: true),
                       inputFormatters: <TextInputFormatter>[
@@ -1171,7 +1396,7 @@ class _PaymentSheet extends StatelessWidget {
                     const SizedBox(height: 8),
                     Selector<PosController, double>(
                       selector: (_, PosController c) => c.change,
-                      builder: (_, double change, __) => Container(
+                      builder: (BuildContext context, double change, Widget? child) => Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
@@ -1204,7 +1429,7 @@ class _PaymentSheet extends StatelessWidget {
             // Confirm button
             Selector<PosController, bool>(
               selector: (_, PosController c) => c.isCheckingOut,
-              builder: (_, bool busy, __) => SizedBox(
+              builder: (BuildContext context, bool busy, Widget? child) => SizedBox(
                 height: 52,
                 child: ElevatedButton.icon(
                   onPressed: busy ? null : onCheckout,
@@ -1239,7 +1464,7 @@ class _PayChip extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _PayChip({
     required this.label,
@@ -1284,6 +1509,227 @@ class _PayChip extends StatelessWidget {
                       fontSize: 11)),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _CategoryChips
+// ─────────────────────────────────────────────────────────────────────────────
+class _CategoryChips extends StatelessWidget {
+  const _CategoryChips();
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<PosController, ({List<String> categories, String selected})>(
+      selector: (_, PosController c) => (
+        categories: c.categories,
+        selected: c.selectedCategory,
+      ),
+      builder: (BuildContext ctx,
+          ({List<String> categories, String selected}) vm, _) {
+        if (vm.categories.length <= 1) {
+          return const SizedBox.shrink();
+        }
+        return SizedBox(
+          height: 52,
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            scrollDirection: Axis.horizontal,
+            itemCount: vm.categories.length,
+            itemBuilder: (BuildContext context, int i) {
+              final String cat = vm.categories[i];
+              final bool isSelected = cat == vm.selected;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(cat),
+                  selected: isSelected,
+                  onSelected: (bool selected) {
+                    if (selected) {
+                      ctx.read<PosController>().setSelectedCategory(cat);
+                    }
+                  },
+                  selectedColor: AppColors.primary,
+                  backgroundColor: Colors.white,
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : const Color(0xFF6B7895),
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(
+                      color: isSelected
+                          ? AppColors.primary
+                          : const Color(0xFFE9EEF5),
+                    ),
+                  ),
+                  showCheckmark: false,
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _HoldCartsSheet
+// ─────────────────────────────────────────────────────────────────────────────
+class _HoldCartsSheet extends StatelessWidget {
+  final ValueChanged<PosHoldCart> onResume;
+
+  const _HoldCartsSheet({required this.onResume});
+
+  static String _fmt(double v) {
+    if ((v - v.truncateToDouble()).abs() < 0.005) {
+      return 'SAR ${v.toStringAsFixed(0)}';
+    }
+    return 'SAR ${v.toStringAsFixed(2)}';
+  }
+
+  static String _ts(DateTime d) {
+    String p(int n) => n.toString().padLeft(2, '0');
+    return '${p(d.hour)}:${p(d.minute)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            const Text('On Hold Sales',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: Color(0xFF0B1B4B),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 18)),
+            const SizedBox(height: 16),
+            Selector<PosController, List<PosHoldCart>>(
+              selector: (_, PosController c) => c.holdCarts,
+              builder: (BuildContext ctx, List<PosHoldCart> holdCarts, _) {
+                if (holdCarts.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(Icons.folder_open_outlined,
+                              size: 48, color: Color(0xFF9AA5B6)),
+                          SizedBox(height: 8),
+                          Text('No sales on hold',
+                              style: TextStyle(
+                                  color: Color(0xFF9AA5B6),
+                                  fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                return Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: holdCarts.length,
+                    itemBuilder: (BuildContext context, int i) {
+                      final PosHoldCart hold = holdCarts[i];
+                      final int itemCount = hold.items
+                          .fold(0, (int sum, PosCartItem item) => sum + item.qty);
+                      final double total = hold.items.fold(
+                          0.0, (double sum, PosCartItem item) => sum + item.total);
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF7FAFF),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFE9EEF5)),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 6),
+                          title: Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: Text(hold.notes ?? 'Suspended Sale',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        color: Color(0xFF0B1B4B),
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 14)),
+                              ),
+                              Text(_ts(hold.createdAt),
+                                  style: const TextStyle(
+                                      color: Color(0xFF9AA5B6),
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12)),
+                            ],
+                          ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Row(
+                              children: <Widget>[
+                                Text(
+                                    '$itemCount item${itemCount == 1 ? "" : "s"} • ${_fmt(total)}',
+                                    style: const TextStyle(
+                                        color: Color(0xFF6B7895),
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12)),
+                                if (hold.customer != null) ...<Widget>[
+                                  const SizedBox(width: 6),
+                                  const Icon(Icons.person_outline,
+                                      size: 12, color: Color(0xFF6B7895)),
+                                  const SizedBox(width: 2),
+                                  Expanded(
+                                    child: Text(hold.customer!.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            color: Color(0xFF6B7895),
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 12)),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              IconButton(
+                                icon: const Icon(Icons.play_circle_outline,
+                                    color: AppColors.primary),
+                                tooltip: 'Resume',
+                                onPressed: () => onResume(hold),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline,
+                                    color: Color(0xFFD93025)),
+                                tooltip: 'Delete',
+                                onPressed: () => ctx
+                                    .read<PosController>()
+                                    .deleteHoldCart(hold.id),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );

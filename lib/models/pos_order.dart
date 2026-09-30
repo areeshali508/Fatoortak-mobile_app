@@ -1,3 +1,5 @@
+import 'customer.dart';
+
 enum PosPaymentMethod { cash, card, bankTransfer }
 
 enum PosOrderStatus { paid, cancelled }
@@ -66,4 +68,20 @@ class PosOrder {
       items.fold(0.0, (double s, PosCartItem i) => s + i.taxAmount);
   double get total => subtotal + taxAmount;
   double get change => (cashGiven - total).clamp(0.0, double.infinity);
+}
+
+class PosHoldCart {
+  final String id;
+  final DateTime createdAt;
+  final List<PosCartItem> items;
+  final Customer? customer;
+  final String? notes;
+
+  const PosHoldCart({
+    required this.id,
+    required this.createdAt,
+    required this.items,
+    this.customer,
+    this.notes,
+  });
 }
